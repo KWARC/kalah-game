@@ -1,0 +1,19 @@
+	KALAH GAME PROTOCOL
+
+Contents of this repository:
+
+  /spec/	The source of a specification, of a protocol to
+  		play Kalah.
+
+  /server/	A collection of server implementations, of the
+  		protocol.
+
+  /client/	A collection of client-side libraries, which
+  		implement the protocol.
+
+  /test/	A test-suit, to validate the implementations of
+  		clients and servers.
+
+The project homepage can be found here:
+
+    http://pkal.mooo.com/index.cgi/kalah-protocol/
