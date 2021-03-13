@@ -110,6 +110,7 @@ func (cli *Client) Interpret(input string) error {
 		case "freeplay":
 			cli.waiting = true
 			waiting <- cli
+			cli.Respond(id, "ok")
 		default:
 			cli.Respond(id, "error", "Unsupported Mode")
 		}
