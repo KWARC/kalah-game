@@ -27,7 +27,7 @@ func main() {
 	flag.UintVar(&defSize, "size", 7, "Size of new boards")
 	flag.UintVar(&defStones, "stones", 7, "Number of stones to use")
 	flag.UintVar(&port, "port", 2671, "Port number to listen on")
-	flag.UintVar(&warmup, "warmup", 0, "Seconds to wait before starting game")
+	flag.UintVar(&warmup, "warmup", 5, "Seconds to wait before starting game")
 	flag.UintVar(&timeout, "timeout", 5, "Seconds to wait for a move to be made")
 	flag.Parse()
 
