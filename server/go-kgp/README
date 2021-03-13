@@ -1,0 +1,19 @@
+This is a server implementation of the Kalah Game Protocl (KGP),
+written in Go[0].  It implements the base protocol, without any
+extensions.  Currently, it only supports the "freeplay" mode.
+
+The only build-dependency is the Go toolchain.  To compile the server,
+run
+
+	$ go build
+
+which produces the "kpg-server" binary.
+
+kgp-server requires no external configuration or persistent state.
+All options are configured via command line flags.  Invoking
+
+	$ ./kgp-server -help
+
+generates a listing of flags.
+
+[0] https://golang.org/
