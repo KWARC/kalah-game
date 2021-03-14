@@ -76,10 +76,10 @@ func (b *Board) String() string {
 }
 
 // Legal returns true if SIDE may play move PIT
-func (b *Board) Legal(side Side, pit uint) bool {
-	size := uint(len(b.northPits))
+func (b *Board) Legal(side Side, pit Move) bool {
+	size := len(b.northPits)
 
-	if pit >= size {
+	if int(pit) >= size {
 		return false
 	}
 
@@ -95,7 +95,7 @@ func (b *Board) Random(side Side) (move Move) {
 	legal := make([]Move, 0, len(b.northPits))
 
 	for i := 0; i < len(b.northPits); i++ {
-		if b.Legal(side, uint(i)) {
+		if b.Legal(side, Move(i)) {
 			legal = append(legal, Move(i))
 		}
 	}
@@ -106,7 +106,7 @@ func (b *Board) Random(side Side) (move Move) {
 }
 
 // Sow modifies the board by sowing PIT for player SELF
-func (b *Board) Sow(self Side, pit uint) bool {
+func (b *Board) Sow(self Side, pit Move) bool {
 	if len(b.northPits) != len(b.southPits) {
 		panic("Illegal board")
 	}
@@ -114,7 +114,7 @@ func (b *Board) Sow(self Side, pit uint) bool {
 	var (
 		stones uint
 
-		size = uint(len(b.northPits))
+		size = len(b.northPits)
 		pos  = pit + 1
 		side = self
 	)
@@ -134,9 +134,9 @@ func (b *Board) Sow(self Side, pit uint) bool {
 
 	// distribute all stones
 	for stones > 0 {
-		if pos > size {
+		if int(pos) > size {
 			panic("Out of bounds")
-		} else if pos == size {
+		} else if int(pos) == size {
 			if side == self {
 				if self == SideNorth {
 					b.north++
@@ -163,7 +163,7 @@ func (b *Board) Sow(self Side, pit uint) bool {
 	if pos == 0 && side == !self {
 		return true
 	} else if side == self && pos > 0 {
-		last := pos - 1
+		last := int(pos - 1)
 		if side == SideNorth && b.northPits[last] == 1 {
 			b.north += b.southPits[size-1-last] + 1
 			b.southPits[size-1-last] = 0
