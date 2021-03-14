@@ -1,0 +1,11 @@
+This is a client-side library implementation of the Kalah Game Protocl
+(KGP), written in Python 3[0].  It implements the base protocol, without
+any extensions.  Currently, it assumes the "freeplay" mode.
+
+This library only depends on core Python 3 packages, and thus requires
+no external dependencies.  To use, just make sure that kgp.py is in
+PYTHONPATH, and import the "kgp" module.
+
+Client examples can be found in the examples/ subdirectory.
+
+[0] https://www.python.org/
