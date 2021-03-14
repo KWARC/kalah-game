@@ -79,7 +79,7 @@ func (b *Board) String() string {
 func (b *Board) Legal(side Side, pit Move) bool {
 	size := len(b.northPits)
 
-	if int(pit) >= size {
+	if int(pit) >= size || int(pit) < 0 {
 		return false
 	}
 
@@ -87,7 +87,6 @@ func (b *Board) Legal(side Side, pit Move) bool {
 		return b.northPits[pit] > 0
 	}
 	return b.southPits[pit] > 0
-
 }
 
 // Random returns a random legal move for SIDE
