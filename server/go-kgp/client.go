@@ -18,6 +18,7 @@ type Client struct {
 	rwc     io.ReadWriteCloser
 	name    string
 	lock    sync.Mutex
+	choice  Move
 	rid     uint64
 	input   chan string
 	waiting bool
