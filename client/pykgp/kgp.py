@@ -298,6 +298,7 @@ def connect(agent, host='localhost', port=2671):
                     if cmd == "kgp":
                         major, _minor, _patch = args
                         if major != 1:
+                            send("error", "protocol not supported", ref=cid)
                             raise ValueError()
                         send("mode", "freeplay")
                     elif cmd == "init":
