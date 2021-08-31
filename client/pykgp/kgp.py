@@ -327,6 +327,11 @@ def connect(agent, host='localhost', port=2671):
                         pass    # ignored
                     elif cmd == "fail":
                         return
+                    elif cmd == "ping":
+                        if len(args) >= 1:
+                            send("pong", args[0], ref=cid)
+                        else:
+                            send("pong", ref=cid)
 
                 except ValueError:
                     pass
