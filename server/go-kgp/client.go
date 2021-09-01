@@ -23,6 +23,7 @@ type Client struct {
 	input   chan string
 	waiting bool
 	pinged  bool
+	simple  bool
 }
 
 // Send forwards an unreferenced message to the client
@@ -37,12 +38,17 @@ func (cli *Client) Respond(to uint64, command string, args ...interface{}) uint6
 		id  = atomic.AddUint64(&cli.rid, 2)
 	)
 
-	fmt.Fprint(buf, id)
-	if to > 0 {
-		fmt.Fprintf(buf, "@%d", to)
+	if id == 2 || cli.simple {
+		fmt.Fprint(buf, command)
+	} else {
+		fmt.Fprint(buf, id)
+		if to > 0 {
+			fmt.Fprintf(buf, "@%d", to)
+		}
+
+		fmt.Fprintf(buf, " %s", command)
 	}
 
-	fmt.Fprintf(buf, " %s", command)
 	for _, arg := range args {
 		fmt.Fprint(buf, " ")
 		switch arg.(type) {

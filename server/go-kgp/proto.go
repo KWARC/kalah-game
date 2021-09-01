@@ -107,6 +107,9 @@ func (cli *Client) Interpret(input string) error {
 		}
 
 		switch mode {
+		case "simple":
+			cli.simple = true
+			fallthrough
 		case "freeplay":
 			cli.waiting = true
 			waiting <- cli
