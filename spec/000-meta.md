@@ -9,6 +9,8 @@ abstract: |
   modularized, so that not all implementations have to implement
   all features. The main modules presented here are freeplay, 
   evaluation and validation.
+  
+  This document specified version 1.0.0 of the KGP protocol.
 keywords: ["Protocol", "Kalah"]
 classoption:
 - twocolumn
