@@ -78,7 +78,7 @@ retry:
 			}
 			i--
 			goto retry
-		} else {
+		} else if cli.game != nil {
 			cli.game.ctrl <- Yield(true)
 		}
 	}
@@ -117,7 +117,9 @@ func (cli *Client) Handle() {
 		}
 		if err := scanner.Err(); err != nil {
 			log.Print(err)
-			cli.game.ctrl <- Yield(true)
+			if cli.game != nil {
+				cli.game.ctrl <- Yield(true)
+			}
 		}
 	}()
 
