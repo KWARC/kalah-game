@@ -22,6 +22,7 @@ type Client struct {
 	rid     uint64
 	input   chan string
 	waiting bool
+	pinged  bool
 }
 
 // Send forwards an unreferenced message to the client
@@ -95,6 +96,20 @@ func (cli *Client) Handle() {
 	cli.input = make(chan string)
 	cli.Send("kgp", majorVersion, minorVersion, patchVersion)
 
+	ticker := time.NewTicker(time.Duration(1+timeout) * time.Second)
+	defer ticker.Stop()
+	go func() {
+		for range ticker.C {
+			if cli.pinged {
+				cli.Send("error", "no pong returned")
+				close(cli.input)
+				break
+			}
+			cli.Send("ping")
+			cli.pinged = true
+		}
+	}()
+
 	go func() {
 		scanner := bufio.NewScanner(cli.rwc)
 		for scanner.Scan() {
@@ -114,4 +129,5 @@ func (cli *Client) Handle() {
 	}
 
 	log.Printf("Close connection for %p", cli)
+	cli.Send("goodbye")
 }

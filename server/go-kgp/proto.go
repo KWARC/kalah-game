@@ -143,6 +143,8 @@ func (cli *Client) Interpret(input string) error {
 		if cmd == "fail" && game != nil {
 			game.ctrl <- Yield(true)
 		}
+	case "pong":
+		cli.pinged = false
 	default:
 		cli.Respond(id, "error", "Invalid command")
 	}
