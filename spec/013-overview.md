@@ -42,7 +42,7 @@ hints. Both client and server SHOULD try to handle these, but MUST NOT
 terminate the connection because of an unknown option.
 
 Any command (client or server) MAY be referenced by a response
-command: `ok` for confirmations, `nack` for negations and `error` for
+command: `ok` for confirmations, `nok` for negations and `error` for
 to indicate an illegal state or data. All three MUST give a
 semantically-opaque string argument. The interpretation of a response
 depends on the mode.
