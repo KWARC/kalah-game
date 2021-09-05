@@ -51,7 +51,7 @@ the "freeplay" mode:
   with other concurrent requests.
   
   The client always interprets the request as making the move as the
-  "north" player.
+  "south" player.
   
 `move [integer]` (client)
 
