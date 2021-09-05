@@ -51,7 +51,7 @@ type Game struct {
 
 // String generates a KGP board representation for the current player
 func (g *Game) String() string {
-	if g.side == SideSouth {
+	if g.side == SideNorth {
 		return g.board.Mirror().String()
 	}
 	return g.board.String()
