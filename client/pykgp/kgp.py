@@ -93,7 +93,7 @@ class Board:
                 self.south = value
 
     def side(self, side):
-        """"""
+        """Return the pits for SIDE."""
         assert side in (NORTH, SOUTH)
 
         if side == NORTH:
@@ -102,7 +102,7 @@ class Board:
             return self.south_pits
 
     def pit(self, side, pit):
-        """"""
+        """Return number of seeds in PIT on SIDE."""
         assert 0 <= pit < self.size
         return self.side(side)[pit]
 
