@@ -58,8 +58,11 @@ public class Server {
         // listen for incoming connections and add them to a list
         ServerSocket serverSocket = new ServerSocket(2671);
 
-        // get two connections
+        // wait for the two clients
+        System.out.println("Waiting for north to connect");
         Socket socketNorth = serverSocket.accept();
+
+        System.out.println("Waiting for south to connect");
         Socket socketSouth = serverSocket.accept();
 
         // we don't want to accept new connections

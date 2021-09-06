@@ -3,10 +3,11 @@ package kgp;
 import java.io.*;
 import java.net.*;
 
-// This protocol is kinda robust, sends an error if the server sends the wrong message at the wrong time
-// or when it's unable to parse a message
-// Recognizes some messages using startsWith(...) or contains(...) which might leave room for curious errors
-// Notifies the server of unknown errors by sending error "crash"
+// This protocol implementation is kinda robust
+// Its only weakness is the acceptance of any remaining message after a correct state message
+// Shuts down cleanly in case of Exceptions (client crashes), passes on the Exception
+// Notifies the server of the server's protocol errors (wrong message / at the wrong time),
+// agent crashes and other exceptions
 
 public class ProtocolManager {
 
@@ -94,35 +95,25 @@ public class ProtocolManager {
                         sendError("Didn't expect " + msg + " message here");
                         keepConnection = false; // break
                     }
-                } else if (msg.startsWith("state ")) {
+                } else if (isStateMessage(msg)) {
                     if (state == ProtocolState.INITIALIZED) {
-                        KalahState ks = null;
-                        try {
-                            // TODO robust parsing
-                            String[] sp = msg.substring(7, msg.length() - 1).split(",");
-                            int[] integers = new int[sp.length];
+                        String[] sp = msg.substring(7, msg.length() - 1).split(",");
+                        int[] integers = new int[sp.length];
 
-                            for (int i = 0; i < integers.length; i++) {
-                                integers[i] = Integer.parseInt(sp[i]);
-                            }
-
-                            int boardSize = integers[0];
-
-                            ks = new KalahState(boardSize, -1);
-
-                            ks.setStoreSouth(integers[1]);
-                            ks.setStoreNorth(integers[2]);
-
-                            for (int i = 0; i < boardSize; i++) {
-                                ks.setHouse(KalahState.Side.SOUTH, i, integers[i + 3]);
-                                ks.setHouse(KalahState.Side.NORTH, i, integers[i + 3 + boardSize]);
-                            }
+                        for (int i = 0; i < integers.length; i++) {
+                            integers[i] = Integer.parseInt(sp[i]);
                         }
-                        catch(Exception e)
-                        {
-                            sendError("Failed to parse " + msg);
-                            keepConnection = false;
-                            break; // leaves the loop, not just the catch block
+
+                        int boardSize = integers[0];
+
+                        KalahState ks = new KalahState(boardSize, -1);
+
+                        ks.setStoreSouth(integers[1]);
+                        ks.setStoreNorth(integers[2]);
+
+                        for (int i = 0; i < boardSize; i++) {
+                            ks.setHouse(KalahState.Side.SOUTH, i, integers[i + 3]);
+                            ks.setHouse(KalahState.Side.NORTH, i, integers[i + 3 + boardSize]);
                         }
 
                         // search, can take a long time
@@ -155,7 +146,14 @@ public class ProtocolManager {
     // called when the server tells the client to initialize
     private void onInit(int boardSize)
     {
-        agent.init(boardSize);
+        try {
+            agent.init(boardSize);
+        }
+        catch(Exception e)
+        {
+            sendError("Exception during agent initialization: " + e.getMessage());
+            keepConnection = false;
+        }
     }
 
     // called when the server tells the client to start searching
@@ -163,7 +161,15 @@ public class ProtocolManager {
     {
         serverSaidStop = false;
 
-        agent.search(ks);
+        try {
+            agent.search(ks);
+        }
+        catch(Exception e)
+        {
+            sendError("Exception during agent search: " + e.getMessage());
+            keepConnection = false;
+            return;
+        }
 
         if (serverSaidStop)
         {
@@ -299,15 +305,14 @@ public class ProtocolManager {
     // checks whether a message is a valid error message
     // error "my error message without newlines or quotes"
     //
-    // starts with error "
-    // ends with "
-    // error message doesn't contain "
-    // error message doesn't contain newline
+    // error "<message>"
+    // message doesn't contain any quotation marks
+    // message doesn't contain any newlines
     private boolean isErrorMessage(String msg)
     {
         return msg.startsWith("error\"") &&
                 msg.endsWith("\"") &&
-            !msg.substring(7, msg.length()-1).contains("\"") &&
+                !msg.substring(7, msg.length()-1).contains("\"") &&
                 !msg.substring(7, msg.length()-1).contains("\n");
     }
 
@@ -371,5 +376,59 @@ public class ProtocolManager {
         }
 
         return true;
+    }
+
+    // checks whether a message is a valid state message
+    // state <boardSize, storeSouth, houseSouth1, houseSouth2, ..., houseNorth1, houseNorth2, ...>
+    private boolean isStateMessage(String msg) {
+
+        // correct start and ending
+        if (!msg.startsWith("state <") ||
+                !msg.endsWith(">")
+        ) {
+            return false;
+        }
+
+        // inner message consists only of digits and comma
+        String integerString = msg.substring(7, msg.length() - 1);
+        for (char c : integerString.toCharArray()) {
+            switch (c) {
+                case '0':
+                case '1':
+                case '2':
+                case '3':
+                case '4':
+                case '5':
+                case '6':
+                case '7':
+                case '8':
+                case '9':
+                case ',':
+                    break;
+
+                default:
+                    return false;
+            }
+        }
+
+        // all integers non-negative?
+        String[] sp = integerString.split(",");
+
+        // too small even for boardSize 1?
+        // boardSize, storeSouth, storeNorth, houseSouth1, houseSouthNorth
+        if (sp.length < 5)
+        {
+            return false;
+        }
+
+        for (String s : sp) {
+            if (Integer.parseInt(s) < 0) {
+                return false;
+            }
+        }
+
+        // finally: does number of integers fit boardSize?
+        int boardSize = Integer.parseInt(sp[0]);
+        return boardSize * 2 + 3 == sp.length;
     }
 }
