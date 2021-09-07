@@ -1,5 +1,5 @@
 ---
-title: Kalah Game Protocol
+title: "[DRAFT] Kalah Game Protocol"
 author:
 - Kaludercic, Philip
 - Völk, Tobias
