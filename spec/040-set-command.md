@@ -25,9 +25,15 @@ options of this group are:
 
 : Authors who wrote the client
 
-`info:description' (string)
+`info:description` (string)
 
 : A brief description of the client's algorithm.
+
+`info:comment` (string)
+
+: Comment of the client about the current position and it's chosen
+  move.  Might contain (depending on the algorithm), number of nodes,
+  search depth, evaluation, ...
 
 `time`-group
 ------------
@@ -50,14 +56,6 @@ manages the time a client is given. The options of this group are:
 `time:opclock` (integer)
 
 : Number of seconds an opponent has left.
-
-`search`-group
-------------
-
-`search:comment` (string)
-
-: Comment of the client about the current position and it's chosen move.
-  Might contain (depending on the algorithm), number of nodes, search depth, evaluation, ...
 
 `auth`-group
 ------------
