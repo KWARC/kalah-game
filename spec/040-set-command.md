@@ -19,7 +19,7 @@ options of this group are:
 
 `info:name` (string)
 
-: A name of the client/server
+: The codename of the client or the server.
 
 `info:authors` (string)
 
