@@ -14,16 +14,20 @@ entirely by both client and server:
 `info`-group
 ------------
 
-On connecting, the server may inform the client about itself. The
+On connecting, server and client may inform each other about each other. The
 options of this group are:
 
-`info:server-name` (string)
+`info:name` (string)
 
-: A name of the server or the implementation
+: A name of the client/server
 
-`info:online` (integer)
+`info:authors` (string)
 
-: The number of currently connected clients.
+: Authors who wrote the client
+
+`info:description' (string)
+
+: A brief description of the client's algorithm.
 
 `time`-group
 ------------
@@ -31,7 +35,7 @@ options of this group are:
 For "freeplay" and especially "simple", the server may indicate how it
 manages the time a client is given. The options of this group are:
 
-`time:system` (word)
+`time:mode` (word)
 
 : One of `none` when no time is tracked, `absolute` if the client is
   given an absolute amount of time it may use and `relative` if the
@@ -46,6 +50,14 @@ manages the time a client is given. The options of this group are:
 `time:opclock` (integer)
 
 : Number of seconds an opponent has left.
+
+`search`-group
+------------
+
+`search:comment` (string)
+
+: Comment of the client about the current position and it's chosen move.
+  Might contain (depending on the algorithm), number of nodes, search depth, evaluation, ...
 
 `auth`-group
 ------------
