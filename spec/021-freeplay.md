@@ -13,7 +13,6 @@ seen in this example:
 
 	s: kgp 1 0 0
 	c: mode freeplay
-	s: 2 init
 	s: 4 state <3,0,0,3,3,3,3,3,3>
 	c: @4 move 1
 	s: 6@4 stop
@@ -35,13 +34,6 @@ Freeplay commands
 
 The following commands must be understood for a client to implement
 the "freeplay" mode:
-
-`init` (server)
-
-: Conforms of the client's `mode` request. The server MAY start
-  sending `state` requests, but MUST NOT do so immediately.
-  
-  All arguments to `init` must be ignored.
   
 `state [board]` (server)
 

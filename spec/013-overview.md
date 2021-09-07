@@ -23,11 +23,6 @@ connection:
 
 	error "Unsupported activity"
 	goodbye
-	
-Otherwise the server MUST eventually send an `init` command, to
-indicate that an activity is about to begin. In absence of an error
-message and an `init` response, the client SHOULD assume that the
-server is processing its request.
 
 The detail of how the protocol continues depends on the chosen
 activity. The server SHOULD terminate the connection with a `goodbye`

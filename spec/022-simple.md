@@ -10,14 +10,6 @@ As such "simple" mode is adequate for implementing tournaments.
 Simple commands
 ---------------
 
-`init [integer]` (server)
-
-: Besides starting the game, the server gives a hint as to what size
-  the board objects sent by `state` will be.
-  
-  The client MUST respond with `ok` as soon as it is ready, otherwise
-  the server MUST terminate the connection (`error`, `goodbye`).
-
 `state [board]` (server)
 
 : The server MUST ensure that only one request is handled by the
