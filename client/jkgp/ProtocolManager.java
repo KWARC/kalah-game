@@ -293,7 +293,82 @@ public class ProtocolManager {
         String msg = input.readLine();
         System.err.println("Server: " + msg);
 
-        return msg;
+	// strip the command ID and reference from msg
+	int i = 0, s = 0;	// index, state
+	loop: while (s != 5) {
+	    switch (s) {
+	    case 0:		// beginning of line
+		switch (msg.charAt(i)) {
+		case ' ': case '\t':
+		    // leading whitespace is ignored
+		    break;
+		case '0': case '1': case '2': case '3': case '4':
+		case '5': case '6': case '7': case '8': case '9':
+		    // a possible command ID has been found
+		    s = 1;
+		    break;
+		default:	// something else
+		    s = -1;
+		    break loop;
+		}
+		break;
+	    case 1:		// in command ID
+		switch (msg.charAt(i)) {
+		case ' ': case '\t':
+		    s = 4;
+		    break;
+		case '@':	// reference ID expected
+		    s = 2;
+		    break;
+		case '0': case '1': case '2': case '3': case '4':
+		case '5': case '6': case '7': case '8': case '9':
+		    // continue parsing command ID
+		    break;
+		default:	// something else
+		    s = -1;
+		    break loop;
+		}
+		break;
+	    case 2:		// expecting reference
+		switch (msg.charAt(i)) {
+		case '0': case '1': case '2': case '3': case '4':
+		case '5': case '6': case '7': case '8': case '9':
+		    state = 3;
+		    break;
+		default:	// something else
+		    s = -1;
+		    break loop;
+		}
+	    case 3:		// in command reference
+		switch (msg.charAt(i)) {
+		case ' ': case '\t':
+		    s = 4;
+		    break;
+		case '0': case '1': case '2': case '3': case '4':
+		case '5': case '6': case '7': case '8': case '9':
+		    // continue parsing command reference
+		    break;
+		default:
+		    s = -1;
+		    break loop;
+		}
+	    case 4:		// ID and reference have been parsed
+		switch (msg.charAt(i)) {
+		case ' ': case '\t':
+		    // Any trailing whitespace after the ID or the
+		    // command reference is jumped over
+		    break;
+		default:	// finished parsing
+		    break loop;
+		}
+	    }
+	    i++;
+	}
+	if (i == -1) {
+	    // TODO: handle parsing error
+	}
+	
+        return msg.substring(i);
     }
 
     // sends error message to server
