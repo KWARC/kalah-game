@@ -31,7 +31,7 @@ options of this group are:
 
 `info:comment` (string)
 
-: Comment of the client about the current position and it's chosen
+: Comment of the client about the current game state and it's chosen
   move.  Might contain (depending on the algorithm), number of nodes,
   search depth, evaluation, ...
 
