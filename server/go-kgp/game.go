@@ -101,8 +101,6 @@ func (g *Game) Start() {
 	g.south.waiting = false
 
 	size := len(g.board.northPits)
-	g.north.Send("init", size)
-	g.south.Send("init", size)
 	time.Sleep(time.Duration(warmup) * time.Second)
 	g.last = g.north.Send("state", g)
 
