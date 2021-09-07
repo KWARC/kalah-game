@@ -301,8 +301,6 @@ def connect(agent, host='localhost', port=2671):
                             send("error", "protocol not supported", ref=cid)
                             raise ValueError()
                         send("mode", "freeplay")
-                    elif cmd == "init":
-                        pass    # ignored
                     elif cmd == "state":
                         board = args[0]
 
