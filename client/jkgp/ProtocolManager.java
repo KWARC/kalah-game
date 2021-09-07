@@ -364,8 +364,8 @@ public class ProtocolManager {
 	    }
 	    i++;
 	}
-	if (i == -1) {
-	    // TODO: handle parsing error
+	if (s == -1) {
+	    throw new IOException("Protocol error")
 	}
 	
         return msg.substring(i);
