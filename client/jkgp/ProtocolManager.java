@@ -2,7 +2,12 @@ package kgp;
 
 import java.io.*;
 import java.net.*;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 // This protocol implementation is kinda robust
 // Its only weakness is the acceptance of any remaining message after a correct state message
@@ -11,6 +16,39 @@ import java.util.HashMap;
 // agent crashes and other exceptions
 
 public class ProtocolManager {
+
+    private class Command {
+        int id, ref;
+        String name;
+        List<String> args;
+
+        public Command(int id, int ref, String name, List<String> args) {
+            this.id = id;
+            this.ref = ref;
+            this.name = name;
+            this.args = args;
+        }
+    }
+
+    static private Pattern compat = Pattern.compile(
+            "^\\s*(?:(\\d*)(?:@(\\d+)\\s+))?" + // id and reference
+                    "([a-z0-9]+)\\s*" + // command name
+                    "((?:\\s+(?:" +
+                    "[-+]?\\d+|" + // integer values
+                    "[-+]?\\d*\\.\\d+?|" + // real values
+                    "[a-z0-9:-]+|" + // words
+                    "\"(?:\\\\.|[^\"])*\"|" + // strings
+                    "<\\d+(,\\d)*>" + // board
+                    "))*\\s*)$",
+            Pattern.CASE_INSENSITIVE);
+
+    static private Pattern argpat = Pattern.compile(
+                    "[-+]?\\d+|" + // integer values
+                    "[-+]?\\d*\\.\\d+?|" + // real values
+                    "[a-z0-9:-]+|" + // words
+                    "\"(?:\\\\.|[^\"])*\"|" + // strings
+                    "<\\d+(,\\d)*>",
+            Pattern.CASE_INSENSITIVE);
 
     private final String host;
     private final int port;
@@ -278,89 +316,25 @@ public class ProtocolManager {
         output.flush();
     }
 
-    // do callback stuff like logging when receiving message
-    private String receiveFromServer() throws IOException
+    private Command receiveFromServer() throws IOException
     {
         String msg = input.readLine();
         System.err.println("Server: " + msg);
 
-        // TODO Philip fix warning 's != 5 is always true'
-        // strip the command ID and reference from msg
-        int i = 0, s = 0;	// index, state
-        loop: while(true){
-            switch (s) {
-                case 0:		// beginning of line
-                    switch (msg.charAt(i)) {
-                        case ' ': case '\t':
-                            // leading whitespace is ignored
-                            break;
-                        case '0': case '1': case '2': case '3': case '4':
-                        case '5': case '6': case '7': case '8': case '9':
-                            // a possible command ID has been found
-                            s = 1;
-                            break;
-                        default:	// something else
-                            s = -1;
-                            break loop;
-                    }
-                    break;
-                case 1:		// in command ID
-                    switch (msg.charAt(i)) {
-                        case ' ': case '\t':
-                            s = 4;
-                            break;
-                        case '@':	// reference ID expected
-                            s = 2;
-                            break;
-                        case '0': case '1': case '2': case '3': case '4':
-                        case '5': case '6': case '7': case '8': case '9':
-                            // continue parsing command ID
-                            break;
-                        default:	// something else
-                            s = -1;
-                            break loop;
-                    }
-                    break;
-                case 2:		// expecting reference
-                    switch (msg.charAt(i)) {
-                        case '0': case '1': case '2': case '3': case '4':
-                        case '5': case '6': case '7': case '8': case '9':
-                            s = 3;
-                            break;
-                        default:	// something else
-                            s = -1;
-                            break loop;
-                    }
-                case 3:		// in command reference
-                    switch (msg.charAt(i)) {
-                        case ' ': case '\t':
-                            s = 4;
-                            break;
-                        case '0': case '1': case '2': case '3': case '4':
-                        case '5': case '6': case '7': case '8': case '9':
-                            // continue parsing command reference
-                            break;
-                        default:
-                            s = -1;
-                            break loop;
-                    }
-                case 4:		// ID and reference have been parsed
-                    switch (msg.charAt(i)) {
-                        case ' ': case '\t':
-                            // Any trailing whitespace after the ID or the
-                            // command reference is jumped over
-                            break;
-                        default:	// finished parsing
-                            break loop;
-                    }
-            }
-            i++;
-        }
-        if (s == -1) {
-            throw new IOException("Protocol error");
+        Matcher mat = compat.matcher(msg);
+        int id = Integer.parseInt(mat.group(1));
+        int ref = Integer.parseInt(mat.group(2));
+        String name = mat.group(3);
+        List<String> args = new LinkedList<>();
+
+        int i = 0;
+        Matcher arg = argpat.matcher(mat.group(4));
+        while (arg.find(i)) {
+            args.add(arg.group());
+            i = arg.end();
         }
 
-        return msg.substring(i);
+        return new Command(id, ref, name, args);
     }
 
     // sends error message to server
