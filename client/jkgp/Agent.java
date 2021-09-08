@@ -2,40 +2,38 @@ package kgp;
 
 import java.io.IOException;
 
-// Implement init() and search() for your agent according to the comments, and you're done
+// Implement the constructor and search() for your agent according to the comments, and you're done
+// Not knowing the board size upon creation of the agent is on purpose
+// Note that servers might punish agents whose constructor needs too much time
 // Prints the client-server communication to the error stream
 // Btw. this is a single threaded implementation, the agent and the protocol manager are calling each other
-// So don't worry about scheduling issues if your tournament restricts the agents to one CPU core
+// So don't worry about scheduling issues if your tournament restricts the agent to one CPU core
 public abstract class Agent {
 
-    // Initialize your agent here like loading databases, neural network files, ...
-    // Servers might throw an error if it takes too long
-    // Don't bother doing expensive calculations elsewhere:
-    //  -you don't know the size of the board yet
-    //  -even if you do, a good server will subtract that time from your initialization time
-    //  -you might as well do your calculations on your gaming pc at home and hardcode the results = opening book
-    protected abstract void init(int boardSize);
+    // Set common option values to be sent automatically upon initialization
+    protected abstract String getName();
+    protected abstract String getAuthors();
+    protected abstract String getDescription();
+
+    // Called after the connection has been established
+    // Can be used to exchange custom set commands with the server
+    protected abstract void beforeGameStarts() throws IOException;
 
     // MANDATORY: Read the documentation of submitMove() and shouldStop()
     // Find the best move for the given state here
     // It's always south's turn to move
     protected abstract void search(KalahState ks) throws IOException;
 
-
-
-
-
-
     // the communication instance the agent uses to communicate with the server
     private final ProtocolManager com;
 
     // Creates an agent to play with a local server using the Kalah Game Protocol default port 2671
-    public Agent() throws IOException{
+    public Agent() {
         com = new ProtocolManager("localhost", 2671, this);
     }
 
     // Creates an agent to play with the specified server using the specified port
-    public Agent(String host, int port) throws IOException {
+    public Agent(String host, int port) {
         com = new ProtocolManager(host, port, this);
     }
 
@@ -63,6 +61,68 @@ public abstract class Agent {
     // Note: You can return from search() anytime, for example if you don't need more time
     protected final boolean shouldStop() throws IOException {
         return com.shouldStop();
+    }
+
+    // Tells the server to comment on the current position, call it during search() for example
+    // Pass your string, can include linebreaks but no quotation marks
+    // Throws IOException if the comment does contain quotation marks
+    protected final void sendComment(String comment) throws IOException
+    {
+        com.sendComment(comment);
+    }
+
+    // Call this function to send an option with its value to the server
+    // Check the specification for when to send what option
+    protected final void sendOption(String option, String value)
+    {
+        com.sendOption(option, value);
+    }
+
+    // Get time mode from server if it was sent, otherwise returns null
+    protected final Integer getTimeMode(){
+        String mode = com.getServerOptionValue("time:mode");
+        if (mode == null)
+        {
+            return null;
+        }
+        else
+        {
+            return Integer.parseInt(mode);
+        }
+    }
+
+    // Get number of seconds on your clock
+    protected final Integer getClock(){
+        String clock = com.getServerOptionValue("time:clock");
+        if (clock == null)
+        {
+            return null;
+        }
+        else
+        {
+            return Integer.parseInt(clock);
+        }
+    }
+
+    // Get number of seconds on your clock
+    protected final Integer getOppClock(){
+        String clock = com.getServerOptionValue("time:opclock");
+        if (clock == null)
+        {
+            return null;
+        }
+        else
+        {
+            return Integer.parseInt(clock);
+        }
+    }
+
+    // Returns the value of an option if the server has sent it
+    // Otherwise returns null
+    // Check the specification for common examples
+    protected final String getOption(String option)
+    {
+        return com.getServerOptionValue(option);
     }
 
 }

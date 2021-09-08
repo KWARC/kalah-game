@@ -2,6 +2,7 @@ package kgp;
 
 import java.io.*;
 import java.net.*;
+import java.util.HashMap;
 
 // This protocol implementation is kinda robust
 // Its only weakness is the acceptance of any remaining message after a correct state message
@@ -11,22 +12,25 @@ import java.net.*;
 
 public class ProtocolManager {
 
-    private enum ProtocolState
-    {
-        WAITING_FOR_VERSION,
-        WAITING_FOR_INIT,
-        INITIALIZED,
-    }
-
     private final String host;
     private final int port;
+
     private final Agent agent;
+
+    // For storing the values of options sent by set commands
+    private final HashMap<String, String> serverOptions = new HashMap<>();
 
     private Socket clientSocket;
     private BufferedReader input;
     private PrintStream output;
 
-    private boolean serverSaidStop, keepConnection;
+    private boolean serverSaidStop;
+
+    private enum ProtocolState
+    {
+        WAITING_FOR_VERSION,
+        PLAYING,
+    }
 
     // Creates new instance of communication to given server for the given agent
     public ProtocolManager(String host, int port, Agent agent) {
@@ -43,60 +47,42 @@ public class ProtocolManager {
         input = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
         output = new PrintStream(clientSocket.getOutputStream(), true);
 
-        // state of the protocol state
         ProtocolState state = ProtocolState.WAITING_FOR_VERSION;
 
-        keepConnection = true;
-
         try {
-            while (keepConnection) {
+            while (true) {
                 String msg = receiveFromServer();
 
                 if (msg.equals("ping")) {
                     sendToServer("pong");
                 } else if (isErrorMessage(msg)) {
-                    keepConnection = false; // break
+                    throw new IOException("Received error message from server: " + msg);
                 } else if (msg.equals("goodbye")) {
-                    keepConnection = false; // break
+                    throw new IOException("Server said goodbye");
                 } else if (isVersionMessage(msg)) {
                     if (state == ProtocolState.WAITING_FOR_VERSION) {
                         if (!msg.startsWith("kgp 1 ")) {
                             // wrong protocol version
-                            sendError("Only kgp 1.*.* supported");
-                            keepConnection = false; // break
+                            throw new IOException("Only kgp 1.*.* supported");
                         } else {
                             // supported version, reply with mode
                             sendToServer("mode simple");
 
+                            // also send the default set information
+                            sendOption("info:name", agent.getName());
+                            sendOption("info:authors", agent.getAuthors());
+                            sendOption("info:description", agent.getDescription());
+
                             // and wait for initialization message
-                            state = ProtocolState.WAITING_FOR_INIT;
+                            state = ProtocolState.PLAYING;
                         }
                     }
                     else
                     {
-                        sendError("Didn't expect " + msg + " here");
-                        keepConnection = false; // break
-                    }
-                } else if (isInitMessage(msg)) {
-                    if (state == ProtocolState.WAITING_FOR_INIT) {
-                        // isInitMessage already checks the integer
-                        int boardSize = Integer.parseInt(msg.substring(5));
-
-                        // initialize
-                        onInit(boardSize);
-
-                        // then tell the server that you're done initializing
-                        sendToServer("ok");
-
-                        state = ProtocolState.INITIALIZED;
-                    }
-                    else
-                    {
-                        sendError("Didn't expect " + msg + " message here");
-                        keepConnection = false; // break
+                        throw new IOException("Didn't expect " + msg + " here");
                     }
                 } else if (isStateMessage(msg)) {
-                    if (state == ProtocolState.INITIALIZED) {
+                    if (state == ProtocolState.PLAYING) {
                         String[] sp = msg.substring(7, msg.length() - 1).split(",");
                         int[] integers = new int[sp.length];
 
@@ -119,16 +105,22 @@ public class ProtocolManager {
                         // search, can take a long time
                         onState(ks);
                     }
+                    else if(isSetMessage(msg))
+                    {
+                        String[] sp = msg.split(" ");
+                        String option = sp[1];
+                        String value = sp[2];
+
+                        serverOptions.put(option, value);
+                    }
                     else
                     {
-                        sendError("Didn't expect " + msg +" here");
-                        keepConnection = false; // break
+                        throw new IOException("Didn't expect " + msg +" here");
                     }
                 }
                 else
                 {
-                    sendError("Unknown (slightly wrong?) message " + msg);
-                    keepConnection = false; // break
+                    throw new IOException("Server sent unknown or (slightly wrong?) message " + msg);
                 }
             }
         }
@@ -143,17 +135,28 @@ public class ProtocolManager {
         }
     }
 
-    // called when the server tells the client to initialize
-    private void onInit(int boardSize)
+    // returns the value of the option as String if the server ever sent
+    // a set command with that option ("set option value"), otherwise returns null
+    String getServerOptionValue(String option)
     {
-        try {
-            agent.init(boardSize);
-        }
-        catch(Exception e)
+        return serverOptions.get(option);
+    }
+
+    // sends a set message to the server ("set option value")
+    // the server might ignore it silently if it doesn't support it
+    void sendOption(String option, String value)
+    {
+        sendToServer("set " + option + " " + value);
+    }
+
+    // send comment to server, check comment for quotation marks
+    void sendComment(String comment) throws IOException
+    {
+        if (comment.contains("\""))
         {
-            sendError("Exception during agent initialization: " + e.getMessage());
-            keepConnection = false;
+            throw new IOException("Comment may not contain quotation mark \"");
         }
+        sendOption("info:comment", "\"" + comment + "\"");
     }
 
     // called when the server tells the client to start searching
@@ -166,9 +169,7 @@ public class ProtocolManager {
         }
         catch(Exception e)
         {
-            sendError("Exception during agent search: " + e.getMessage());
-            keepConnection = false;
-            return;
+            throw new IOException("Exception during agent search: " + e.getMessage());
         }
 
         if (serverSaidStop)
@@ -193,17 +194,13 @@ public class ProtocolManager {
                 } else if (msg.equals("ping")) {
                     sendToServer("pong");
                 } else if (isErrorMessage(msg)) {
-                    keepConnection = false;
-                    return;
+                    throw new IOException("Didn't expect " + msg + " here");
                 } else if (msg.equals("goodbye")) {
-                    keepConnection = false;
-                    return;
+                    throw new IOException("Server said goodbye");
                 }
                 else
                 {
-                    sendError("Got "+msg+" (other than ping/error/goodbye/stop while waiting for stop)");
-                    keepConnection = false;
-                    return;
+                    throw new IOException("Got " + msg + ", unknown or malformed message, other than ping/error/goodbye/stop while waiting for stop\"");
                 }
             }
         }
@@ -233,21 +230,15 @@ public class ProtocolManager {
             }
             else if (isErrorMessage(msg))
             {
-                // error, tell agent to stop
-                keepConnection = false;
-                return true;
+                throw new IOException("Exception during agent search: " + msg);
             }
             else if (msg.equals("goodbye"))
             {
-                // server suddenly ended connection, tell agent to stop
-                keepConnection = false;
-                return true;
+                throw new IOException("Server said goodbye");
             }
             else
             {
-                sendError("Got "+msg+" other than ping/error/goodbye/stop while waiting for stop\"");
-                keepConnection = false;
-                return true;
+                throw new IOException("Got " + msg + ", unknown or malformed message, other than ping/error/goodbye/stop while checking for stop\"");
             }
         }
 
@@ -293,81 +284,82 @@ public class ProtocolManager {
         String msg = input.readLine();
         System.err.println("Server: " + msg);
 
-	// strip the command ID and reference from msg
-	int i = 0, s = 0;	// index, state
-	loop: while (s != 5) {
-	    switch (s) {
-	    case 0:		// beginning of line
-		switch (msg.charAt(i)) {
-		case ' ': case '\t':
-		    // leading whitespace is ignored
-		    break;
-		case '0': case '1': case '2': case '3': case '4':
-		case '5': case '6': case '7': case '8': case '9':
-		    // a possible command ID has been found
-		    s = 1;
-		    break;
-		default:	// something else
-		    s = -1;
-		    break loop;
-		}
-		break;
-	    case 1:		// in command ID
-		switch (msg.charAt(i)) {
-		case ' ': case '\t':
-		    s = 4;
-		    break;
-		case '@':	// reference ID expected
-		    s = 2;
-		    break;
-		case '0': case '1': case '2': case '3': case '4':
-		case '5': case '6': case '7': case '8': case '9':
-		    // continue parsing command ID
-		    break;
-		default:	// something else
-		    s = -1;
-		    break loop;
-		}
-		break;
-	    case 2:		// expecting reference
-		switch (msg.charAt(i)) {
-		case '0': case '1': case '2': case '3': case '4':
-		case '5': case '6': case '7': case '8': case '9':
-		    state = 3;
-		    break;
-		default:	// something else
-		    s = -1;
-		    break loop;
-		}
-	    case 3:		// in command reference
-		switch (msg.charAt(i)) {
-		case ' ': case '\t':
-		    s = 4;
-		    break;
-		case '0': case '1': case '2': case '3': case '4':
-		case '5': case '6': case '7': case '8': case '9':
-		    // continue parsing command reference
-		    break;
-		default:
-		    s = -1;
-		    break loop;
-		}
-	    case 4:		// ID and reference have been parsed
-		switch (msg.charAt(i)) {
-		case ' ': case '\t':
-		    // Any trailing whitespace after the ID or the
-		    // command reference is jumped over
-		    break;
-		default:	// finished parsing
-		    break loop;
-		}
-	    }
-	    i++;
-	}
-	if (s == -1) {
-	    throw new IOException("Protocol error");
-	}
-	
+        // TODO Philip fix warning 's != 5 is always true'
+        // strip the command ID and reference from msg
+        int i = 0, s = 0;	// index, state
+        loop: while(true){
+            switch (s) {
+                case 0:		// beginning of line
+                    switch (msg.charAt(i)) {
+                        case ' ': case '\t':
+                            // leading whitespace is ignored
+                            break;
+                        case '0': case '1': case '2': case '3': case '4':
+                        case '5': case '6': case '7': case '8': case '9':
+                            // a possible command ID has been found
+                            s = 1;
+                            break;
+                        default:	// something else
+                            s = -1;
+                            break loop;
+                    }
+                    break;
+                case 1:		// in command ID
+                    switch (msg.charAt(i)) {
+                        case ' ': case '\t':
+                            s = 4;
+                            break;
+                        case '@':	// reference ID expected
+                            s = 2;
+                            break;
+                        case '0': case '1': case '2': case '3': case '4':
+                        case '5': case '6': case '7': case '8': case '9':
+                            // continue parsing command ID
+                            break;
+                        default:	// something else
+                            s = -1;
+                            break loop;
+                    }
+                    break;
+                case 2:		// expecting reference
+                    switch (msg.charAt(i)) {
+                        case '0': case '1': case '2': case '3': case '4':
+                        case '5': case '6': case '7': case '8': case '9':
+                            s = 3;
+                            break;
+                        default:	// something else
+                            s = -1;
+                            break loop;
+                    }
+                case 3:		// in command reference
+                    switch (msg.charAt(i)) {
+                        case ' ': case '\t':
+                            s = 4;
+                            break;
+                        case '0': case '1': case '2': case '3': case '4':
+                        case '5': case '6': case '7': case '8': case '9':
+                            // continue parsing command reference
+                            break;
+                        default:
+                            s = -1;
+                            break loop;
+                    }
+                case 4:		// ID and reference have been parsed
+                    switch (msg.charAt(i)) {
+                        case ' ': case '\t':
+                            // Any trailing whitespace after the ID or the
+                            // command reference is jumped over
+                            break;
+                        default:	// finished parsing
+                            break loop;
+                    }
+            }
+            i++;
+        }
+        if (s == -1) {
+            throw new IOException("Protocol error");
+        }
+
         return msg.substring(i);
     }
 
@@ -416,36 +408,6 @@ public class ProtocolManager {
                 }
             }
         } catch (NumberFormatException e)
-        {
-            return false;
-        }
-
-        return true;
-    }
-
-    // Checks whether a message is a valid init message
-    // init <int >= 1>
-    private boolean isInitMessage(String msg)
-    {
-        if (!msg.startsWith("init "))
-        {
-            return false;
-        }
-
-        String[] sp = msg.split(" ");
-        if (sp.length != 2)
-        {
-            return false;
-        }
-
-        try
-        {
-            if (Integer.parseInt(sp[1]) < 1)
-            {
-                return false;
-            }
-        }
-        catch(NumberFormatException e)
         {
             return false;
         }
@@ -505,5 +467,12 @@ public class ProtocolManager {
         // finally: does number of integers fit boardSize?
         int boardSize = Integer.parseInt(sp[0]);
         return boardSize * 2 + 3 == sp.length;
+    }
+
+    // TODO ERROR value might be string which contains spaces therefore parsing is wrong
+    // checks whether the given message is a valid set message
+    private boolean isSetMessage(String msg)
+    {
+        return msg.startsWith("set ") && msg.split(" ").length == 3;
     }
 }
