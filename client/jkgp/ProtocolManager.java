@@ -28,7 +28,7 @@ public class ProtocolManager {
     }
 
     private static final Pattern commandPattern = Pattern.compile(
-            "^\\s*(?:(\\d*)(?:@(\\d+)\\s+))?" + // id and reference
+            "^\\s*(?:(\\d+)?(?:@(\\d+))?\\s+)?" + // id and reference
                     "([a-z0-9]+)\\s*" + // command name
                     "((?:\\s+(?:" +
                     "[-+]?\\d+|" + // integer values
