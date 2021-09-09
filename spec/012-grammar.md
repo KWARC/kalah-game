@@ -12,15 +12,15 @@ form, consisting of:
 
 The ABNF representation of a command is as follows:
 
-	command  =  id command *(*1WSP argument) CRLF
+	command  =  id name *(*1WSP argument) CRLF
 	id       =  [[*1DIGIT] [ref] *1WSP]
 	ref      =  ["@" *1DIGIT]
-	command  =  *1(DIGIT / ALPHA)
-	argument =  [("+" / "-")] *1DIGIT ;integer
-	argument =/ [("+" / "-")] *DIGIT "." *1DIGIT ;real
-	argument =/ *1(DIGIT / ALPHA / "-" / ":") ;word
-	argument =/ DQUOTE string DQUOTE ;string
-	argument =/ "<" *1DIGIT *("," *1DIGIT) ">" ;board
+	name     =  *1(DIGIT / ALPHA)
+	argument =  [("+" / "-")] *1DIGIT
+	argument =/ [("+" / "-")] *DIGIT "." *1DIGIT
+	argument =/ *1(DIGIT / ALPHA / "-" / ":")
+	argument =/ DQUOTE string DQUOTE
+	argument =/ "<" *1DIGIT *("," *1DIGIT) ">"
 	string   =  *("\" VCHAR / NDQVCHAR)
 
 where `NDQVCHAR` is every `VCHAR` except for double quotes.
