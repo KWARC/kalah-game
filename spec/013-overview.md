@@ -8,7 +8,12 @@ version of the implemented protocol, e.g.:
 	kgp 1 0 0
 	
 The client MUST parse this command and that it implements everything
-that is necessary to communicate.
+that is necessary to communicate. The major version indicates
+backwards incompatible changes, the minor version indicates forwards
+incompatible changes and the patch version indicates minor changes. A
+client MAY only check the major version to ensure compatibility, and
+MUST check the minor and patch version to ensure availability of later
+improvements to the protocol.
 
 The client MUST eventually proceed to respond with a `mode` command,
 indicating the activity it is interested in. The `mode` command is
