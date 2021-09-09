@@ -12,18 +12,21 @@ form, consisting of:
 
 The ABNF representation of a command is as follows:
 
-	command  =  id name *(*1WSP argument) CRLF
-	id       =  [[*1DIGIT] [ref] *1WSP]
-	ref      =  ["@" *1DIGIT]
-	name     =  *1(DIGIT / ALPHA)
-	argument =  [("+" / "-")] *1DIGIT
-	argument =/ [("+" / "-")] *DIGIT "." *1DIGIT
-	argument =/ *1(DIGIT / ALPHA / "-" / ":")
-	argument =/ DQUOTE string DQUOTE
-	argument =/ "<" *1DIGIT *("," *1DIGIT) ">"
-	string   =  *("\" CHAR / NDQCHAR)
+	command  = id name *(*1WSP argument) CRLF
+	id       = [[*1DIGIT] [ref] *1WSP]
+	ref      = ["@" *1DIGIT]
+	name     = *1(DIGIT / ALPHA)
+	argument = integer / real / word
+	         / string / board
+	integer  = [("+" / "-")] *1DIGIT
+	real     = [("+" / "-")] *DIGIT "." *1DIGIT
+	word     = *1(DIGIT / ALPHA / "-" / ":")
+	string   = DQUOTE scontent DQUOTE
+	scontent = *("\" CHAR / NDQCHAR)
+	board    = "<" *1DIGIT *("," *1DIGIT) ">"
 
-where `NDQCHAR` is every `CHAR` except for double quotes.
+where `NDQCHAR` is every `CHAR` except for double quotes, backslashes
+and line breaks.
 
 An argument has a statically identifiable type, and is either an
 integer (`32`, `+0`, `-100`, ...), a real-valued number (`0.0`,
