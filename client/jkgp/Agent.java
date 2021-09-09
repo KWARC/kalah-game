@@ -2,6 +2,9 @@ package kgp;
 
 import java.io.IOException;
 
+// TODO maybe remove/replace sendOption etc. as the library should hide the protocol
+// though that would mean that every server would have to develop it's own library
+
 // Implement the constructor and search() for your agent according to the comments, and you're done
 // Not knowing the board size upon creation of the agent is on purpose
 // Note that servers might punish agents whose constructor needs too much time
@@ -11,6 +14,7 @@ import java.io.IOException;
 public abstract class Agent {
 
     // Set common option values to be sent automatically upon initialization
+    // or return null if you don't want to send that option
     protected abstract String getName();
     protected abstract String getAuthors();
     protected abstract String getDescription();
@@ -45,12 +49,13 @@ public abstract class Agent {
         com.run();
     }
 
+    // TODO etc. move set comment into submitMove, optional comment through overloading?
+
     // Tell the server the currently "best" move (according to your agent)
     // Call at least one time or the server might punish you!
-    // A move is a number in [1, ..., board_size] (in the direction of sowing)
-    protected final void submitMove(int move)
-    {
-        com.sendMove(move);
+    // A move is a number in [0 ..., board_size-1] (in the direction of sowing)
+    protected final void submitMove(int move) throws IOException {
+        com.sendMove(move + 1);
     }
 
     // Call this function a few times per second in search()
@@ -66,15 +71,13 @@ public abstract class Agent {
     // Tells the server to comment on the current position, call it during search() for example
     // Pass your string, can include linebreaks but no quotation marks
     // Throws IOException if the comment does contain quotation marks
-    protected final void sendComment(String comment) throws IOException
-    {
+    protected final void sendComment(String comment) throws IOException {
         com.sendComment(comment);
     }
 
     // Call this function to send an option with its value to the server
     // Check the specification for when to send what option
-    protected final void sendOption(String option, String value)
-    {
+    protected final void sendOption(String option, String value) throws IOException {
         com.sendOption(option, value);
     }
 

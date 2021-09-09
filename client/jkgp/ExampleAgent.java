@@ -9,9 +9,9 @@ import java.util.Random;
 // the latter is just to make it a better example, we don't want to provide any algorithms here
 public class ExampleAgent extends Agent {
 
-    private Random rng = null;
+    private final Random rng;
 
-    public ExampleAgent(String host, int port) throws IOException {
+    public ExampleAgent(String host, int port) {
         super(host, port);
 
         // Initialize your agent, load databases, neural networks, ...
@@ -37,18 +37,17 @@ public class ExampleAgent extends Agent {
                 "Very friendly to the environment.";
     }
 
-    // TODO ERROR Protocol Manager can't receive those servers set commands before calling beforeGameStarts
+    // Exchanging tournament information upon connecting to the server
     @Override
-    public void beforeGameStarts()
-    {
+    public void beforeGameStarts() throws IOException {
         // Maybe we play on a special server which hosts multiple tournaments at the same time?
-        String availableTournaments = getOption("custom:tournaments:availabletournaments");
+        String availableTournaments = getOption("tournament:available-tournaments");
 
         if (availableTournaments != null)
         {
             // ... choosing tournament
 
-            sendOption("custom:tournament:name", "Kalah FAU championship");
+            sendOption("tournament:name", "Kalah FAU championship");
         }
     }
 
@@ -72,9 +71,7 @@ public class ExampleAgent extends Agent {
             int chosenMove = moves.get(randomIndex);
 
             // send that move to the server
-            // add one because protocol moves go from 1 to N where N is the size of the board whereas
-            // the Kalah implementation's moves go from 0 to N-1 because of array indexing
-            this.submitMove(chosenMove + 1);
+            this.submitMove(chosenMove);
 
             // Commenting on the current position and/or move choice
             sendComment("I chose move " + (chosenMove + 1) + " because the RNG told me to so.\n" +
@@ -84,10 +81,10 @@ public class ExampleAgent extends Agent {
 
 
             // Maybe we're using a special server which displays smileys based on the agents feelings?
-            sendOption("custom:emotions:emotion", "pure happiness");
+            sendOption("emotions:emotion", "pure happiness");
 
             // Maybe we're using a special server which tells us about our opponents emotions?
-            String emotion = getOption("custom:emotions:operation");
+            String emotion = getOption("emotions:operation");
             if (emotion != null)
             {
                 if (emotion.equals("Very scared"))
@@ -108,7 +105,7 @@ public class ExampleAgent extends Agent {
             }
             catch(InterruptedException e)
             {
-
+                e.printStackTrace();
             }
 
             timeToWait *= 2.0; // increase search time

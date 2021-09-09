@@ -2,35 +2,32 @@ package kgp;
 
 import java.io.*;
 import java.net.*;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-// This protocol implementation is kinda robust
-// Its only weakness is the acceptance of any remaining message after a correct state message
-// Shuts down cleanly in case of Exceptions (client crashes), passes on the Exception
-// Notifies the server of the server's protocol errors (wrong message / at the wrong time),
-// agent crashes and other exceptions
+// This protocol implementation is kinda "robust" (= no mercy regarding protocol errors + handles errors in a clean way)
+// Shuts down cleanly in case of Exceptions (client crashes), passes the Exception on to the caller
+// Notifies the server of the server's protocol errors (wrong message / at the wrong time), errors and agent errors
 
 public class ProtocolManager {
 
-    private class Command {
-        int id, ref;
-        String name;
+    // TODO rename message to command in all comments
+    private static class Command {
+
+        String original, name;
         List<String> args;
 
-        public Command(int id, int ref, String name, List<String> args) {
-            this.id = id;
-            this.ref = ref;
+        public Command(String original, String name, List<String> args) {
+            this.original = original;
             this.name = name;
             this.args = args;
         }
     }
 
-    static private Pattern compat = Pattern.compile(
+    private static final Pattern commandPattern = Pattern.compile(
             "^\\s*(?:(\\d*)(?:@(\\d+)\\s+))?" + // id and reference
                     "([a-z0-9]+)\\s*" + // command name
                     "((?:\\s+(?:" +
@@ -42,8 +39,8 @@ public class ProtocolManager {
                     "))*\\s*)$",
             Pattern.CASE_INSENSITIVE);
 
-    static private Pattern argpat = Pattern.compile(
-                    "[-+]?\\d+|" + // integer values
+    private static final Pattern argumentPattern = Pattern.compile(
+            "[-+]?\\d+|" + // integer values
                     "[-+]?\\d*\\.\\d+?|" + // real values
                     "[a-z0-9:-]+|" + // words
                     "\"(?:\\\\.|[^\"])*\"|" + // strings
@@ -60,7 +57,7 @@ public class ProtocolManager {
 
     private Socket clientSocket;
     private BufferedReader input;
-    private PrintStream output;
+    private OutputStream output;
 
     private boolean serverSaidStop;
 
@@ -83,45 +80,67 @@ public class ProtocolManager {
         // create a connection
         clientSocket = new Socket(host, port);
         input = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-        output = new PrintStream(clientSocket.getOutputStream(), true);
+        output = clientSocket.getOutputStream();
 
         ProtocolState state = ProtocolState.WAITING_FOR_VERSION;
 
         try {
             while (true) {
-                String msg = receiveFromServer();
+                Command msg = receiveFromServer();
 
-                if (msg.equals("ping")) {
+                if ("ping".equals(msg.name)) {
+                    if (isIncorrectPingMessage(msg)) {
+                        throw new IOException("Not a correct ping message: " + msg.original);
+                    }
                     sendToServer("pong");
-                } else if (isErrorMessage(msg)) {
+                } else if ("error".equals(msg.name)) {
+                    if (isIncorrectErrorMessage(msg)) {
+                        throw new IOException("Not a correct error message: " + msg.original);
+                    }
                     throw new IOException("Received error message from server: " + msg);
-                } else if (msg.equals("goodbye")) {
+                } else if ("goodbye".equals(msg.name)) {
+                    if (isIncorrectGoodbyeMessage(msg)) {
+                        throw new IOException("Not a correct goodbye message: " + msg.original);
+                    }
                     throw new IOException("Server said goodbye");
-                } else if (isVersionMessage(msg)) {
+                } else if ("kgp".equals(msg.name)) {
+                    if (!isCorrectVersionMessage(msg)) {
+                        throw new IOException("Not a correct version message: " + msg.original);
+                    }
                     if (state == ProtocolState.WAITING_FOR_VERSION) {
-                        if (!msg.startsWith("kgp 1 ")) {
+                        if (!msg.original.startsWith("kgp 1 ")) {
                             // wrong protocol version
                             throw new IOException("Only kgp 1.*.* supported");
                         } else {
+                            // server uses kalah game protocol 1.*.*
+
+                            // send the default information
+                            if (agent.getName() != null)
+                                sendOption("info:name", agent.getName());
+                            if (agent.getAuthors() != null)
+                                sendOption("info:authors", agent.getAuthors());
+                            if (agent.getDescription() != null)
+                                sendOption("info:description", agent.getDescription());
+
+                            // let agent do it's own information exchange
+                            agent.beforeGameStarts();
+
                             // supported version, reply with mode
                             sendToServer("mode simple");
 
-                            // also send the default set information
-                            sendOption("info:name", agent.getName());
-                            sendOption("info:authors", agent.getAuthors());
-                            sendOption("info:description", agent.getDescription());
-
-                            // and wait for initialization message
+                            // and wait for the initialization message
                             state = ProtocolState.PLAYING;
                         }
+                    } else {
+                        throw new IOException("Didn't expect " + msg.name + " here");
                     }
-                    else
-                    {
-                        throw new IOException("Didn't expect " + msg + " here");
+                } else if ("state".equals(msg.name)) {
+                    if (!isCorrectStateMessage(msg)) {
+                        throw new IOException("Not a correct state message: " + msg.original);
                     }
-                } else if (isStateMessage(msg)) {
                     if (state == ProtocolState.PLAYING) {
-                        String[] sp = msg.substring(7, msg.length() - 1).split(",");
+                        String[] sp = msg.args.get(0).substring(1, msg.args.get(0).length() - 1).split(",");
+
                         int[] integers = new int[sp.length];
 
                         for (int i = 0; i < integers.length; i++) {
@@ -142,23 +161,19 @@ public class ProtocolManager {
 
                         // search, can take a long time
                         onState(ks);
-                    }
-                    else if(isSetMessage(msg))
-                    {
-                        String[] sp = msg.split(" ");
-                        String option = sp[1];
-                        String value = sp[2];
+                    } else {
+                        throw new IOException("Didn't expect " + msg.name + " here");
 
-                        serverOptions.put(option, value);
                     }
-                    else
-                    {
-                        throw new IOException("Didn't expect " + msg +" here");
+                } else if ("set".equals(msg.name)) {
+                    if (!isCorrectSetMessage(msg)) {
+                        throw new IOException("Not a correct set message: " + msg.original);
                     }
-                }
-                else
-                {
-                    throw new IOException("Server sent unknown or (slightly wrong?) message " + msg);
+                    String option = msg.args.get(0);
+                    String value = msg.args.get(1);
+                    serverOptions.put(option, value);
+                } else {
+                    throw new IOException("Unknown command " + msg.name);
                 }
             }
         }
@@ -180,21 +195,34 @@ public class ProtocolManager {
         return serverOptions.get(option);
     }
 
-    // sends a set message to the server ("set option value")
+    // sends a set command to the server ("set option value")
     // the server might ignore it silently if it doesn't support it
-    void sendOption(String option, String value)
+    void sendOption(String option, String value) throws IOException
     {
+        for(char c:option.toCharArray())
+        {
+            if (!Character.isDigit(c) &&
+                    !('a' <= c && c <= 'z') &&
+                    !('A' <= c && c <= 'Z') &&
+                    c != '-' &&
+                    c != ':')
+            {
+                throw new IllegalArgumentException("Option contains illegal character: " + option);
+            }
+        }
+
+        if (!argumentPattern.matcher(value).matches())
+        {
+            throw new IllegalArgumentException("Value has wrong format: " + value);
+        }
+
         sendToServer("set " + option + " " + value);
     }
 
     // send comment to server, check comment for quotation marks
-    void sendComment(String comment) throws IOException
-    {
-        if (comment.contains("\""))
-        {
-            throw new IOException("Comment may not contain quotation mark \"");
-        }
-        sendOption("info:comment", "\"" + comment + "\"");
+    void sendComment(String comment) throws IOException {
+        // place a backslash in front of every backslash, newline and quotation mark
+        sendOption("info:comment", "\"" + comment.replaceAll("[\\\\\n\"]", "\\\0") + "\"");
     }
 
     // called when the server tells the client to start searching
@@ -223,22 +251,38 @@ public class ProtocolManager {
 
             // wait for it's stop
             while (true) {
-                String msg = receiveFromServer();
-                if (msg.equals("stop")) {
+                Command msg = receiveFromServer();
+
+                if ("stop".equals(msg.name)) {
+                    if (isIncorrectStopMessage(msg)) {
+                        throw new IOException("Not a correct stop message: " + msg.original);
+                    }
+
                     // server told us to stop
 
                     // agent already stopped (yielded), do nothing
-                    break;
-                } else if (msg.equals("ping")) {
+                    return;
+                } else if ("ping".equals(msg.name)) {
+                    if (isIncorrectPingMessage(msg)) {
+                        throw new IOException("Not a correct ping message: " + msg.original);
+                    }
+
                     sendToServer("pong");
-                } else if (isErrorMessage(msg)) {
-                    throw new IOException("Didn't expect " + msg + " here");
-                } else if (msg.equals("goodbye")) {
+                } else if ("error".equals(msg.name)) {
+                    if (isIncorrectErrorMessage(msg)) {
+                        throw new IOException("Not a correct error message: " + msg.original);
+                    }
+
+                    throw new IOException("Server error: " + msg.original);
+                } else if ("goodbye".equals(msg.name)) {
+                    if (isIncorrectGoodbyeMessage(msg)) {
+                        throw new IOException("Not a correct goodbye message: " + msg.original);
+                    }
+
                     throw new IOException("Server said goodbye");
-                }
-                else
-                {
-                    throw new IOException("Got " + msg + ", unknown or malformed message, other than ping/error/goodbye/stop while waiting for stop\"");
+                } else {
+                    throw new IOException("Got " + msg.name +
+                            " but expected ping/error/goodbye/stop while waiting for stop");
                 }
             }
         }
@@ -253,30 +297,39 @@ public class ProtocolManager {
         }
         else if (input.ready())
         {
-            String msg = receiveFromServer();
-            if (msg.equals("stop"))
-            {
+            Command msg = receiveFromServer();
+
+            if ("stop".equals(msg.name)) {
+                if (isIncorrectStopMessage(msg)) {
+                    throw new IOException("Not a correct stop message: " + msg.original);
+                }
+
                 // set stop variable for subsequent calls
                 serverSaidStop = true;
 
                 // tell agent to stop
                 return true;
-            }
-            else if (msg.equals("ping"))
-            {
+            } else if ("ping".equals(msg.name)) {
+                if (isIncorrectPingMessage(msg)) {
+                    throw new IOException("Not a correct ping message: " + msg.original);
+                }
+
                 sendToServer("pong");
-            }
-            else if (isErrorMessage(msg))
-            {
-                throw new IOException("Exception during agent search: " + msg);
-            }
-            else if (msg.equals("goodbye"))
-            {
+            } else if ("error".equals(msg.name)) {
+                if (isIncorrectErrorMessage(msg)) {
+                    throw new IOException("Not a correct error message: " + msg.original);
+                }
+
+                throw new IOException("Server error: " + msg.original);
+            } else if ("goodbye".equals(msg.name)) {
+                if (isIncorrectGoodbyeMessage(msg)) {
+                    throw new IOException("Not a correct goodbye message: " + msg.original);
+                }
+
                 throw new IOException("Server said goodbye");
-            }
-            else
-            {
-                throw new IOException("Got " + msg + ", unknown or malformed message, other than ping/error/goodbye/stop while checking for stop\"");
+            } else {
+                throw new IOException("Got " + msg.name +
+                        " but expected ping/error/goodbye/stop while checking for stop");
             }
         }
 
@@ -289,8 +342,11 @@ public class ProtocolManager {
     // but the Kalah implementation uses 0, 1, 2, ..., board_size - 1
     // because of array indexing, so you have to add +1 to your move
     // before calling this function
-    void sendMove(int move)
+    void sendMove(int move) throws IOException
     {
+        if (move <= 0) {
+            throw new IllegalArgumentException("");
+        }
         sendToServer("move "+move);
     }
 
@@ -309,74 +365,81 @@ public class ProtocolManager {
 
     // sends message to server, adds \r\n, flushes
     // also acts as callback for logging etc.
-    private void sendToServer(String msg)
+    private void sendToServer(String msg) throws IOException
     {
         System.err.println("Client: " + msg);
-        output.print(msg + "\r\n");
+
+        output.write(msg.getBytes());
+        output.write('\r');
+        output.write('\n');
         output.flush();
     }
 
     private Command receiveFromServer() throws IOException
     {
-        String msg = input.readLine();
-        System.err.println("Server: " + msg);
+        String original = input.readLine();
 
-        Matcher mat = compat.matcher(msg);
-        int id = Integer.parseInt(mat.group(1));
-        int ref = Integer.parseInt(mat.group(2));
-        String name = mat.group(3);
-        List<String> args = new LinkedList<>();
+        // logging
+        System.err.println("Server: " + original);
 
-        int i = 0;
-        Matcher arg = argpat.matcher(mat.group(4));
-        while (arg.find(i)) {
-            args.add(arg.group());
-            i = arg.end();
+        try {
+            Matcher mat = commandPattern.matcher(original);
+            // ignore id and ref for this implementation
+            String name = mat.group(3);
+            List<String> args = new LinkedList<>();
+
+            int i = 0;
+            Matcher arg = argumentPattern.matcher(mat.group(4));
+            while (arg.find(i)) {
+                args.add(arg.group());
+                i = arg.end();
+            }
+
+            return new Command(original, name, args);
+        } catch (IllegalStateException e)
+        {
+            e.printStackTrace();
+            throw new IOException("Message has wrong format: " + original);
         }
-
-        return new Command(id, ref, name, args);
     }
 
     // sends error message to server
-    private void sendError(String msg)
+    private void sendError(String msg) throws IOException
     {
         sendToServer("error \"" + msg + "\"");
     }
 
-    // checks whether a message is a valid error message
-    // error "my error message without newlines or quotes"
-    //
-    // error "<message>"
-    // message doesn't contain any quotation marks
-    // message doesn't contain any newlines
-    private boolean isErrorMessage(String msg)
+    // checks whether a message is a correct ping message
+    private boolean isIncorrectPingMessage(Command command)
     {
-        return msg.startsWith("error\"") &&
-                msg.endsWith("\"") &&
-                !msg.substring(7, msg.length()-1).contains("\"") &&
-                !msg.substring(7, msg.length()-1).contains("\n");
+        return !command.original.equals("ping");
     }
 
-    // Checks whether a message is a valid version message
-    // kgp <int >= 0> <int >= 0> <int >= 0>
-    private boolean isVersionMessage(String msg)
+    // checks whether a message is a correct goodbye message
+    private boolean isIncorrectGoodbyeMessage(Command command)
     {
-        if (!msg.startsWith("kgp "))
-        {
-            return false;
-        }
+        return !command.original.equals("goodbye");
+    }
 
-        String[] sp = msg.split(" ");
+    // checks whether a message is a correct error message
+    private boolean isIncorrectErrorMessage(Command command)
+    {
+        return !command.name.equals("error") ||
+                command.args.size() != 1;
+    }
 
-        if (sp.length != 4)
-        {
+    // Checks whether a message is a correct version message
+    private boolean isCorrectVersionMessage(Command msg)
+    {
+        if (!msg.name.equals("kgp") || msg.args.size() != 3) {
             return false;
         }
 
         try
         {
-            for(int i=1;i<=3;i++) {
-                if (Integer.parseInt(sp[i]) < 0)
+            for(String s:msg.args)
+            {
+                if (Integer.parseInt(s) < 0)
                 {
                     return false;
                 }
@@ -389,64 +452,52 @@ public class ProtocolManager {
         return true;
     }
 
-    // checks whether a message is a valid state message
-    // state <boardSize, storeSouth, houseSouth1, houseSouth2, ..., houseNorth1, houseNorth2, ...>
-    private boolean isStateMessage(String msg) {
+    // checks whether a message is a correct state message
+    private boolean isCorrectStateMessage(Command msg) {
 
-        // correct start and ending
-        if (!msg.startsWith("state <") ||
-                !msg.endsWith(">")
-        ) {
+        if (!msg.name.equals("state") || msg.args.size() != 1) {
             return false;
         }
 
-        // inner message consists only of digits and comma
-        String integerString = msg.substring(7, msg.length() - 1);
-        for (char c : integerString.toCharArray()) {
-            switch (c) {
-                case '0':
-                case '1':
-                case '2':
-                case '3':
-                case '4':
-                case '5':
-                case '6':
-                case '7':
-                case '8':
-                case '9':
-                case ',':
-                    break;
+        try {
+            String state = msg.args.get(0);
 
-                default:
-                    return false;
+            String[] sp = state.substring(1, state.length() - 1).split(",");
+
+            int[] integers = new int[sp.length];
+
+            for (int i = 0; i < integers.length; i++) {
+                integers[i] = Integer.parseInt(sp[i]);
             }
-        }
 
-        // all integers non-negative?
-        String[] sp = integerString.split(",");
+            int boardSize = integers[0];
 
-        // too small even for boardSize 1?
-        // boardSize, storeSouth, storeNorth, houseSouth1, houseSouthNorth
-        if (sp.length < 5)
+            if (boardSize * 2 + 3 != integers.length)
+            {
+                return false;
+            }
+        } catch (Exception e)
         {
             return false;
         }
 
-        for (String s : sp) {
-            if (Integer.parseInt(s) < 0) {
-                return false;
-            }
-        }
-
-        // finally: does number of integers fit boardSize?
-        int boardSize = Integer.parseInt(sp[0]);
-        return boardSize * 2 + 3 == sp.length;
+        return true;
     }
 
-    // TODO ERROR value might be string which contains spaces therefore parsing is wrong
-    // checks whether the given message is a valid set message
-    private boolean isSetMessage(String msg)
+    // checks whether the given message is a correct set message
+    private boolean isCorrectSetMessage(Command msg)
     {
-        return msg.startsWith("set ") && msg.split(" ").length == 3;
+        if (!msg.name.equals("set") && msg.args.size() != 2)
+        {
+            return false;
+        }
+
+        return !msg.args.get(0).contains(":");
+    }
+
+    // checks whether the given message is a correct stop message
+    private boolean isIncorrectStopMessage(Command msg)
+    {
+        return !msg.original.equals("stop");
     }
 }

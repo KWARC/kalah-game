@@ -427,10 +427,12 @@ public class KalahState {
     @Override
     public boolean equals(Object o) {
 
-        if(!(o instanceof KalahState s))
+        if(!(o instanceof KalahState))
         {
             return false;
         }
+
+        KalahState s = (KalahState) o;
 
         return sideToMove == s.sideToMove &&
                 storeSouth == s.storeSouth &&
