@@ -28,9 +28,11 @@ The detail of how the protocol continues depends on the chosen
 activity. The server SHOULD terminate the connection with a `goodbye`
 command.
 
-At any time the server MAY send a `ping` command. The client MUST
-answer with `pong`, and SHOULD do so as quickly as possible. In
-absence of a response, the server SHOULD terminate the connection.
+After the connection has been established and version compatibility
+has been ensured, the server MAY send a `ping` command. The
+client MUST answer with `pong`, and SHOULD do so as quickly as
+possible. In absence of a response, the server SHOULD terminate the
+connection.
 
 Both client and server MAY send `set` commands give the other party
 hints. Both client and server SHOULD try to handle these, but MUST NOT
