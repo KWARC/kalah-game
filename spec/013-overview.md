@@ -8,8 +8,7 @@ version of the implemented protocol, e.g.:
 	kgp 1 0 0
 	
 The client MUST parse this command and that it implements everything
-that is necessary to communicate. The server SHOULD NOT add a command
-ID to the `kgp` command.
+that is necessary to communicate.
 
 The client MUST eventually proceed to respond with a `mode` command,
 indicating the activity it is interested in. The `mode` command is
