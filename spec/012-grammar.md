@@ -21,9 +21,9 @@ The ABNF representation of a command is as follows:
 	argument =/ *1(DIGIT / ALPHA / "-" / ":")
 	argument =/ DQUOTE string DQUOTE
 	argument =/ "<" *1DIGIT *("," *1DIGIT) ">"
-	string   =  *("\" VCHAR / NDQVCHAR)
+	string   =  *("\" CHAR / NDQCHAR)
 
-where `NDQVCHAR` is every `VCHAR` except for double quotes.
+where `NDQCHAR` is every `CHAR` except for double quotes.
 
 An argument has a statically identifiable type, and is either an
 integer (`32`, `+0`, `-100`, ...), a real-valued number (`0.0`,
