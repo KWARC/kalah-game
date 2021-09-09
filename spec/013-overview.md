@@ -36,7 +36,10 @@ connection.
 
 Both client and server MAY send `set` commands give the other party
 hints. Both client and server SHOULD try to handle these, but MUST NOT
-terminate the connection because of an unknown option.
+terminate the connection because of an unknown option. Version
+commands indicating capabilities and requests SHOULD be handled
+between the version compatibility is ensured (`kgp`) and the activity
+request (`mode`).
 
 Any command (client or server) MAY be referenced by a response
 command: `ok` for confirmations and `error` for to indicate an illegal
