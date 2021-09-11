@@ -384,6 +384,10 @@ public class ProtocolManager {
 
         try {
             Matcher mat = commandPattern.matcher(original);
+	    if (!mat.matches()) {
+		throw new IOException("Malformed input");
+	    }
+
             // ignore id and ref for this implementation
             String name = mat.group(3);
             List<String> args = new LinkedList<>();
