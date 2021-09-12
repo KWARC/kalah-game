@@ -83,14 +83,6 @@ public class Server {
         inputNorth.readLine();
         inputSouth.readLine();
 
-        // tell clients to init
-        sendToClient(outputNorth, "init " + BOARD_SIZE);
-        sendToClient(outputSouth, "init " + BOARD_SIZE);
-
-        // consume "ok" messages from clients
-        inputNorth.readLine();
-        inputSouth.readLine();
-
         // create new board of size BOARD_SIZE with SEEDS in each house
         KalahState ks = new KalahState(BOARD_SIZE, SEEDS);
 
@@ -193,6 +185,8 @@ public class Server {
             ks.doMove(chosenMove - 1);
 
             ks.flipIfWasFlipped(wasFlipped);
+
+            System.out.println("Move " + chosenMove + "\n");
 
             System.out.println(ks + "\n");
         }
