@@ -93,29 +93,20 @@ public class ProtocolManager {
 
         try {
             while (true) {
-                Command msg = receiveFromServer();
+                Command cmd = receiveFromServer();
 
-                if ("ping".equals(msg.name)) {
-                    if (isIncorrectPingCommand(msg)) {
-                        throw new ProtocolException("Not a correct ping command: " + msg.original);
-                    }
-                    sendToServer("pong");
-                } else if ("error".equals(msg.name)) {
-                    if (isIncorrectErrorCommand(msg)) {
-                        throw new ProtocolException("Not a correct error command: " + msg.original);
-                    }
-                    throw new ProtocolException("Received error command from server: " + msg);
-                } else if ("goodbye".equals(msg.name)) {
-                    if (isIncorrectGoodbyeCommand(msg)) {
-                        throw new ProtocolException("Not a correct goodbye command: " + msg.original);
-                    }
-                    throw new GoodbyeEvent();
-                } else if ("kgp".equals(msg.name)) {
-                    if (!isCorrectVersionCommand(msg)) {
-                        throw new ProtocolException("Not a correct version command: " + msg.original);
+                if ("ping".equals(cmd.name)) {
+                    reactToPing(cmd);
+                } else if ("error".equals(cmd.name)) {
+                    reactToError(cmd);
+                } else if ("goodbye".equals(cmd.name)) {
+                    reactToGoodbye(cmd);
+                } else if ("kgp".equals(cmd.name)) {
+                    if (!isCorrectVersionCommand(cmd)) {
+                        throw new ProtocolException("Not a correct version command: " + cmd.original);
                     }
                     if (state == ProtocolState.WAITING_FOR_VERSION) {
-                        if (!msg.original.startsWith("kgp 1 ")) {
+                        if (!cmd.original.startsWith("kgp 1 ")) {
                             // wrong protocol version
                             throw new ProtocolException("Only kgp 1.*.* supported");
                         } else {
@@ -144,14 +135,14 @@ public class ProtocolManager {
                             state = ProtocolState.PLAYING;
                         }
                     } else {
-                        throw new ProtocolException("Didn't expect " + msg.name + " here");
+                        throw new ProtocolException("Didn't expect " + cmd.name + " here");
                     }
-                } else if ("state".equals(msg.name)) {
-                    if (!isCorrectStateCommand(msg)) {
-                        throw new ProtocolException("Not a correct state command: " + msg.original);
+                } else if ("state".equals(cmd.name)) {
+                    if (!isCorrectStateCommand(cmd)) {
+                        throw new ProtocolException("Not a correct state command: " + cmd.original);
                     }
                     if (state == ProtocolState.PLAYING) {
-                        String[] sp = msg.args.get(0).substring(1, msg.args.get(0).length() - 1).split(",");
+                        String[] sp = cmd.args.get(0).substring(1, cmd.args.get(0).length() - 1).split(",");
 
                         int[] integers = new int[sp.length];
 
@@ -174,37 +165,13 @@ public class ProtocolManager {
                         // search, can take a long time
                         onState(ks);
                     } else {
-                        throw new ProtocolException("Didn't expect " + msg.name + " here");
+                        throw new ProtocolException("Didn't expect " + cmd.name + " here");
 
                     }
-                } else if ("set".equals(msg.name)) {
-                    if (!isCorrectSetCommand(msg)) {
-                        throw new ProtocolException("Not a correct set command: " + msg.original);
-                    }
-                    String option = msg.args.get(0);
-                    String value = msg.args.get(1);
-
-                    switch (option) {
-                        case "info:name":
-                            setServerName(value);
-                            break;
-                        case "time:mode":
-                            setTimeMode(value);
-                            break;
-                        case "time:clock":
-                            setTimeClock(value);
-                            break;
-                        case "time:opclock":
-                            setTimeOpClock(value);
-                            break;
-                        case "auth:challenge": // TODO change specification so auth is not asked for while searching
-                            respondToChallenge(value);
-                            break;
-                        default:
-                            // ignore
-                    }
+                } else if ("set".equals(cmd.name)) {
+                    reactToSet(cmd);
                 } else {
-                    throw new ProtocolException("Unknown command " + msg.name);
+                    throw new ProtocolException("Unknown command " + cmd.name);
                 }
             }
         } catch(GoodbyeEvent ge)
@@ -214,6 +181,59 @@ public class ProtocolManager {
         finally {
             // on crash, don't tell the server, just say goodbye and still throw the exception
             sendGoodbyeAndCloseConnection();
+        }
+    }
+
+    // react to ping
+    private void reactToPing(Command cmd) throws IOException {
+        if (isIncorrectPingCommand(cmd)) {
+            throw new ProtocolException("Not a correct ping command: " + cmd.original);
+        }
+        sendToServer("pong");
+    }
+
+    // react to error
+    private void reactToError(Command msg) throws ProtocolException {
+        if (isIncorrectErrorCommand(msg)) {
+            throw new ProtocolException("Not a correct error command: " + msg.original);
+        }
+        throw new ProtocolException("Received error command from server: " + msg);
+    }
+
+    // react to goodbye
+    private void reactToGoodbye(Command cmd) throws GoodbyeEvent, ProtocolException {
+        if (isIncorrectGoodbyeCommand(cmd)) {
+            throw new ProtocolException("Not a correct goodbye command: " + cmd.original);
+        }
+        throw new GoodbyeEvent();
+    }
+
+    // react to set
+    private void reactToSet(Command cmd) throws IOException {
+        if (!isCorrectSetCommand(cmd)) {
+            throw new ProtocolException("Not a correct set command: " + cmd.original);
+        }
+        String option = cmd.args.get(0);
+        String value = cmd.args.get(1);
+
+        switch (option) {
+            case "info:name":
+                setServerName(value);
+                break;
+            case "time:mode":
+                setTimeMode(value);
+                break;
+            case "time:clock":
+                setTimeClock(value);
+                break;
+            case "time:opclock":
+                setTimeOpClock(value);
+                break;
+            case "auth:challenge": // TODO change specification so auth is not asked for while searching
+                respondToChallenge(value);
+                break;
+            default:
+                // ignore
         }
     }
 
@@ -379,38 +399,27 @@ public class ProtocolManager {
 
             // wait for it's stop
             while (true) {
-                Command msg = receiveFromServer();
+                Command cmd = receiveFromServer();
 
-                if ("stop".equals(msg.name)) {
-                    if (isIncorrectStopCommand(msg)) {
-                        throw new IOException("Not a correct stop command: " + msg.original);
+                // TODO change msg to cmd everywhere
+                if ("stop".equals(cmd.name)) {
+                    if (isIncorrectStopCommand(cmd)) {
+                        throw new IOException("Not a correct stop command: " + cmd.original);
                     }
 
                     // server told us to stop
 
                     // agent already stopped (yielded), do nothing
                     return;
-                } else if ("ping".equals(msg.name)) {
-                    if (isIncorrectPingCommand(msg)) {
-                        throw new ProtocolException("Not a correct ping command: " + msg.original);
-                    }
-
-                    sendToServer("pong");
-                } else if ("error".equals(msg.name)) {
-                    if (isIncorrectErrorCommand(msg)) {
-                        throw new ProtocolException("Not a correct error command: " + msg.original);
-                    }
-
-                    throw new IOException("Server error: " + msg.original);
-                } else if ("goodbye".equals(msg.name)) {
-                    if (isIncorrectGoodbyeCommand(msg)) {
-                        throw new ProtocolException("Not a correct goodbye command: " + msg.original);
-                    }
-
-                    throw new GoodbyeEvent();
+                } else if ("ping".equals(cmd.name)) {
+                    reactToPing(cmd);
+                } else if ("error".equals(cmd.name)) {
+                    reactToError(cmd);
+                } else if ("goodbye".equals(cmd.name)) {
+                    reactToGoodbye(cmd);
                 } else {
-                    throw new ProtocolException("Got " + msg.name +
-                            " but expected ping/error/goodbye/stop while waiting for stop");
+                    throw new ProtocolException("Got " + cmd.name +
+                            " but expected stop/ping/error/goodbye while waiting for stop");
                 }
             }
         }
@@ -425,11 +434,11 @@ public class ProtocolManager {
         }
         else if (input.ready())
         {
-            Command msg = receiveFromServer();
+            Command cmd = receiveFromServer();
 
-            if ("stop".equals(msg.name)) {
-                if (isIncorrectStopCommand(msg)) {
-                    throw new ProtocolException("Not a correct stop command: " + msg.original);
+            if ("stop".equals(cmd.name)) {
+                if (isIncorrectStopCommand(cmd)) {
+                    throw new ProtocolException("Not a correct stop command: " + cmd.original);
                 }
 
                 // set stop variable for subsequent calls
@@ -437,27 +446,17 @@ public class ProtocolManager {
 
                 // tell agent to stop
                 return true;
-            } else if ("ping".equals(msg.name)) {
-                if (isIncorrectPingCommand(msg)) {
-                    throw new ProtocolException("Not a correct ping command: " + msg.original);
-                }
-
-                sendToServer("pong");
-            } else if ("error".equals(msg.name)) {
-                if (isIncorrectErrorCommand(msg)) {
-                    throw new ProtocolException("Not a correct error command: " + msg.original);
-                }
-
-                throw new IOException("Server error: " + msg.original);
-            } else if ("goodbye".equals(msg.name)) {
-                if (isIncorrectGoodbyeCommand(msg)) {
-                    throw new ProtocolException("Not a correct goodbye command: " + msg.original);
-                }
-
-                throw new GoodbyeEvent();
+            } else if ("ping".equals(cmd.name)) {
+                reactToPing(cmd);
+            } else if ("error".equals(cmd.name)) {
+                reactToError(cmd);
+            } else if ("goodbye".equals(cmd.name)) {
+                reactToGoodbye(cmd);
+            } else if ("set".equals(cmd.name)) {
+                reactToSet(cmd);
             } else {
-                throw new ProtocolException("Got " + msg.name +
-                        " but expected ping/error/goodbye/stop while checking for stop");
+                throw new ProtocolException("Got " + cmd.name +
+                        " but expected stop/ping/error/goodbye/set while checking for stop");
             }
         }
 
@@ -619,13 +618,9 @@ public class ProtocolManager {
     // checks whether the given command is a correct set command
     private boolean isCorrectSetCommand(Command msg)
     {
-        if (!msg.name.equals("set") && msg.args.size() != 2)
-        {
-            return false;
-        }
+        return msg.name.equals("set") || msg.args.size() == 2;
 
         // TODO so what is a correct set command?
-        return true;
     }
 
     // checks whether the given command is a correct stop command
