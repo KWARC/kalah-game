@@ -2,7 +2,6 @@ package kgp;
 
 import java.io.IOException;
 
-// TODO maybe remove/replace sendOption etc. as the library should hide the protocol
 // though that would mean that every server would have to develop it's own library
 
 // Implement the constructor and search() for your agent according to the comments, and you're done
@@ -15,18 +14,14 @@ public abstract class Agent {
 
     // Set common option values to be sent automatically upon initialization
     // or return null if you don't want to send that option
-    protected abstract String getName();
-    protected abstract String getAuthors();
-    protected abstract String getDescription();
-
-    // Called after the connection has been established
-    // Can be used to exchange custom set commands with the server
-    protected abstract void beforeGameStarts() throws IOException;
+    public abstract String getName();
+    public abstract String getAuthors();
+    public abstract String getDescription();
 
     // MANDATORY: Read the documentation of submitMove() and shouldStop()
     // Find the best move for the given state here
     // It's always south's turn to move
-    protected abstract void search(KalahState ks) throws IOException;
+    public abstract void search(KalahState ks) throws IOException;
 
     // the communication instance the agent uses to communicate with the server
     private final ProtocolManager com;
@@ -49,8 +44,6 @@ public abstract class Agent {
         com.run();
     }
 
-    // TODO etc. move set comment into submitMove, optional comment through overloading?
-
     // Tell the server the currently "best" move (according to your agent)
     // Call at least one time or the server might punish you!
     // A move is a number in [0 ..., board_size-1] (in the direction of sowing)
@@ -69,63 +62,29 @@ public abstract class Agent {
     }
 
     // Tells the server to comment on the current position, call it during search() for example
-    // Pass your string, can include linebreaks but no quotation marks
-    // Throws IOException if the comment does contain quotation marks
+    // Pass your string, can include linebreaks and newlines
     protected final void sendComment(String comment) throws IOException {
         com.sendComment(comment);
     }
 
-    // Call this function to send an option with its value to the server
-    // Check the specification for when to send what option
-    protected final void sendOption(String option, String value) throws IOException {
-        com.sendOption(option, value);
+    // Get time mode if available, otherwise returns null
+    protected final ProtocolManager.TimeMode getTimeMode(){
+        return com.getTimeMode();
     }
 
-    // Get time mode from server if it was sent, otherwise returns null
-    protected final Integer getTimeMode(){
-        String mode = com.getServerOptionValue("time:mode");
-        if (mode == null)
-        {
-            return null;
-        }
-        else
-        {
-            return Integer.parseInt(mode);
-        }
+    // Get number of seconds on agent's clock if available, otherwise returns null
+    protected final Integer getTimeClock(){
+        return com.getTimeClock();
     }
 
-    // Get number of seconds on your clock
-    protected final Integer getClock(){
-        String clock = com.getServerOptionValue("time:clock");
-        if (clock == null)
-        {
-            return null;
-        }
-        else
-        {
-            return Integer.parseInt(clock);
-        }
+    // Get number of seconds on opponent's clock if available, otherwise returns null
+    protected final Integer getTimeOppClock(){
+        return com.getTimeOppClock();
     }
 
-    // Get number of seconds on your clock
-    protected final Integer getOppClock(){
-        String clock = com.getServerOptionValue("time:opclock");
-        if (clock == null)
-        {
-            return null;
-        }
-        else
-        {
-            return Integer.parseInt(clock);
-        }
-    }
-
-    // Returns the value of an option if the server has sent it
-    // Otherwise returns null
-    // Check the specification for common examples
-    protected final String getOption(String option)
-    {
-        return com.getServerOptionValue(option);
+    // Get name of server if available, otherwise returns null
+    protected final String getServerName(){
+        return com.getServerName();
     }
 
 }

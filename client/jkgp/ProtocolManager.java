@@ -2,19 +2,27 @@ package kgp;
 
 import java.io.*;
 import java.net.*;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-// This protocol implementation is kinda "robust" (= no mercy regarding protocol errors + handles errors in a clean way)
+// This protocol implementation of the Kalah Game Protocol 1.0.0 is kinda "robust"
+// (= little mercy regarding protocol errors + handles errors in a clean way)
 // Shuts down cleanly in case of Exceptions (client crashes), passes the Exception on to the caller
 // Notifies the server of the server's protocol errors (wrong message / at the wrong time), errors and agent errors
 
 public class ProtocolManager {
 
-    // TODO rename message to command in all comments
+    private class GoodbyeEvent extends IOException {}
+
+    enum TimeMode {
+        None,
+        Absolute,
+        Relative,
+    }
+
+    // TODO rename message to command in all comments, when you have too much time
     private static class Command {
 
         String original, name;
@@ -35,7 +43,7 @@ public class ProtocolManager {
                     "[-+]?\\d*\\.\\d+?|" + // real values
                     "[a-z0-9:-]+|" + // words
                     "\"(?:\\\\.|[^\"])*\"|" + // strings
-                    "<\\d+(,\\d)*>" + // board
+                    "<\\d+(,\\d+)*>" + // board
                     "))*\\s*)$",
             Pattern.CASE_INSENSITIVE);
 
@@ -44,7 +52,7 @@ public class ProtocolManager {
                     "[-+]?\\d*\\.\\d+?|" + // real values
                     "[a-z0-9:-]+|" + // words
                     "\"(?:\\\\.|[^\"])*\"|" + // strings
-                    "<\\d+(,\\d)*>",
+                    "<\\d+(,\\d+)*>",
             Pattern.CASE_INSENSITIVE);
 
     private final String host;
@@ -52,8 +60,9 @@ public class ProtocolManager {
 
     private final Agent agent;
 
-    // For storing the values of options sent by set commands
-    private final HashMap<String, String> serverOptions = new HashMap<>();
+    private TimeMode timeMode = null;
+    private Integer clock = null, opClock = null;
+    private String serverName = null;
 
     private Socket clientSocket;
     private BufferedReader input;
@@ -61,8 +70,7 @@ public class ProtocolManager {
 
     private boolean serverSaidStop;
 
-    private enum ProtocolState
-    {
+    private enum ProtocolState {
         WAITING_FOR_VERSION,
         PLAYING,
     }
@@ -75,8 +83,7 @@ public class ProtocolManager {
     }
 
     // Connects to the server, handles the tournament/game/..., then ends the connection
-    public void run() throws IOException
-    {
+    public void run() throws IOException {
         // create a connection
         clientSocket = new Socket(host, port);
         input = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
@@ -85,32 +92,33 @@ public class ProtocolManager {
         ProtocolState state = ProtocolState.WAITING_FOR_VERSION;
 
         try {
+            label:
             while (true) {
                 Command msg = receiveFromServer();
 
                 if ("ping".equals(msg.name)) {
                     if (isIncorrectPingMessage(msg)) {
-                        throw new IOException("Not a correct ping message: " + msg.original);
+                        throw new ProtocolException("Not a correct ping message: " + msg.original);
                     }
                     sendToServer("pong");
                 } else if ("error".equals(msg.name)) {
                     if (isIncorrectErrorMessage(msg)) {
-                        throw new IOException("Not a correct error message: " + msg.original);
+                        throw new ProtocolException("Not a correct error message: " + msg.original);
                     }
-                    throw new IOException("Received error message from server: " + msg);
+                    throw new ProtocolException("Received error message from server: " + msg);
                 } else if ("goodbye".equals(msg.name)) {
                     if (isIncorrectGoodbyeMessage(msg)) {
-                        throw new IOException("Not a correct goodbye message: " + msg.original);
+                        throw new ProtocolException("Not a correct goodbye message: " + msg.original);
                     }
-                    throw new IOException("Server said goodbye");
+                    throw new GoodbyeEvent();
                 } else if ("kgp".equals(msg.name)) {
                     if (!isCorrectVersionMessage(msg)) {
-                        throw new IOException("Not a correct version message: " + msg.original);
+                        throw new ProtocolException("Not a correct version message: " + msg.original);
                     }
                     if (state == ProtocolState.WAITING_FOR_VERSION) {
                         if (!msg.original.startsWith("kgp 1 ")) {
                             // wrong protocol version
-                            throw new IOException("Only kgp 1.*.* supported");
+                            throw new ProtocolException("Only kgp 1.*.* supported");
                         } else {
                             // server uses kalah game protocol 1.*.*
 
@@ -122,9 +130,6 @@ public class ProtocolManager {
                             if (agent.getDescription() != null)
                                 sendOption("info:description", agent.getDescription());
 
-                            // let agent do it's own information exchange
-                            agent.beforeGameStarts();
-
                             // supported version, reply with mode
                             sendToServer("mode simple");
 
@@ -132,11 +137,11 @@ public class ProtocolManager {
                             state = ProtocolState.PLAYING;
                         }
                     } else {
-                        throw new IOException("Didn't expect " + msg.name + " here");
+                        throw new ProtocolException("Didn't expect " + msg.name + " here");
                     }
                 } else if ("state".equals(msg.name)) {
                     if (!isCorrectStateMessage(msg)) {
-                        throw new IOException("Not a correct state message: " + msg.original);
+                        throw new ProtocolException("Not a correct state message: " + msg.original);
                     }
                     if (state == ProtocolState.PLAYING) {
                         String[] sp = msg.args.get(0).substring(1, msg.args.get(0).length() - 1).split(",");
@@ -162,71 +167,157 @@ public class ProtocolManager {
                         // search, can take a long time
                         onState(ks);
                     } else {
-                        throw new IOException("Didn't expect " + msg.name + " here");
+                        throw new ProtocolException("Didn't expect " + msg.name + " here");
 
                     }
                 } else if ("set".equals(msg.name)) {
                     if (!isCorrectSetMessage(msg)) {
-                        throw new IOException("Not a correct set message: " + msg.original);
+                        throw new ProtocolException("Not a correct set message: " + msg.original);
                     }
                     String option = msg.args.get(0);
                     String value = msg.args.get(1);
-                    serverOptions.put(option, value);
+
+                    switch (option) {
+                        case "info:name":
+                            setServerName(value);
+                            break label;
+                        case "time:mode":
+                            setTimeMode(value);
+                            break label;
+                        case "time:clock":
+                            setTimeClock(value);
+                            break label;
+                        case "time:opclock":
+                            setTimeOpClock(value);
+                            break label;
+                    }
                 } else {
-                    throw new IOException("Unknown command " + msg.name);
+                    throw new ProtocolException("Unknown command " + msg.name);
                 }
             }
-        }
-        catch(IOException e)
+        } catch(GoodbyeEvent ge)
         {
-            sendError(e.getMessage().replaceAll("\n", "\\n"));
-            throw e;
+            // do nothing, just don't crash
         }
-        finally
-        {
+        finally {
+            // on crash, don't tell the server, just say goodbye and still throw the exception
             sendGoodbyeAndCloseConnection();
         }
     }
 
-    // returns the value of the option as String if the server ever sent
-    // a set command with that option ("set option value"), otherwise returns null
-    String getServerOptionValue(String option)
+    // Sets time mode, throws exception if malformed
+    private void setTimeMode(String mode) throws ProtocolException
     {
-        return serverOptions.get(option);
+        switch (mode) {
+            case "none":
+                timeMode = TimeMode.None;
+                break;
+            case "absolute":
+                timeMode = TimeMode.Absolute;
+                break;
+            case "relative":
+                timeMode = TimeMode.Relative;
+                break;
+            default:
+                throw new ProtocolException("Unknown time mode " + mode);
+        }
+    }
+
+    // Get time mode if server sent it, otherwise returns null
+    TimeMode getTimeMode() {
+        return timeMode;
+    }
+
+    // Sets number of seconds on agents clock, throws exception if malformed
+    private void setTimeClock(String value) throws ProtocolException {
+        try
+        {
+            clock = Integer.parseInt(value);
+        } catch(NumberFormatException e)
+        {
+            throw new ProtocolException("Number of seconds on agent's clock malformed: " + value);
+        }
+    }
+
+    // Get number of seconds on agent's clock if server sent it, otherwise returns null
+    Integer getTimeClock(){
+        return clock;
+    }
+
+    // Sets number of seconds on opponent's clock, throws exception if malformed
+    private void setTimeOpClock(String value) throws ProtocolException {
+        try
+        {
+            opClock = Integer.parseInt(value);
+        } catch(NumberFormatException e)
+        {
+            throw new ProtocolException("Number of seconds on opponent's clock malformed: " + value);
+        }
+    }
+
+    // Get number of seconds on opponent's clock if server sent it, otherwise returns null
+    Integer getTimeOppClock(){
+        return opClock;
+    }
+
+    // Set name of server, throws exception if malformed
+    private void setServerName(String s) throws ProtocolException
+    {
+        serverName = fromProtocolString(s);
+    }
+
+    // Get name of server if server sent it, otherwise returns null
+    String getServerName()
+    {
+        return serverName;
     }
 
     // sends a set command to the server ("set option value")
     // the server might ignore it silently if it doesn't support it
-    void sendOption(String option, String value) throws IOException
+    private void sendOption(String option, String value) throws IOException
     {
-        for(char c:option.toCharArray())
-        {
-            if (!Character.isDigit(c) &&
-                    !('a' <= c && c <= 'z') &&
-                    !('A' <= c && c <= 'Z') &&
-                    c != '-' &&
-                    c != ':')
-            {
-                throw new IllegalArgumentException("Option contains illegal character: " + option);
-            }
-        }
-
-        if (!argumentPattern.matcher(value).matches())
-        {
-            throw new IllegalArgumentException("Value has wrong format: " + value);
-        }
-
+        // no need to check, only library is using this function
+        // so option and value have to be correct
         sendToServer("set " + option + " " + value);
     }
 
     // send comment to server, check comment for quotation marks
     void sendComment(String comment) throws IOException {
         // place a backslash in front of every backslash, newline and quotation mark
-        sendOption("info:comment", "\"" + comment.replaceAll("[\\\\\n\"]", "\\\0") + "\"");
+        sendOption("info:comment", toProtocolString(comment));
+    }
+
+    // converts java string to protocol string by replacing backslash, newline and quotation marks
+    // with their backslash-lead counterparts
+    private String toProtocolString(String s)
+    {
+        String s2 = s.replace("\\", "\\\\");
+        String s3 = s2.replace("\n", "\\n");
+        String s4 = s3.replace("\"", "\\\"");
+        return "\"" + s4  + "\"";
+    }
+
+    // converts protocol string back to java string by removing one backslash
+    // in front of every newline, quotation mark or backslash
+    private String fromProtocolString(String s) throws ProtocolException
+    {
+        if (s.length() < 2 ||
+                s.charAt(0) != '\"' ||
+                s.charAt(s.length()-1) != '\"')
+        {
+            throw new ProtocolException("Server name malformed: " + s);
+        }
+        else
+        {
+            String s2 = s.substring(1, s.length()-1).replace("\\\\", "\\");
+            String s3 = s2.replace("\\n", "\n");
+            String s4 = s3.replace("\\\"", "\"");
+            return s4;
+        }
     }
 
     // called when the server tells the client to start searching
-    private void onState(KalahState ks) throws IOException
+    private void onState(KalahState ks) throws IOException, GoodbyeEvent
     {
         serverSaidStop = false;
 
@@ -235,7 +326,8 @@ public class ProtocolManager {
         }
         catch(Exception e)
         {
-            throw new IOException("Exception during agent search: " + e.getMessage());
+            sendMove(ks.randomLegalMove());
+            sendComment("[jkgp] Agent crashed (" + e.getClass().getSimpleName() + "), move chosen randomly.");
         }
 
         if (serverSaidStop)
@@ -264,24 +356,24 @@ public class ProtocolManager {
                     return;
                 } else if ("ping".equals(msg.name)) {
                     if (isIncorrectPingMessage(msg)) {
-                        throw new IOException("Not a correct ping message: " + msg.original);
+                        throw new ProtocolException("Not a correct ping message: " + msg.original);
                     }
 
                     sendToServer("pong");
                 } else if ("error".equals(msg.name)) {
                     if (isIncorrectErrorMessage(msg)) {
-                        throw new IOException("Not a correct error message: " + msg.original);
+                        throw new ProtocolException("Not a correct error message: " + msg.original);
                     }
 
                     throw new IOException("Server error: " + msg.original);
                 } else if ("goodbye".equals(msg.name)) {
                     if (isIncorrectGoodbyeMessage(msg)) {
-                        throw new IOException("Not a correct goodbye message: " + msg.original);
+                        throw new ProtocolException("Not a correct goodbye message: " + msg.original);
                     }
 
-                    throw new IOException("Server said goodbye");
+                    throw new GoodbyeEvent();
                 } else {
-                    throw new IOException("Got " + msg.name +
+                    throw new ProtocolException("Got " + msg.name +
                             " but expected ping/error/goodbye/stop while waiting for stop");
                 }
             }
@@ -289,7 +381,7 @@ public class ProtocolManager {
     }
 
     // see documentation of onState(...)
-    boolean shouldStop() throws IOException
+    boolean shouldStop() throws IOException, GoodbyeEvent
     {
         if (serverSaidStop)
         {
@@ -301,7 +393,7 @@ public class ProtocolManager {
 
             if ("stop".equals(msg.name)) {
                 if (isIncorrectStopMessage(msg)) {
-                    throw new IOException("Not a correct stop message: " + msg.original);
+                    throw new ProtocolException("Not a correct stop message: " + msg.original);
                 }
 
                 // set stop variable for subsequent calls
@@ -311,24 +403,24 @@ public class ProtocolManager {
                 return true;
             } else if ("ping".equals(msg.name)) {
                 if (isIncorrectPingMessage(msg)) {
-                    throw new IOException("Not a correct ping message: " + msg.original);
+                    throw new ProtocolException("Not a correct ping message: " + msg.original);
                 }
 
                 sendToServer("pong");
             } else if ("error".equals(msg.name)) {
                 if (isIncorrectErrorMessage(msg)) {
-                    throw new IOException("Not a correct error message: " + msg.original);
+                    throw new ProtocolException("Not a correct error message: " + msg.original);
                 }
 
                 throw new IOException("Server error: " + msg.original);
             } else if ("goodbye".equals(msg.name)) {
                 if (isIncorrectGoodbyeMessage(msg)) {
-                    throw new IOException("Not a correct goodbye message: " + msg.original);
+                    throw new ProtocolException("Not a correct goodbye message: " + msg.original);
                 }
 
-                throw new IOException("Server said goodbye");
+                throw new GoodbyeEvent();
             } else {
-                throw new IOException("Got " + msg.name +
+                throw new ProtocolException("Got " + msg.name +
                         " but expected ping/error/goodbye/stop while checking for stop");
             }
         }
@@ -345,14 +437,20 @@ public class ProtocolManager {
     void sendMove(int move) throws IOException
     {
         if (move <= 0) {
-            throw new IllegalArgumentException("");
+            throw new IllegalArgumentException("Move cannot be negative");
         }
         sendToServer("move "+move);
     }
 
     private void sendGoodbyeAndCloseConnection() throws IOException
     {
-        sendToServer("goodbye");
+        try {
+            sendToServer("goodbye");
+        } catch(SocketException se)
+        {
+            // socket already closed, but we don't care since we wanted to close the connection anyway
+        }
+
         closeConnection();
     }
 
@@ -367,50 +465,44 @@ public class ProtocolManager {
     // also acts as callback for logging etc.
     private void sendToServer(String msg) throws IOException
     {
-        System.err.println("Client: " + msg);
-
         output.write(msg.getBytes());
         output.write('\r');
         output.write('\n');
         output.flush();
+
+        System.err.println("Client: " + msg);
     }
 
     private Command receiveFromServer() throws IOException
     {
-        String original = input.readLine();
+        String line = input.readLine();
 
         // logging
-        System.err.println("Server: " + original);
+        System.err.println("Server: " + line);
 
-        try {
-            Matcher mat = commandPattern.matcher(original);
-	    if (!mat.matches()) {
-		throw new IOException("Malformed input");
-	    }
-
-            // ignore id and ref for this implementation
-            String name = mat.group(3);
-            List<String> args = new LinkedList<>();
-
-            int i = 0;
-            Matcher arg = argumentPattern.matcher(mat.group(4));
-            while (arg.find(i)) {
-                args.add(arg.group());
-                i = arg.end();
-            }
-
-            return new Command(original, name, args);
-        } catch (IllegalStateException e)
-        {
-            e.printStackTrace();
-            throw new IOException("Message has wrong format: " + original);
+        Matcher mat = commandPattern.matcher(line);
+        if (!mat.matches()) {
+            throw new ProtocolException("Malformed input: " + line);
         }
+
+        // ignore id and ref for this implementation
+        String name = mat.group(3);
+        List<String> args = new LinkedList<>();
+
+        int i = 0;
+        Matcher arg = argumentPattern.matcher(mat.group(4));
+        while (arg.find(i)) {
+            args.add(arg.group());
+            i = arg.end();
+        }
+
+        return new Command(line, name, args);
     }
 
     // sends error message to server
     private void sendError(String msg) throws IOException
     {
-        sendToServer("error \"" + msg + "\"");
+        sendToServer("error " + toProtocolString(msg));
     }
 
     // checks whether a message is a correct ping message

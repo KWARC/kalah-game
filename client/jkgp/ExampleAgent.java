@@ -37,32 +37,18 @@ public class ExampleAgent extends Agent {
                 "Very friendly to the environment.";
     }
 
-    // Exchanging tournament information upon connecting to the server
-    @Override
-    public void beforeGameStarts() throws IOException {
-        // Maybe we play on a special server which hosts multiple tournaments at the same time?
-        String availableTournaments = getOption("tournament:available-tournaments");
-
-        if (availableTournaments != null)
-        {
-            // ... choosing tournament
-
-            sendOption("tournament:name", "Kalah FAU championship");
-        }
-    }
-
     @Override
     public void search(KalahState ks) throws IOException {
 
         // Immediately send some legal move in case time runs out early
         submitMove(ks.lowestLegalMove());
 
-        long timeToWait = 50; // initially wait 50 ms
-
         // The actual "search". ShouldStop is checked in a loop but if you're doing a recursive search you might want
         // to check it every N nodes or every N milliseconds, just so it's called a few times per second,
         // as a good server punishes slow reactions to the stop command by subtracting the delay from the amount of
         // time for the next move
+
+        long timeToWait = 50;
         while (!shouldStop())
         {
             // pick a random move
@@ -75,44 +61,30 @@ public class ExampleAgent extends Agent {
 
             // Commenting on the current position and/or move choice
             sendComment("I chose move " + (chosenMove + 1) + " because the RNG told me to so.\n" +
-                    "evaluation: " + "How am I supposed to know??\n\" +" +
-                    "You shouldn't have played that move, you're DOOOMED!");
+                    "evaluation: " + "How am I supposed to know??\n" +
+                    "\"You shouldn't have played that move, you're DOOOMED!");
 
-
-
-            // Maybe we're using a special server which displays smileys based on the agents feelings?
-            sendOption("emotions:emotion", "pure happiness");
-
-            // Maybe we're using a special server which tells us about our opponents emotions?
-            String emotion = getOption("emotions:operation");
-            if (emotion != null)
-            {
-                if (emotion.equals("Very scared"))
-                {
-                    // play aggressively
-                }
-                else
-                {
-                    // play defensively
-                }
-            }
-
-
-
-            try
-            {
-                Thread.sleep(timeToWait);
-            }
-            catch(InterruptedException e)
-            {
-                e.printStackTrace();
-            }
+            sleep(timeToWait);
 
             timeToWait *= 2.0; // increase search time
         }
 
         // This implementation doesn't return from search() until the server says so,
         // but that would be perfectly fine, for example if your agent found a proven win
+    }
+
+    // you can also implement your own methods of course
+    private static void sleep(long millis)
+    {
+        long start = System.currentTimeMillis();
+        while(System.currentTimeMillis() < start + millis) {
+            try {
+                long remainingTime = (start + millis) - System.currentTimeMillis();
+                Thread.sleep(remainingTime);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     // Example of a main function

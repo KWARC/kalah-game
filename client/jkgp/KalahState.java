@@ -116,6 +116,17 @@ public class KalahState {
         return llm;
     }
 
+    public int randomLegalMove() {
+        boolean wasFlipped = flipIfNorthToMove();
+
+        ArrayList<Integer> moves = getMoves();
+        int randomIndex = (int) (Math.random()*moves.size());
+        int chosenMove = moves.get(randomIndex);
+
+        flipIfWasFlipped(wasFlipped);
+        return chosenMove;
+    }
+
     // returns the number of legal moves, useful if your evaluation is based on that value
     public int numberOfMoves() {
         boolean wasFlipped = flipIfNorthToMove();
