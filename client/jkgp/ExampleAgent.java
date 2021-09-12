@@ -1,6 +1,7 @@
 package kgp;
 
 import java.io.IOException;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Random;
 
@@ -12,29 +13,22 @@ public class ExampleAgent extends Agent {
     private final Random rng;
 
     public ExampleAgent(String host, int port) {
-        super(host, port);
+
+        // RSA numbers taken from wikipedia's toy example, use proper values!!
+        super(
+                host,
+                port,
+                "ExampleAgentName",
+                "Philip Kaludercic, Tobias Völk",
+                "Sophisticated Kalah agent developed by Philip Kaludercic und Tobias Völk in 2021.\n\n" +
+                        "Chooses among the legal moves uniform at random.\n" +
+                        "Very friendly to the environment.",
+                new BigInteger("3233"),
+                new BigInteger("17"),
+                new BigInteger("413"));
 
         // Initialize your agent, load databases, neural networks, ...
         rng = new Random();
-    }
-
-    @Override
-    public String getName()
-    {
-        return "ExampleAgentName";
-    }
-
-    @Override
-    public String getAuthors()
-    {
-        return "Philip Kaludercic, Tobias Völk";
-    }
-
-    @Override
-    public String getDescription() {
-        return "Sophisticated Kalah agent developed by Philip Kaludercic und Tobias Völk in 2021.\n\n" +
-                "Chooses among the legal moves uniform at random.\n" +
-                "Very friendly to the environment.";
     }
 
     @Override

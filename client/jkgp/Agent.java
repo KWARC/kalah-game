@@ -1,6 +1,7 @@
 package kgp;
 
 import java.io.IOException;
+import java.math.BigInteger;
 
 // though that would mean that every server would have to develop it's own library
 
@@ -12,11 +13,9 @@ import java.io.IOException;
 // So don't worry about scheduling issues if your tournament restricts the agent to one CPU core
 public abstract class Agent {
 
-    // Set common option values to be sent automatically upon initialization
-    // or return null if you don't want to send that option
-    public abstract String getName();
-    public abstract String getAuthors();
-    public abstract String getDescription();
+    // can be null
+    private String name, authors, description;
+    private BigInteger N, e, d;
 
     // MANDATORY: Read the documentation of submitMove() and shouldStop()
     // Find the best move for the given state here
@@ -26,15 +25,21 @@ public abstract class Agent {
     // the communication instance the agent uses to communicate with the server
     private final ProtocolManager com;
 
-    // Creates an agent to play with a local server using the Kalah Game Protocol default port 2671
-    public Agent() {
-        com = new ProtocolManager("localhost", 2671, this);
-    }
-
-    // Creates an agent to play with the specified server using the specified port
-    public Agent(String host, int port) {
+    // Creates an agent
+    // If host and port are non-null, the agent will connect to that server, otherwise connects to localhost:2671
+    // If name/authors/description is non-null, the server is told the value of name/authors/description
+    //
+    // RSA: public key (N,e), private key (N,d)
+    // If all three are non-null, the agent will authenticate itself upon connecting.
+    // Authentication might be necessary for leaderboards etc.,
+    public Agent(String host, int port, String name, String authors, String description, BigInteger N, BigInteger e, BigInteger d) {
+        this.name = name;
+        this.authors = authors;
+        this.description = description;
         com = new ProtocolManager(host, port, this);
     }
+
+    // TODO get methods
 
     // connects to the server, plays the tournament/game/whatever, closes the connection
     // passes on IOExceptions
@@ -86,5 +91,4 @@ public abstract class Agent {
     protected final String getServerName(){
         return com.getServerName();
     }
-
 }
