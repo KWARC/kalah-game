@@ -1,13 +1,16 @@
 package server;
 
+import kgp.ExampleAgent;
 import kgp.KalahState;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
+import java.math.BigInteger;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Random;
 
 // Minimal server implementation:
 //  -waits for two clients to connect
@@ -24,8 +27,8 @@ public class Server {
     private static final int SEEDS = 4; // Initial seeds in each house
     private static final int TIME_MOVE = 500; // Amount of time for the clients to make one move
 
-    // send given message (without linebreak) to client using the given PrintStream
-    // adds CRLF to the message, flushes the PrintStream afterwards
+    // send given command (without linebreak) to client using the given PrintStream
+    // adds CRLF to the command, flushes the PrintStream afterwards
     private static void sendToClient(PrintStream ps, String msg)
     {
         ps.print(msg + "\r\n");
@@ -79,9 +82,48 @@ public class Server {
         sendToClient(outputNorth, "kgp 1 0 0");
         sendToClient(outputSouth, "kgp 1 0 0");
 
-        // consume "mode simple" messages from clients
-        inputNorth.readLine();
-        inputSouth.readLine();
+        // consume "mode simple" and 5 set commands from clients
+        for (int i=0;i<6;i++) {
+            inputNorth.readLine();
+            inputSouth.readLine();
+        }
+
+        // let's suppose the server already knows their public keys and that they're the same
+        BigInteger N = ExampleAgent.N;
+        BigInteger e = ExampleAgent.e;
+
+        // send a 4096 bit challenge, but of course modulo N
+        BigInteger challenge = new BigInteger(4096, new Random()).mod(N);
+        String challengeCommand = "set auth:challenge \"" + challenge + "\"";
+        sendToClient(outputNorth, challengeCommand);
+        sendToClient(outputSouth, challengeCommand);
+
+        // get their responses
+        String responseNorth = inputNorth.readLine();
+        String responseSouth = inputSouth.readLine();
+
+        // cheap parsing of set auth:response "123456789"
+        responseNorth = responseNorth.split("\"")[1];
+        responseSouth = responseSouth.split("\"")[1];
+
+        BigInteger encNorth = new BigInteger(responseNorth);
+        BigInteger encSouth = new BigInteger(responseSouth);
+
+        // decrypt the client's response to check whether it's the same as challenge
+        BigInteger decNorth = encNorth.modPow(e, N);
+        BigInteger decSouth = encSouth.modPow(e, N);
+
+        if (!decNorth.equals(challenge) ||
+        !decSouth.equals(challenge))
+        {
+            // for the sake of error messages, let's suppose that the server knows the private key
+            BigInteger d = ExampleAgent.d;
+            BigInteger correctResponse = challenge.modPow(d, N);
+
+            sendToClient(outputNorth, "error \"RSA challenge failed, should be " + correctResponse + " instead of " + encNorth + "\"");
+            sendToClient(outputSouth, "error \"RSA challenge failed, should be " + correctResponse + " instead of " + encSouth + "\"");
+            return;
+        }
 
         // create new board of size BOARD_SIZE with SEEDS in each house
         KalahState ks = new KalahState(BOARD_SIZE, SEEDS);
@@ -124,7 +166,7 @@ public class Server {
             boolean yielded = false;
             while (System.currentTimeMillis() - start_time < TIME_MOVE)
             {
-                // if there is a new message, process it
+                // if there is a new command, process it
                 if (inputMover.ready()) {
                     String msg = inputMover.readLine();
                     if (msg.startsWith("move ")) {
@@ -144,9 +186,9 @@ public class Server {
                     try
                     {
                         Thread.sleep(10);
-                    } catch(InterruptedException e)
+                    } catch(InterruptedException ie)
                     {
-                        e.printStackTrace();
+                        ie.printStackTrace();
                     }
                 }
             }
@@ -165,7 +207,7 @@ public class Server {
                         break;
                     else
                     {
-                        // consume move message by doing nothing, moves are not accepted after the time is up
+                        // consume move command by doing nothing, moves are not accepted after the time is up
                     }
                 }
             }

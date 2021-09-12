@@ -33,13 +33,50 @@ public abstract class Agent {
     // If all three are non-null, the agent will authenticate itself upon connecting.
     // Authentication might be necessary for leaderboards etc.,
     public Agent(String host, int port, String name, String authors, String description, BigInteger N, BigInteger e, BigInteger d) {
+
+        com = new ProtocolManager(host, port, this);
+
         this.name = name;
         this.authors = authors;
         this.description = description;
-        com = new ProtocolManager(host, port, this);
+
+        this.N = N;
+        this.e = e;
+        this.d = d;
     }
 
-    // TODO get methods
+    // Returns the name of the agent or null if not specified
+    public String getName()
+    {
+        return name;
+    }
+
+    // Returns the authors of the agent or null if not specified
+    public String getAuthors()
+    {
+        return authors;
+    }
+
+    // Returns the description of the agent or null if not specified
+    public String getDescription()
+    {
+        return description;
+    }
+
+    // Returns [N,e,d] of the agent or null if not specified
+    public BigInteger[] getRSA()
+    {
+        if (N == null ||
+                e == null ||
+                d == null)
+        {
+            return null;
+        }
+        else
+        {
+            return new BigInteger[] {N, e, d};
+        }
+    }
 
     // connects to the server, plays the tournament/game/whatever, closes the connection
     // passes on IOExceptions

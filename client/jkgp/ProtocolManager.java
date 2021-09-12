@@ -1,6 +1,7 @@
 package kgp;
 
 import java.io.*;
+import java.math.BigInteger;
 import java.net.*;
 import java.util.LinkedList;
 import java.util.List;
@@ -10,11 +11,11 @@ import java.util.regex.Pattern;
 // This protocol implementation of the Kalah Game Protocol 1.0.0 is kinda "robust"
 // (= little mercy regarding protocol errors + handles errors in a clean way)
 // Shuts down cleanly in case of Exceptions (client crashes), passes the Exception on to the caller
-// Notifies the server of the server's protocol errors (wrong message / at the wrong time), errors and agent errors
+// Notifies the server of the server's protocol errors (wrong command / at the wrong time), errors and agent errors
 
 public class ProtocolManager {
 
-    private class GoodbyeEvent extends IOException {}
+    private static class GoodbyeEvent extends IOException {}
 
     enum TimeMode {
         None,
@@ -22,7 +23,6 @@ public class ProtocolManager {
         Relative,
     }
 
-    // TODO rename message to command in all comments, when you have too much time
     private static class Command {
 
         String original, name;
@@ -92,28 +92,27 @@ public class ProtocolManager {
         ProtocolState state = ProtocolState.WAITING_FOR_VERSION;
 
         try {
-            label:
             while (true) {
                 Command msg = receiveFromServer();
 
                 if ("ping".equals(msg.name)) {
-                    if (isIncorrectPingMessage(msg)) {
-                        throw new ProtocolException("Not a correct ping message: " + msg.original);
+                    if (isIncorrectPingCommand(msg)) {
+                        throw new ProtocolException("Not a correct ping command: " + msg.original);
                     }
                     sendToServer("pong");
                 } else if ("error".equals(msg.name)) {
-                    if (isIncorrectErrorMessage(msg)) {
-                        throw new ProtocolException("Not a correct error message: " + msg.original);
+                    if (isIncorrectErrorCommand(msg)) {
+                        throw new ProtocolException("Not a correct error command: " + msg.original);
                     }
-                    throw new ProtocolException("Received error message from server: " + msg);
+                    throw new ProtocolException("Received error command from server: " + msg);
                 } else if ("goodbye".equals(msg.name)) {
-                    if (isIncorrectGoodbyeMessage(msg)) {
-                        throw new ProtocolException("Not a correct goodbye message: " + msg.original);
+                    if (isIncorrectGoodbyeCommand(msg)) {
+                        throw new ProtocolException("Not a correct goodbye command: " + msg.original);
                     }
                     throw new GoodbyeEvent();
                 } else if ("kgp".equals(msg.name)) {
-                    if (!isCorrectVersionMessage(msg)) {
-                        throw new ProtocolException("Not a correct version message: " + msg.original);
+                    if (!isCorrectVersionCommand(msg)) {
+                        throw new ProtocolException("Not a correct version command: " + msg.original);
                     }
                     if (state == ProtocolState.WAITING_FOR_VERSION) {
                         if (!msg.original.startsWith("kgp 1 ")) {
@@ -124,24 +123,32 @@ public class ProtocolManager {
 
                             // send the default information
                             if (agent.getName() != null)
-                                sendOption("info:name", agent.getName());
+                                sendOption("info:name", toProtocolString(agent.getName()));
                             if (agent.getAuthors() != null)
-                                sendOption("info:authors", agent.getAuthors());
+                                sendOption("info:authors", toProtocolString(agent.getAuthors()));
                             if (agent.getDescription() != null)
-                                sendOption("info:description", agent.getDescription());
+                                sendOption("info:description", toProtocolString(agent.getDescription()));
+                            if (agent.getRSA() != null)
+                            {
+                                BigInteger[] Ned = agent.getRSA();
+                                BigInteger N = Ned[0];
+                                BigInteger e = Ned[1];
+                                sendOption("auth:N", toProtocolString(N.toString()));
+                                sendOption("auth:e", toProtocolString(e.toString()));
+                            }
 
                             // supported version, reply with mode
                             sendToServer("mode simple");
 
-                            // and wait for the initialization message
+                            // and wait for the initialization command
                             state = ProtocolState.PLAYING;
                         }
                     } else {
                         throw new ProtocolException("Didn't expect " + msg.name + " here");
                     }
                 } else if ("state".equals(msg.name)) {
-                    if (!isCorrectStateMessage(msg)) {
-                        throw new ProtocolException("Not a correct state message: " + msg.original);
+                    if (!isCorrectStateCommand(msg)) {
+                        throw new ProtocolException("Not a correct state command: " + msg.original);
                     }
                     if (state == ProtocolState.PLAYING) {
                         String[] sp = msg.args.get(0).substring(1, msg.args.get(0).length() - 1).split(",");
@@ -171,8 +178,8 @@ public class ProtocolManager {
 
                     }
                 } else if ("set".equals(msg.name)) {
-                    if (!isCorrectSetMessage(msg)) {
-                        throw new ProtocolException("Not a correct set message: " + msg.original);
+                    if (!isCorrectSetCommand(msg)) {
+                        throw new ProtocolException("Not a correct set command: " + msg.original);
                     }
                     String option = msg.args.get(0);
                     String value = msg.args.get(1);
@@ -180,16 +187,21 @@ public class ProtocolManager {
                     switch (option) {
                         case "info:name":
                             setServerName(value);
-                            break label;
+                            break;
                         case "time:mode":
                             setTimeMode(value);
-                            break label;
+                            break;
                         case "time:clock":
                             setTimeClock(value);
-                            break label;
+                            break;
                         case "time:opclock":
                             setTimeOpClock(value);
-                            break label;
+                            break;
+                        case "auth:challenge": // TODO change specification so auth is not asked for while searching
+                            respondToChallenge(value);
+                            break;
+                        default:
+                            // ignore
                     }
                 } else {
                     throw new ProtocolException("Unknown command " + msg.name);
@@ -205,10 +217,10 @@ public class ProtocolManager {
         }
     }
 
-    // Sets time mode, throws exception if malformed
+    // Sets time mode according to the given protocol String, throws exception if malformed
     private void setTimeMode(String mode) throws ProtocolException
     {
-        switch (mode) {
+        switch (fromProtocolString(mode)) {
             case "none":
                 timeMode = TimeMode.None;
                 break;
@@ -260,7 +272,7 @@ public class ProtocolManager {
         return opClock;
     }
 
-    // Set name of server, throws exception if malformed
+    // Set name of server according to the given protocol String, throws exception if malformed
     private void setServerName(String s) throws ProtocolException
     {
         serverName = fromProtocolString(s);
@@ -270,6 +282,31 @@ public class ProtocolManager {
     String getServerName()
     {
         return serverName;
+    }
+
+    // TODO as string because int limits are way too strict?
+    // Responds to challenge (provided as protocol string), throws exception if challenge is malformed
+    // Encrypts the given challenge which the server then decrypts the "prove" that the client is who it claims to be
+    // We know that "textbook RSA" is not safe, we don't want to make it too easy
+    void respondToChallenge(String challenge) throws IOException
+    {
+        String s = fromProtocolString(challenge);
+
+        BigInteger m;
+        try {
+            m = new BigInteger(s);
+        } catch (NumberFormatException e)
+        {
+            // TODO throw IOException here or silently don't respond?
+            throw new ProtocolException("Malformed challenge: " + challenge);
+        }
+
+        BigInteger N = agent.getRSA()[0];
+        BigInteger d = agent.getRSA()[2];
+        BigInteger response = m.modPow(d, N);
+        String responseStr = toProtocolString(response.toString());
+
+        sendOption("auth:response", responseStr);
     }
 
     // sends a set command to the server ("set option value")
@@ -311,13 +348,12 @@ public class ProtocolManager {
         {
             String s2 = s.substring(1, s.length()-1).replace("\\\\", "\\");
             String s3 = s2.replace("\\n", "\n");
-            String s4 = s3.replace("\\\"", "\"");
-            return s4;
+            return s3.replace("\\\"", "\"");
         }
     }
 
     // called when the server tells the client to start searching
-    private void onState(KalahState ks) throws IOException, GoodbyeEvent
+    private void onState(KalahState ks) throws IOException
     {
         serverSaidStop = false;
 
@@ -346,8 +382,8 @@ public class ProtocolManager {
                 Command msg = receiveFromServer();
 
                 if ("stop".equals(msg.name)) {
-                    if (isIncorrectStopMessage(msg)) {
-                        throw new IOException("Not a correct stop message: " + msg.original);
+                    if (isIncorrectStopCommand(msg)) {
+                        throw new IOException("Not a correct stop command: " + msg.original);
                     }
 
                     // server told us to stop
@@ -355,20 +391,20 @@ public class ProtocolManager {
                     // agent already stopped (yielded), do nothing
                     return;
                 } else if ("ping".equals(msg.name)) {
-                    if (isIncorrectPingMessage(msg)) {
-                        throw new ProtocolException("Not a correct ping message: " + msg.original);
+                    if (isIncorrectPingCommand(msg)) {
+                        throw new ProtocolException("Not a correct ping command: " + msg.original);
                     }
 
                     sendToServer("pong");
                 } else if ("error".equals(msg.name)) {
-                    if (isIncorrectErrorMessage(msg)) {
-                        throw new ProtocolException("Not a correct error message: " + msg.original);
+                    if (isIncorrectErrorCommand(msg)) {
+                        throw new ProtocolException("Not a correct error command: " + msg.original);
                     }
 
                     throw new IOException("Server error: " + msg.original);
                 } else if ("goodbye".equals(msg.name)) {
-                    if (isIncorrectGoodbyeMessage(msg)) {
-                        throw new ProtocolException("Not a correct goodbye message: " + msg.original);
+                    if (isIncorrectGoodbyeCommand(msg)) {
+                        throw new ProtocolException("Not a correct goodbye command: " + msg.original);
                     }
 
                     throw new GoodbyeEvent();
@@ -381,7 +417,7 @@ public class ProtocolManager {
     }
 
     // see documentation of onState(...)
-    boolean shouldStop() throws IOException, GoodbyeEvent
+    boolean shouldStop() throws IOException
     {
         if (serverSaidStop)
         {
@@ -392,8 +428,8 @@ public class ProtocolManager {
             Command msg = receiveFromServer();
 
             if ("stop".equals(msg.name)) {
-                if (isIncorrectStopMessage(msg)) {
-                    throw new ProtocolException("Not a correct stop message: " + msg.original);
+                if (isIncorrectStopCommand(msg)) {
+                    throw new ProtocolException("Not a correct stop command: " + msg.original);
                 }
 
                 // set stop variable for subsequent calls
@@ -402,20 +438,20 @@ public class ProtocolManager {
                 // tell agent to stop
                 return true;
             } else if ("ping".equals(msg.name)) {
-                if (isIncorrectPingMessage(msg)) {
-                    throw new ProtocolException("Not a correct ping message: " + msg.original);
+                if (isIncorrectPingCommand(msg)) {
+                    throw new ProtocolException("Not a correct ping command: " + msg.original);
                 }
 
                 sendToServer("pong");
             } else if ("error".equals(msg.name)) {
-                if (isIncorrectErrorMessage(msg)) {
-                    throw new ProtocolException("Not a correct error message: " + msg.original);
+                if (isIncorrectErrorCommand(msg)) {
+                    throw new ProtocolException("Not a correct error command: " + msg.original);
                 }
 
                 throw new IOException("Server error: " + msg.original);
             } else if ("goodbye".equals(msg.name)) {
-                if (isIncorrectGoodbyeMessage(msg)) {
-                    throw new ProtocolException("Not a correct goodbye message: " + msg.original);
+                if (isIncorrectGoodbyeCommand(msg)) {
+                    throw new ProtocolException("Not a correct goodbye command: " + msg.original);
                 }
 
                 throw new GoodbyeEvent();
@@ -461,7 +497,7 @@ public class ProtocolManager {
         clientSocket.close();
     }
 
-    // sends message to server, adds \r\n, flushes
+    // sends command to server, adds \r\n, flushes
     // also acts as callback for logging etc.
     private void sendToServer(String msg) throws IOException
     {
@@ -499,33 +535,33 @@ public class ProtocolManager {
         return new Command(line, name, args);
     }
 
-    // sends error message to server
+    // sends error command to server
     private void sendError(String msg) throws IOException
     {
         sendToServer("error " + toProtocolString(msg));
     }
 
-    // checks whether a message is a correct ping message
-    private boolean isIncorrectPingMessage(Command command)
+    // checks whether a command is a correct ping command
+    private boolean isIncorrectPingCommand(Command command)
     {
         return !command.original.equals("ping");
     }
 
-    // checks whether a message is a correct goodbye message
-    private boolean isIncorrectGoodbyeMessage(Command command)
+    // checks whether a command is a correct goodbye command
+    private boolean isIncorrectGoodbyeCommand(Command command)
     {
         return !command.original.equals("goodbye");
     }
 
-    // checks whether a message is a correct error message
-    private boolean isIncorrectErrorMessage(Command command)
+    // checks whether a command is a correct error command
+    private boolean isIncorrectErrorCommand(Command command)
     {
         return !command.name.equals("error") ||
                 command.args.size() != 1;
     }
 
-    // Checks whether a message is a correct version message
-    private boolean isCorrectVersionMessage(Command msg)
+    // Checks whether a command is a correct version command
+    private boolean isCorrectVersionCommand(Command msg)
     {
         if (!msg.name.equals("kgp") || msg.args.size() != 3) {
             return false;
@@ -548,8 +584,8 @@ public class ProtocolManager {
         return true;
     }
 
-    // checks whether a message is a correct state message
-    private boolean isCorrectStateMessage(Command msg) {
+    // checks whether a command is a correct state command
+    private boolean isCorrectStateCommand(Command msg) {
 
         if (!msg.name.equals("state") || msg.args.size() != 1) {
             return false;
@@ -580,19 +616,20 @@ public class ProtocolManager {
         return true;
     }
 
-    // checks whether the given message is a correct set message
-    private boolean isCorrectSetMessage(Command msg)
+    // checks whether the given command is a correct set command
+    private boolean isCorrectSetCommand(Command msg)
     {
         if (!msg.name.equals("set") && msg.args.size() != 2)
         {
             return false;
         }
 
-        return !msg.args.get(0).contains(":");
+        // TODO so what is a correct set command?
+        return true;
     }
 
-    // checks whether the given message is a correct stop message
-    private boolean isIncorrectStopMessage(Command msg)
+    // checks whether the given command is a correct stop command
+    private boolean isIncorrectStopCommand(Command msg)
     {
         return !msg.original.equals("stop");
     }
