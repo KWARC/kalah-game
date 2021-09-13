@@ -14,8 +14,6 @@ const (
 )
 
 var (
-	waiting = make(chan *Client, 2)
-
 	port      uint
 	defSize   uint
 	defStones uint
@@ -37,8 +35,8 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// start match organizer
-	go organizer()
+	// start match scheduler
+	go scheduler()
 
 	// accept incoming connections
 	log.Print("Listening on port 2671")
