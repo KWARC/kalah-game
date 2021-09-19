@@ -26,7 +26,9 @@ The ABNF representation of a command is as follows:
 	board    = "<" *1DIGIT *("," *1DIGIT) ">"
 
 where `NDQCHAR` is every `CHAR` except for double quotes, backslashes
-and line breaks.
+and line breaks. Each command MUST at most be most 16384 characters
+long, including trailing white space. Any line beyond that MAY be
+ignored by a server.
 
 An argument has a statically identifiable type, and is either an
 integer (`32`, `+0`, `-100`, ...), a real-valued number (`0.0`,
