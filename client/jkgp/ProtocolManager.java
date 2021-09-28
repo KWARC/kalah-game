@@ -158,8 +158,8 @@ public class ProtocolManager {
                         ks.setStoreNorth(integers[2]);
 
                         for (int i = 0; i < boardSize; i++) {
-                            ks.setHouse(KalahState.Side.SOUTH, i, integers[i + 3]);
-                            ks.setHouse(KalahState.Side.NORTH, i, integers[i + 3 + boardSize]);
+                            ks.setHouse(KalahState.Player.SOUTH, i, integers[i + 3]);
+                            ks.setHouse(KalahState.Player.NORTH, i, integers[i + 3 + boardSize]);
                         }
 
                         // search, can take a long time
@@ -362,7 +362,7 @@ public class ProtocolManager {
                 s.charAt(0) != '\"' ||
                 s.charAt(s.length()-1) != '\"')
         {
-            throw new ProtocolException("Server name malformed: " + s);
+            throw new ProtocolException("Protocol string malformed: " + s);
         }
         else
         {
@@ -618,7 +618,7 @@ public class ProtocolManager {
     // checks whether the given command is a correct set command
     private boolean isCorrectSetCommand(Command msg)
     {
-        return msg.name.equals("set") || msg.args.size() == 2;
+        return msg.name.equals("set") && msg.args.size() == 2;
 
         // TODO so what is a correct set command?
     }

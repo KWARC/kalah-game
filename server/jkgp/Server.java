@@ -45,12 +45,12 @@ public class Server {
 
         for(int i=0;i<ks.getBoardSize();i++)
         {
-            s.append(",").append(ks.getHouse(KalahState.Side.SOUTH, i));
+            s.append(",").append(ks.getHouse(KalahState.Player.SOUTH, i));
         }
 
         for(int i=0;i<ks.getBoardSize();i++)
         {
-            s.append(",").append(ks.getHouse(KalahState.Side.NORTH, i));
+            s.append(",").append(ks.getHouse(KalahState.Player.NORTH, i));
         }
 
         return s + ">";

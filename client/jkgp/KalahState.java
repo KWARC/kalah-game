@@ -23,12 +23,12 @@ public class KalahState {
         KNOWN_WIN, // not game over, but result will be a WIN no matter what happens
     }
 
-    public enum Side
+    public enum Player
     {
         NORTH,
         SOUTH;
 
-        public Side other()
+        public Player other()
         {
             if (this == NORTH)
             {
@@ -44,7 +44,7 @@ public class KalahState {
     // arrays are sowed in the direction of increasing indices
     private int[] housesSouth, housesNorth;
     private int storeSouth, storeNorth;
-    private Side sideToMove;
+    private Player playerToMove;
 
     // create a new board of size h with seeds seeds everywhere and south to move
     public KalahState(int board_size, int seeds) {
@@ -54,7 +54,7 @@ public class KalahState {
         Arrays.fill(housesSouth, seeds);
         housesNorth = new int[board_size];
         Arrays.fill(housesNorth, seeds);
-        sideToMove = Side.SOUTH;
+        playerToMove = Player.SOUTH;
     }
 
     // creates a copy of an existing KalahState
@@ -63,7 +63,7 @@ public class KalahState {
         storeNorth = state.storeNorth;
         housesSouth = Arrays.copyOf(state.housesSouth, state.housesSouth.length);
         housesNorth = Arrays.copyOf(state.housesNorth, state.housesNorth.length);
-        sideToMove = state.sideToMove;
+        playerToMove = state.playerToMove;
     }
 
     // mirrors the board, switches stores, houses and side to move
@@ -76,7 +76,7 @@ public class KalahState {
         housesSouth = housesNorth;
         housesNorth = tmp2;
 
-        sideToMove = sideToMove.other();
+        playerToMove = playerToMove.other();
     }
 
     // helper function to flip back the state, see flipIfNorthToMove()
@@ -92,7 +92,7 @@ public class KalahState {
     // That way functions only need to be implemented from south's perspective
     // I have a lot of trust in Java's optimization ^^
     public boolean flipIfNorthToMove() {
-        if (sideToMove == Side.NORTH) {
+        if (playerToMove == Player.NORTH) {
             flip();
             return true;
         }
@@ -246,7 +246,7 @@ public class KalahState {
         // handle turn
         if(pos != getBoardSize()) // last seed in store?
         {
-            sideToMove = Side.NORTH;
+            playerToMove = Player.NORTH;
         }
 
         // handle captures
@@ -327,7 +327,7 @@ public class KalahState {
 
     // returns store diff from player to move's point of view
     public int getStoreLead() {
-        if(sideToMove == Side.SOUTH)
+        if(playerToMove == Player.SOUTH)
         {
             return storeSouth-storeNorth;
         }
@@ -344,9 +344,9 @@ public class KalahState {
     }
 
     // returns the side to move
-    public Side getSideToMove()
+    public Player getSideToMove()
     {
-        return sideToMove;
+        return playerToMove;
     }
 
     // set the number of seeds in south's store
@@ -371,9 +371,9 @@ public class KalahState {
 
     // set the number of seeds of the given house
     // indices start at 0 and increase in the direction of sowing
-    public void setHouse(Side side, int index, int seeds)
+    public void setHouse(Player player, int index, int seeds)
     {
-        if(side == Side.SOUTH)
+        if(player == Player.SOUTH)
         {
             housesSouth[index] = seeds;
         }
@@ -385,9 +385,9 @@ public class KalahState {
 
     // get the number of seeds of the given house
     // indices start at 0 and increase in the direction of sowing
-    public int getHouse(Side side, int index)
+    public int getHouse(Player player, int index)
     {
-        if(side == Side.SOUTH)
+        if(player == Player.SOUTH)
         {
             return housesSouth[index];
         }
@@ -445,7 +445,7 @@ public class KalahState {
 
         KalahState s = (KalahState) o;
 
-        return sideToMove == s.sideToMove &&
+        return playerToMove == s.playerToMove &&
                 storeSouth == s.storeSouth &&
                 storeNorth == s.storeNorth &&
                 Arrays.equals(housesSouth, s.housesSouth) &&
@@ -466,7 +466,7 @@ public class KalahState {
         }
         ss.append(storeSouth);
         ss.append("\t");
-        ss.append(sideToMove == Side.SOUTH?"South":"North");
+        ss.append(playerToMove == Player.SOUTH?"South":"North");
 
 
         return hn.toString() + '\n' + ss + '\n' + hs;
