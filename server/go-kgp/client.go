@@ -99,11 +99,12 @@ func (cli *Client) Handle() {
 
 	ticker := time.NewTicker(time.Duration(1+timeout) * time.Second)
 	defer ticker.Stop()
+	quit := false
 	go func() {
 		for range ticker.C {
 			if cli.pinged {
 				cli.Send("error", "no pong returned")
-				close(cli.input)
+				quit = true
 				break
 			}
 			cli.Send("ping")
@@ -114,6 +115,11 @@ func (cli *Client) Handle() {
 	go func() {
 		scanner := bufio.NewScanner(cli.rwc)
 		for scanner.Scan() {
+			time.Sleep(time.Microsecond)
+			if quit {
+				close(cli.input)
+				break
+			}
 			cli.input <- scanner.Text()
 		}
 		if err := scanner.Err(); err != nil {
@@ -130,6 +136,7 @@ func (cli *Client) Handle() {
 			cli.Send("error", err.Error())
 		}
 	}
+	quit = true
 
 	log.Printf("Close connection for %p", cli)
 	cli.Send("goodbye")
