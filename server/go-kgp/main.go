@@ -36,7 +36,7 @@ func main() {
 	}
 
 	// start match scheduler
-	go scheduler()
+	go organizer()
 
 	// accept incoming connections
 	log.Print("Listening on port 2671")

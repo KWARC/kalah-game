@@ -146,6 +146,9 @@ func (cli *Client) Interpret(input string) error {
 		}
 	case "pong":
 		cli.pinged = false
+		if cli.waiting {
+			boost(cli)
+		}
 	default:
 		cli.Respond(id, "error", "Invalid command")
 	}
