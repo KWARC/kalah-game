@@ -139,7 +139,7 @@ class Board:
         b[side, pit] = 0
 
         while stones > 0:
-            if pos == self.side:
+            if pos == self.size:
                 if side == me:
                     b[me] += 1
                     stones -= 1
