@@ -12,15 +12,20 @@ type Action interface {
 }
 
 // Move is an Action to set the next move
-type Move int64
+type Move struct {
+	pit  int
+	cli  *Client
+	game *Game
+}
 
 // Do ensures a move is valid and then sets it
 func (m Move) Do(game *Game, side Side) bool {
-	if m < 0 || m >= Move(len(game.board.northPits)) {
+	if m.pit < 0 || m.pit >= len(game.board.northPits) {
 		game.Current().Send("error", "illegal move")
 	} else {
-		game.Player(side).choice = m
+		game.Player(side).choice = m.pit
 	}
+	dbact <- m.UpdateDatabase
 	return false
 }
 
@@ -47,6 +52,7 @@ type Game struct {
 	north *Client
 	south *Client
 	dead  bool
+	dbid  int64
 }
 
 // String generates a KGP board representation for the current player
@@ -109,6 +115,8 @@ func (g *Game) Start() {
 	defer close(g.north.input)
 	defer close(g.south.input)
 
+	dbact <- g.UpdateDatabase
+
 	for {
 		select {
 		case act := <-g.ctrl:
@@ -124,7 +132,7 @@ func (g *Game) Start() {
 
 		if next {
 			choice := g.Current().choice
-			g.Current().choice = Move(-1)
+			g.Current().choice = -1
 
 			if g.board.Over() {
 				return

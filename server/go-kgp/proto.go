@@ -66,6 +66,27 @@ func parse(raw string, params ...interface{}) error {
 	return nil
 }
 
+// Handle setting KEY to VAL for CLI
+func (cli *Client) Set(key, val string) error {
+	switch key {
+	case "info:name":
+		cli.name = val
+	case "info:authors":
+		cli.author = val
+	case "info:description":
+		cli.descr = val
+	case "info:comment":
+		cli.comment = val
+	case "auth:token":
+		if cli.token == "" {
+			cli.token = val
+			dbact <- cli.UpdateDatabase
+		}
+	}
+
+	return nil
+}
+
 // Interpret parses and evaluates INPUT
 func (cli *Client) Interpret(input string) error {
 	matches := parser.FindStringSubmatch(input)
@@ -127,7 +148,10 @@ func (cli *Client) Interpret(input string) error {
 			return err
 		}
 
-		game.ctrl <- Move(pit)
+		game.ctrl <- Move{
+			pit: int(pit),
+			cli: cli,
+		}
 	case "yield":
 		if game == nil ||
 			!game.IsCurrent(cli) ||
@@ -149,8 +173,18 @@ func (cli *Client) Interpret(input string) error {
 		if cli.waiting {
 			boost(cli)
 		}
-	default:
-		cli.Respond(id, "error", "Invalid command")
+	case "set":
+		// Note that VAL doesn't have to be a string per spec,
+		// but we will parse it as such to keep it in it's
+		// intermediate representation. If we need to convert
+		// it to something else later on, we will do so then.
+		var key, val string
+		err := parse(args, &key, &val)
+		if err != nil {
+			return err
+		}
+
+		return cli.Set(key, val)
 	}
 
 	return nil

@@ -76,10 +76,10 @@ func (b *Board) String() string {
 }
 
 // Legal returns true if SIDE may play move PIT
-func (b *Board) Legal(side Side, pit Move) bool {
+func (b *Board) Legal(side Side, pit int) bool {
 	size := len(b.northPits)
 
-	if int(pit) >= size || int(pit) < 0 {
+	if pit >= size || pit < 0 {
 		return false
 	}
 
@@ -90,12 +90,12 @@ func (b *Board) Legal(side Side, pit Move) bool {
 }
 
 // Random returns a random legal move for SIDE
-func (b *Board) Random(side Side) (move Move) {
-	legal := make([]Move, 0, len(b.northPits))
+func (b *Board) Random(side Side) (move int) {
+	legal := make([]int, 0, len(b.northPits))
 
 	for i := 0; i < len(b.northPits); i++ {
-		if b.Legal(side, Move(i)) {
-			legal = append(legal, Move(i))
+		if b.Legal(side, i) {
+			legal = append(legal, i)
 		}
 	}
 
@@ -105,7 +105,7 @@ func (b *Board) Random(side Side) (move Move) {
 }
 
 // Sow modifies the board by sowing PIT for player SELF
-func (b *Board) Sow(self Side, pit Move) bool {
+func (b *Board) Sow(self Side, pit int) bool {
 	if len(b.northPits) != len(b.southPits) {
 		panic("Illegal board")
 	}

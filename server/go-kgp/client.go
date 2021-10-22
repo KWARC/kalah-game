@@ -17,12 +17,17 @@ type Client struct {
 	game    *Game
 	rwc     io.ReadWriteCloser
 	name    string
+	author  string
+	descr   string
+	comment string
 	lock    sync.Mutex
-	choice  Move
+	choice  int
 	rid     uint64
 	input   chan string
 	waiting bool
 	pinged  bool
+	token   string
+	dbid    int64
 }
 
 // Send forwards an unreferenced message to the client
