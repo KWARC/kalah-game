@@ -54,7 +54,7 @@ func manageDatabase(file string) {
 	defer close(dbact)
 
 	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS agent (
-                            id PRIMARY KEY AUTOINCREMENT,
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
                             token TEXT UNIQUE,
                             name TEXT,
                             descr TEXT,
@@ -65,7 +65,7 @@ func manageDatabase(file string) {
 	}
 
 	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS game (
-                            id PRIMARY KEY AUTOINCREMENT,
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
                             north REFERENCES agent(id),
                             south REFERENCES agent(id),
                             result INTEGER,
