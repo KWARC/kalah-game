@@ -50,8 +50,8 @@ func manageDatabase(file string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer db.Close()
 	defer close(dbact)
+	defer db.Close()
 
 	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS agent (
                             id INTEGER PRIMARY KEY AUTOINCREMENT,
