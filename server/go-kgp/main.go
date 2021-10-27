@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"net/http"
+
+	"github.com/gobwas/ws"
 )
 
 const (
@@ -15,10 +18,12 @@ const (
 )
 
 var (
-	port, tport uint
-	defSize     uint
-	defStones   uint
-	timeout     uint
+	port      uint
+	tport     uint
+	wport     uint
+	defSize   uint
+	defStones uint
+	timeout   uint
 )
 
 func listen(ln net.Listener) {
@@ -45,6 +50,7 @@ func main() {
 	flag.UintVar(&defStones, "stones", 7, "Number of stones to use")
 	flag.UintVar(&port, "port", 2671, "Port number of plain connections")
 	flag.UintVar(&tport, "tls-port", 2672, "Port number of encrypted connections")
+	flag.UintVar(&wport, "ws-port", 0, "Port number of websocket connections")
 	flag.StringVar(&cert, "tls-cert", "", "Port number of encrypted connections")
 	flag.StringVar(&key, "tls-key", "", "Port number of encrypted connections")
 	flag.StringVar(&dbf, "db", "kalah.sql", "Path to SQLite database")
@@ -76,6 +82,21 @@ func main() {
 		log.Fatal("No key for certificate")
 	} else if cert == "" && key != "" {
 		log.Fatal("No certificate for key")
+	}
+
+	// open websocket server
+	if wport != 0 {
+		http.ListenAndServe(fmt.Sprintf(":%d", wport),
+			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				conn, _, _, err := ws.UpgradeHTTP(r, w)
+				if err != nil {
+					log.Print(err)
+					return
+				}
+
+				log.Printf("New ws connection from %s", conn.RemoteAddr())
+				(&Client{rwc: conn}).Handle()
+			}))
 	}
 
 	// start database manager
