@@ -105,7 +105,6 @@ func (g *Game) Start() {
 	g.south.game = g
 	g.south.waiting = false
 
-	time.Sleep(time.Duration(warmup) * time.Second)
 	g.last = g.north.Send("state", g)
 
 	timer := time.After(time.Duration(timeout) * time.Second)

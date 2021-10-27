@@ -18,7 +18,6 @@ var (
 	port, tport uint
 	defSize     uint
 	defStones   uint
-	warmup      uint
 	timeout     uint
 )
 
@@ -49,7 +48,6 @@ func main() {
 	flag.StringVar(&cert, "tls-cert", "", "Port number of encrypted connections")
 	flag.StringVar(&key, "tls-key", "", "Port number of encrypted connections")
 	flag.StringVar(&dbf, "db", "kalah.sql", "Path to SQLite database")
-	flag.UintVar(&warmup, "warmup", 5, "Seconds to wait before starting game")
 	flag.UintVar(&timeout, "timeout", 5, "Seconds to wait for a move to be made")
 	flag.Parse()
 
