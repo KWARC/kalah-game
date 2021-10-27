@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -23,7 +24,7 @@ type Client struct {
 	lock    sync.Mutex
 	choice  int
 	rid     uint64
-	input   chan string
+	kill    chan bool
 	waiting bool
 	pinged  bool
 	token   string
@@ -94,55 +95,84 @@ retry:
 
 // Handle controls a connection and reads user input
 func (cli *Client) Handle() {
+
+	// Ensure that the client has a channel that is being
+	// communicated upon.
 	if cli.rwc == nil {
 		panic("No ReadWriteCloser")
 	}
-
 	defer cli.rwc.Close()
-	cli.input = make(chan string)
+
+	// Initialize the client channels
+	input := make(chan string)
+	cli.kill = make(chan bool)
+
+	// Initiate the protocol with the client
 	cli.Send("kgp", majorVersion, minorVersion, patchVersion)
 
+	// Start a thread to periodically send ping requests to the
+	// client
 	ticker := time.NewTicker(time.Duration(1+timeout) * time.Second)
 	defer ticker.Stop()
-	quit := false
 	go func() {
 		for range ticker.C {
+			// If the timer fired, check the ping flag and
+			// kill the client if it is still set
 			if cli.pinged {
-				cli.Send("error", "no pong returned")
-				quit = true
+				cli.kill <- true
 				break
 			}
+			// In case it was not set, ping the client
+			// again and reset the flag
 			cli.Send("ping")
 			cli.pinged = true
 		}
 	}()
 
+	// Start a thread to read the user input from rwc
+	dead := false
 	go func() {
 		scanner := bufio.NewScanner(cli.rwc)
 		for scanner.Scan() {
+			// Prevent flooding by waiting a for a moment
+			// between lines
 			time.Sleep(time.Microsecond)
-			if quit {
-				close(cli.input)
+			// Check if the client has been killed
+			// by someone else
+			if dead {
 				break
 			}
-			cli.input <- scanner.Text()
+			// Send the current line back to the main thread for processing
+			input <- scanner.Text()
 		}
-		if err := scanner.Err(); err != nil {
+		// See https://github.com/golang/go/commit/e9ad52e46dee4b4f9c73ff44f44e1e234815800f
+		err := scanner.Err()
+		if err != nil && !strings.Contains(err.Error(), "use of closed network connection") {
+
 			log.Print(err)
-			if cli.game != nil {
-				cli.game.ctrl <- Yield(true)
-			}
 		}
+		cli.kill <- true
 	}()
 
-	for line := range cli.input {
-		err := cli.Interpret(line)
-		if err != nil {
-			cli.Send("error", err.Error())
+	// Handle either the killing of the client or the receiving of
+	// input, whatever comes first.
+	for {
+		select {
+		case line := <-input:
+			// Any received input is deferred to the
+			// interpreter, and any errors are logged.
+			err := cli.Interpret(line)
+			if err != nil {
+				log.Println(err)
+			}
+		case <-cli.kill:
+			// When the client is killed (a game has
+			// finished, the client timed out, ...) we log
+			// this and mark the client as dead for the
+			// input thread
+			log.Printf("Close connection for %p", cli)
+			dead = true
+			return
 		}
 	}
-	quit = true
-
-	log.Printf("Close connection for %p", cli)
-	cli.Send("goodbye")
 }

@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"time"
 )
 
@@ -112,8 +111,11 @@ func (g *Game) Start() {
 	timer := time.After(time.Duration(timeout) * time.Second)
 	next := false
 
-	defer close(g.north.input)
-	defer close(g.south.input)
+	defer func() {
+		fmt.Println("Game", g, "finished")
+		g.north.kill <- true
+		g.south.kill <- true
+	}()
 
 	dbact <- g.UpdateDatabase
 
@@ -167,6 +169,4 @@ func (g *Game) Start() {
 			timer = time.After(time.Duration(timeout) * time.Second)
 		}
 	}
-
-	log.Println("Finished game", g)
 }
