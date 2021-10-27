@@ -160,7 +160,7 @@ func (cli *Client) Interpret(input string) error {
 		}
 
 		game.ctrl <- Yield(false)
-		cli.Respond(game.last, "stop")
+		// cli.Respond(game.last, "stop")
 	case "ok", "fail", "error":
 		var msg string
 		parse(args, &msg) // parsing errors are ignored
