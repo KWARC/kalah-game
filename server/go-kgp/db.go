@@ -25,7 +25,7 @@ func (cli *Client) UpdateDatabase(db *sql.DB) error {
 
 func (game *Game) UpdateDatabase(db *sql.DB) error {
 	res, err := db.Exec(`INSERT INTO game(north, south, start)
-                             VALUES (?, ?, now)`,
+                             VALUES (?, ?, DATETIME('now'))`,
 		game.north.dbid, game.south.dbid)
 	if err != nil {
 		return err
@@ -36,7 +36,7 @@ func (game *Game) UpdateDatabase(db *sql.DB) error {
 
 func (mov *Move) UpdateDatabase(db *sql.DB) error {
 	_, err := db.Exec(`INSERT INTO move(comment, agent, game, played)
-                           VALUES (?, ?, ?, now)`,
+                           VALUES (?, ?, ?, DATETIME('now'))`,
 		mov.cli.comment,
 		mov.cli.dbid,
 		mov.game.dbid)
