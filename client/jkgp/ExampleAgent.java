@@ -49,6 +49,13 @@ public class ExampleAgent extends Agent {
         long timeToWait = 50;
         while (!shouldStop())
         {
+            // randomly decide whether to stop search early
+            // in practice you might stop when you know it's won etc. to speed up the tournament
+            if (rng.nextDouble() < 0.1)
+            {
+                return;
+            }
+
             // pick a random move
             ArrayList<Integer> moves = ks.getMoves();
             int randomIndex = rng.nextInt(moves.size());
