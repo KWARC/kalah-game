@@ -14,8 +14,7 @@ import java.math.BigInteger;
 public abstract class Agent {
 
     // can be null
-    private String name, authors, description;
-    private BigInteger N, e, d;
+    private String name, authors, description, token;
 
     // MANDATORY: Read the documentation of submitMove() and shouldStop()
     // Find the best move for the given state here
@@ -26,13 +25,12 @@ public abstract class Agent {
     private final ProtocolManager com;
 
     // Creates an agent
-    // If host and port are non-null, the agent will connect to that server, otherwise connects to localhost:2671
+    // If host and port are non-null, the agent will connect to that server,
+    // otherwise connects to localhost:2671 if the connection is encrypted
     // If name/authors/description is non-null, the server is told the value of name/authors/description
     //
-    // RSA: public key (N,e), private key (N,d)
-    // If all three are non-null, the agent will authenticate itself upon connecting.
-    // Authentication might be necessary for leaderboards etc.,
-    public Agent(String host, int port, String name, String authors, String description, BigInteger N, BigInteger e, BigInteger d) {
+    // If token is non-null, the client will authenticate itself to the server
+    public Agent(String host, int port, String name, String authors, String description, String token) {
 
         com = new ProtocolManager(host, port, this);
 
@@ -40,9 +38,7 @@ public abstract class Agent {
         this.authors = authors;
         this.description = description;
 
-        this.N = N;
-        this.e = e;
-        this.d = d;
+        this.token = token;
     }
 
     // Returns the name of the agent or null if not specified
@@ -63,19 +59,10 @@ public abstract class Agent {
         return description;
     }
 
-    // Returns [N,e,d] of the agent or null if not specified
-    public BigInteger[] getRSA()
+    // Returns the token of the agent or null if not specified
+    public String getToken()
     {
-        if (N == null ||
-                e == null ||
-                d == null)
-        {
-            return null;
-        }
-        else
-        {
-            return new BigInteger[] {N, e, d};
-        }
+        return token;
     }
 
     // connects to the server, plays the tournament/game/whatever, closes the connection

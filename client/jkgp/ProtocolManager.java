@@ -1,7 +1,6 @@
 package kgp;
 
 import java.io.*;
-import java.math.BigInteger;
 import java.net.*;
 import java.util.LinkedList;
 import java.util.List;
@@ -270,6 +269,9 @@ public class ProtocolManager {
                                         sendOption("info:authors", toProtocolString(agent.getAuthors()));
                                     if (agent.getDescription() != null)
                                         sendOption("info:description", toProtocolString(agent.getDescription()));
+                                    if (agent.getToken() != null) {
+                                        sendOption("auth:token", toProtocolString(agent.getToken()));
+                                    }
 
                                     // supported version, reply with mode
                                     sendToServer("mode simple");
@@ -418,9 +420,6 @@ public class ProtocolManager {
             case "time:opclock":
                 setTimeOpClock(value);
                 break;
-            case "auth:challenge": // TODO change specification so auth is not asked for while searching
-                respondToChallenge(value);
-                break;
             default:
                 // ignore
         }
@@ -491,31 +490,6 @@ public class ProtocolManager {
     String getServerName()
     {
         return serverName;
-    }
-
-    // TODO as string because int limits are way too strict?
-    // Responds to challenge (provided as protocol string), throws exception if challenge is malformed
-    // Encrypts the given challenge which the server then decrypts the "prove" that the client is who it claims to be
-    // We know that "textbook RSA" is not safe, we don't want to make it too easy
-    void respondToChallenge(String challenge) throws IOException
-    {
-        String s = fromProtocolString(challenge);
-
-        BigInteger m;
-        try {
-            m = new BigInteger(s);
-        } catch (NumberFormatException e)
-        {
-            // TODO throw IOException here or silently don't respond?
-            throw new ProtocolException("Malformed challenge: " + challenge);
-        }
-
-        BigInteger N = agent.getRSA()[0];
-        BigInteger d = agent.getRSA()[2];
-        BigInteger response = m.modPow(d, N);
-        String responseStr = toProtocolString(response.toString());
-
-        sendOption("auth:response", responseStr);
     }
 
     // sends a set command to the server ("set option value")
