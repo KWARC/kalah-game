@@ -40,6 +40,21 @@ func listen(ln net.Listener) {
 	}
 }
 
+func wslisten(wport uint) {
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		conn, _, _, err := ws.UpgradeHTTP(r, w)
+		if err != nil {
+			log.Print(err)
+			return
+		}
+
+		log.Printf("New ws connection from %s", conn.RemoteAddr())
+		(&Client{rwc: conn}).Handle()
+	})
+
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", wport), nil))
+}
+
 func main() {
 	var (
 		key, cert string
@@ -86,17 +101,7 @@ func main() {
 
 	// open websocket server
 	if wport != 0 {
-		http.ListenAndServe(fmt.Sprintf(":%d", wport),
-			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				conn, _, _, err := ws.UpgradeHTTP(r, w)
-				if err != nil {
-					log.Print(err)
-					return
-				}
-
-				log.Printf("New ws connection from %s", conn.RemoteAddr())
-				(&Client{rwc: conn}).Handle()
-			}))
+		go wslisten(wport)
 	}
 
 	// start database manager
