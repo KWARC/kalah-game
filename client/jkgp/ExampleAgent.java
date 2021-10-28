@@ -65,9 +65,7 @@ public class ExampleAgent extends Agent {
             this.submitMove(chosenMove);
 
             // Commenting on the current position and/or move choice
-            sendComment("I chose move " + (chosenMove + 1) + " because the RNG told me to so.\n" +
-                    "evaluation: " + "How am I supposed to know??\n" +
-                    "\"You shouldn't have played that move, you're DOOOMED!");
+            sendComment("Currently best move: " + (chosenMove + 1));
 
             sleep(timeToWait);
 
