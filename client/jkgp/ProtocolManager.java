@@ -5,6 +5,9 @@ import java.math.BigInteger;
 import java.net.*;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.BrokenBarrierException;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -23,15 +26,42 @@ public class ProtocolManager {
         Relative,
     }
 
-    private static class Command {
+    private static class Event {}
+
+    private static class Command extends Event {
 
         String original, name;
         List<String> args;
 
-        public Command(String original, String name, List<String> args) {
+        Command(String original, String name, List<String> args) {
+            super();
             this.original = original;
             this.name = name;
             this.args = args;
+        }
+    }
+
+    private static class AgentFinished extends Event {
+
+        Exception exception; // the exception agent through during search or null if there was none
+        boolean yielded; // whether the agent yielded (true) or stopped because the server told it so (false)
+
+        AgentFinished(Exception exception, boolean yielded)
+        {
+            super();
+            this.exception = exception;
+            this.yielded = yielded;
+        }
+    }
+
+    private static class NetworkThreadException extends Event {
+
+        IOException exception; // the exception that happened in the network thread
+
+        NetworkThreadException(IOException exception)
+        {
+            super();
+            this.exception = exception;
         }
     }
 
@@ -55,6 +85,12 @@ public class ProtocolManager {
                     "<\\d+(,\\d+)*>",
             Pattern.CASE_INSENSITIVE);
 
+    private static PrintStream debugStream = System.out;
+
+    public static void setDebugStream(OutputStream o) {
+        debugStream = new PrintStream(o);
+    }
+
     private final String host;
     private final int port;
 
@@ -68,11 +104,31 @@ public class ProtocolManager {
     private BufferedReader input;
     private OutputStream output;
 
-    private boolean serverSaidStop;
+    private KalahState kalahState = null; // TODO think about reset/init of all vars
+
+    // Set to true by network thread upon receiving stop command
+    // Set to false by network thread after having sent yield/ok
+    // basically what the server thinks
+    private volatile boolean shouldStop;
+
+    // tell other two threads when to die
+    private volatile boolean running;
+
+    // Cyclic barrier to synchronize to start/stop agent search without busy-waiting
+    private final CyclicBarrier bar = new CyclicBarrier(2);
+
+    // To only send one thing to the server at a time
+    private final Object lockSend = new Object();
+
+    // To only run one session at a time
+    private final Object lockSession = new Object();
 
     private enum ProtocolState {
-        WAITING_FOR_VERSION,
-        PLAYING,
+        WAITING_FOR_VERSION, // awaiting initial communication, server sends version, both exchange some set-options
+
+        WAITING_FOR_STATE, // agent is stopped, waiting for next state TODO implement this in loop
+        SEARCHING, // told agent to start computation, might receive AgentFinished in this state if agent yields
+        WAITING_FOR_AGENT_TO_STOP, // told agent to stop (because server told us to stop), waiting for AgentFinished event
     }
 
     // Creates new instance of communication to given server for the given agent
@@ -83,110 +139,243 @@ public class ProtocolManager {
     }
 
     // Connects to the server, handles the tournament/game/..., then ends the connection
+    // Don't use run in parallel, create more ProtocolManager instances instead
+    // This method will block successive calls until the previous session is over
     public void run() throws IOException {
-        // create a connection
-        clientSocket = new Socket(host, port);
-        input = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-        output = clientSocket.getOutputStream();
 
-        ProtocolState state = ProtocolState.WAITING_FOR_VERSION;
+        synchronized (lockSession) {
+            // reset data for this session
+            timeMode = null;
+            clock = null;
+            opClock = null;
+            serverName = null;
 
-        try {
-            while (true) {
-                Command cmd = receiveFromServer();
+            clientSocket = null;
+            input = null;
+            output = null;
 
-                if ("ping".equals(cmd.name)) {
-                    reactToPing(cmd);
-                } else if ("error".equals(cmd.name)) {
-                    reactToError(cmd);
-                } else if ("goodbye".equals(cmd.name)) {
-                    reactToGoodbye(cmd);
-                } else if ("kgp".equals(cmd.name)) {
-                    if (!isCorrectVersionCommand(cmd)) {
-                        throw new ProtocolException("Not a correct version command: " + cmd.original);
-                    }
-                    if (state == ProtocolState.WAITING_FOR_VERSION) {
-                        if (!cmd.original.startsWith("kgp 1 ")) {
-                            // wrong protocol version
-                            throw new ProtocolException("Only kgp 1.*.* supported");
-                        } else {
-                            // server uses kalah game protocol 1.*.*
+            kalahState = null;
 
-                            // send the default information
-                            if (agent.getName() != null)
-                                sendOption("info:name", toProtocolString(agent.getName()));
-                            if (agent.getAuthors() != null)
-                                sendOption("info:authors", toProtocolString(agent.getAuthors()));
-                            if (agent.getDescription() != null)
-                                sendOption("info:description", toProtocolString(agent.getDescription()));
-                            if (agent.getRSA() != null)
-                            {
-                                BigInteger[] Ned = agent.getRSA();
-                                BigInteger N = Ned[0];
-                                BigInteger e = Ned[1];
-                                sendOption("auth:N", toProtocolString(N.toString()));
-                                sendOption("auth:e", toProtocolString(e.toString()));
+            running = true;
+
+            // create a connection
+	    clientSocket = new Socket(host, port);
+
+            // get streams from socket
+            input = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+            output = clientSocket.getOutputStream();
+
+            LinkedBlockingQueue<Event> events = new LinkedBlockingQueue<>();
+
+            // network thread
+            new Thread(
+                    () -> {
+                        while (running) {
+                            try {
+                                // get line from server and pass it on for processing
+                                events.add(receiveFromServer()); // always enough space to insert
+                            } catch (IOException e) {
+                                // if there's an exception, pass it on for processing
+                                events.add(new NetworkThreadException(e));
+                            }
+                        }
+                    }).start();
+
+            // agent thread
+            new Thread(
+                    () -> {
+                        while (running) {
+                            // Agent thread is waiting for network thread to join, to start playing
+                            // Also acts as synchronization to make sure this thread sees the current KalahState
+                            try {
+                                bar.await();
+                            } catch (InterruptedException e) {
+                                // not supposed to happen, just die
+                                e.printStackTrace();
+                                System.exit(1);
+                            } catch (BrokenBarrierException e) {
+                                return; // we were told to die or something wasn't supposed to happen
                             }
 
-                            // supported version, reply with mode
-                            sendToServer("mode simple");
+                            Exception exception = null;
 
-                            // and wait for the initialization command
-                            state = ProtocolState.PLAYING;
+                            try {
+                                agent.search(kalahState);
+                            } catch (Exception e) {
+                                // Print error, life goes on
+                                e.printStackTrace();
+
+                                // Tell outside about it though
+                                exception = e;
+                            }
+
+                            events.add(new AgentFinished(exception, !shouldStop));
                         }
-                    } else {
-                        throw new ProtocolException("Didn't expect " + cmd.name + " here");
-                    }
-                } else if ("state".equals(cmd.name)) {
-                    if (!isCorrectStateCommand(cmd)) {
-                        throw new ProtocolException("Not a correct state command: " + cmd.original);
-                    }
-                    if (state == ProtocolState.PLAYING) {
-                        String[] sp = cmd.args.get(0).substring(1, cmd.args.get(0).length() - 1).split(",");
+                    }).start();
 
-                        int[] integers = new int[sp.length];
+            // main thread for processing communication
+            ProtocolState state = ProtocolState.WAITING_FOR_VERSION;
 
-                        for (int i = 0; i < integers.length; i++) {
-                            integers[i] = Integer.parseInt(sp[i]);
+            try {
+                while (true) {
+                    Event event = null;
+
+                    try {
+                        event = events.take();
+                    } catch (InterruptedException e) {
+                        // not supposed to happen, just die
+                        e.printStackTrace();
+                        System.exit(1);
+                    }
+
+                    if (event instanceof AgentFinished) { // agent stopped/yielded
+                        AgentFinished af = (AgentFinished) event;
+
+                        // TODO does server always send a stop even when receiving a yield?
+                        if (af.yielded) {
+                            sendToServer("yield");
+                        } else {
+                            sendToServer("ok");
                         }
+                        state = ProtocolState.WAITING_FOR_STATE;
 
-                        int boardSize = integers[0];
+                        state = ProtocolState.WAITING_FOR_STATE;
+                    } else if (event instanceof NetworkThreadException) {
+                        // throw on whatever happened in network thread
+                        throw ((NetworkThreadException) event).exception;
+                    } else if (event instanceof Command) {
+                        Command cmd = (Command) event;
 
-                        KalahState ks = new KalahState(boardSize, -1);
+                        if ("ping".equals(cmd.name)) {
+                            reactToPing(cmd);
+                        } else if ("error".equals(cmd.name)) {
+                            reactToError(cmd);
+                        } else if ("goodbye".equals(cmd.name)) {
+                            reactToGoodbye(cmd);
+                        } else if ("kgp".equals(cmd.name)) {
+                            if (!isCorrectVersionCommand(cmd)) {
+                                throw new ProtocolException("Not a correct version command: " + cmd.original);
+                            }
+                            if (state == ProtocolState.WAITING_FOR_VERSION) {
+                                if (!cmd.original.startsWith("kgp 1 ")) {
+                                    // wrong protocol version
+                                    throw new ProtocolException("Only kgp 1.*.* supported");
+                                } else {
+                                    // server uses kalah game protocol 1.*.*
 
-                        ks.setStoreSouth(integers[1]);
-                        ks.setStoreNorth(integers[2]);
+                                    // send the default information
+                                    if (agent.getName() != null)
+                                        sendOption("info:name", toProtocolString(agent.getName()));
+                                    if (agent.getAuthors() != null)
+                                        sendOption("info:authors", toProtocolString(agent.getAuthors()));
+                                    if (agent.getDescription() != null)
+                                        sendOption("info:description", toProtocolString(agent.getDescription()));
 
-                        for (int i = 0; i < boardSize; i++) {
-                            ks.setHouse(KalahState.Player.SOUTH, i, integers[i + 3]);
-                            ks.setHouse(KalahState.Player.NORTH, i, integers[i + 3 + boardSize]);
+                                    // supported version, reply with mode
+                                    sendToServer("mode simple");
+
+                                    // and wait for the first state command
+                                    state = ProtocolState.WAITING_FOR_STATE;
+                                }
+                            } else {
+                                throw new ProtocolException("Didn't expect " + cmd.name + " here");
+                            }
+                        } else if ("state".equals(cmd.name)) {
+                            if (!isCorrectStateCommand(cmd)) {
+                                throw new ProtocolException("Not a correct state command: " + cmd.original);
+                            }
+                            if (state == ProtocolState.WAITING_FOR_STATE) {
+                                String[] sp = cmd.args.get(0).substring(1, cmd.args.get(0).length() - 1).split(",");
+
+                                int[] integers = new int[sp.length];
+
+                                for (int i = 0; i < integers.length; i++) {
+                                    integers[i] = Integer.parseInt(sp[i]);
+                                }
+
+                                int boardSize = integers[0];
+
+                                kalahState = new KalahState(boardSize, -1);
+
+                                kalahState.setStoreSouth(integers[1]);
+                                kalahState.setStoreNorth(integers[2]);
+
+                                for (int i = 0; i < boardSize; i++) {
+                                    kalahState.setHouse(KalahState.Player.SOUTH, i, integers[i + 3]);
+                                    kalahState.setHouse(KalahState.Player.NORTH, i, integers[i + 3 + boardSize]);
+                                }
+
+                                shouldStop = false;
+
+                                // Command agent thread to search by joining him on the cyclic barrier
+                                // This barrier also ensures that the agent sees the new state
+                                // although having that volatile variable in between might accomplish that as well?
+                                try {
+                                    bar.await();
+                                } catch (InterruptedException e) {
+                                    e.printStackTrace();
+                                } catch (BrokenBarrierException e) {
+                                    e.printStackTrace();
+                                }
+
+                                state = ProtocolState.SEARCHING;
+                            } else {
+                                throw new ProtocolException("Didn't expect " + cmd.name + " here");
+
+                            }
+                        } else if ("stop".equals(cmd.name)) {
+
+                            if (!isCorrectStopCommand(cmd)) {
+                                throw new ProtocolException("Not a correct stop command: " + cmd.original);
+                            }
+
+                            if (state == ProtocolState.SEARCHING) {
+
+                                // Tell agent thread to stop
+                                shouldStop = true;
+
+                                // Then go about other business
+                                // The agent will notify this loop via an event
+
+                                state = ProtocolState.WAITING_FOR_AGENT_TO_STOP;
+                            } else if (state == ProtocolState.WAITING_FOR_STATE) {
+                                // just ignore it, might be a stop which was sent before the server received a yield
+                            } else {
+                                throw new ProtocolException("Didn't expect " + cmd.name + " here");
+                            }
+                        } else if ("set".equals(cmd.name)) {
+                            reactToSet(cmd);
+                        } else {
+                            throw new ProtocolException("Unknown command " + cmd.name);
                         }
-
-                        // search, can take a long time
-                        onState(ks);
-                    } else {
-                        throw new ProtocolException("Didn't expect " + cmd.name + " here");
-
                     }
-                } else if ("set".equals(cmd.name)) {
-                    reactToSet(cmd);
-                } else {
-                    throw new ProtocolException("Unknown command " + cmd.name);
                 }
+            } catch (GoodbyeEvent ge) {
+                // do nothing, just don't crash
+            } catch (IOException ie) {
+                // print stack trace, but don't send error to server, just say goodbye
+                ie.printStackTrace();
+            } finally {
+                // tell the threads to stop their while loops
+                running = false;
+
+                // network thread escapes from readLine() via IOError
+
+                // agent thread (if agent isn't broken) escapes via fake stop:
+                shouldStop = true;
+
+                // or it's hung up in the barrier
+                bar.reset();
+
+                // on crash, don't tell the server, just say goodbye and still throw the exception
+                sendGoodbyeAndCloseConnection();
             }
-        } catch(GoodbyeEvent ge)
-        {
-            // do nothing, just don't crash
-        }
-        finally {
-            // on crash, don't tell the server, just say goodbye and still throw the exception
-            sendGoodbyeAndCloseConnection();
         }
     }
 
     // react to ping
     private void reactToPing(Command cmd) throws IOException {
-        if (isIncorrectPingCommand(cmd)) {
+        if (!isCorrectPingCommand(cmd)) {
             throw new ProtocolException("Not a correct ping command: " + cmd.original);
         }
         sendToServer("pong");
@@ -194,7 +383,7 @@ public class ProtocolManager {
 
     // react to error
     private void reactToError(Command msg) throws ProtocolException {
-        if (isIncorrectErrorCommand(msg)) {
+        if (!isCorrectErrorCommand(msg)) {
             throw new ProtocolException("Not a correct error command: " + msg.original);
         }
         throw new ProtocolException("Received error command from server: " + msg);
@@ -202,7 +391,7 @@ public class ProtocolManager {
 
     // react to goodbye
     private void reactToGoodbye(Command cmd) throws GoodbyeEvent, ProtocolException {
-        if (isIncorrectGoodbyeCommand(cmd)) {
+        if (!isCorrectGoodbyeCommand(cmd)) {
             throw new ProtocolException("Not a correct goodbye command: " + cmd.original);
         }
         throw new GoodbyeEvent();
@@ -372,96 +561,10 @@ public class ProtocolManager {
         }
     }
 
-    // called when the server tells the client to start searching
-    private void onState(KalahState ks) throws IOException
-    {
-        serverSaidStop = false;
-
-        try {
-            agent.search(ks);
-        }
-        catch(Exception e)
-        {
-            sendMove(ks.randomLegalMove());
-            sendComment("[jkgp] Agent crashed (" + e.getClass().getSimpleName() + "), move chosen randomly.");
-        }
-
-        if (serverSaidStop)
-        {
-            // server told us to stop
-            // tell server that we're done stopping
-            sendToServer("ok");
-        }
-        else
-        {
-            // agent decided to stop
-            sendToServer("yield");
-
-            // wait for it's stop
-            while (true) {
-                Command cmd = receiveFromServer();
-
-                // TODO change msg to cmd everywhere
-                if ("stop".equals(cmd.name)) {
-                    if (isIncorrectStopCommand(cmd)) {
-                        throw new IOException("Not a correct stop command: " + cmd.original);
-                    }
-
-                    // server told us to stop
-
-                    // agent already stopped (yielded), do nothing
-                    return;
-                } else if ("ping".equals(cmd.name)) {
-                    reactToPing(cmd);
-                } else if ("error".equals(cmd.name)) {
-                    reactToError(cmd);
-                } else if ("goodbye".equals(cmd.name)) {
-                    reactToGoodbye(cmd);
-                } else {
-                    throw new ProtocolException("Got " + cmd.name +
-                            " but expected stop/ping/error/goodbye while waiting for stop");
-                }
-            }
-        }
-    }
-
     // see documentation of onState(...)
     boolean shouldStop() throws IOException
     {
-        if (serverSaidStop)
-        {
-            return true;
-        }
-        else if (input.ready())
-        {
-            Command cmd = receiveFromServer();
-
-            if ("stop".equals(cmd.name)) {
-                if (isIncorrectStopCommand(cmd)) {
-                    throw new ProtocolException("Not a correct stop command: " + cmd.original);
-                }
-
-                // set stop variable for subsequent calls
-                serverSaidStop = true;
-
-                // tell agent to stop
-                return true;
-            } else if ("ping".equals(cmd.name)) {
-                reactToPing(cmd);
-            } else if ("error".equals(cmd.name)) {
-                reactToError(cmd);
-            } else if ("goodbye".equals(cmd.name)) {
-                reactToGoodbye(cmd);
-            } else if ("set".equals(cmd.name)) {
-                reactToSet(cmd);
-            } else {
-                throw new ProtocolException("Got " + cmd.name +
-                        " but expected stop/ping/error/goodbye/set while checking for stop");
-            }
-        }
-
-        // tell agent to continue
-        return false;
+        return shouldStop;
     }
 
     // see documentation of onState(...)
@@ -474,6 +577,7 @@ public class ProtocolManager {
         if (move <= 0) {
             throw new IllegalArgumentException("Move cannot be negative");
         }
+
         sendToServer("move "+move);
     }
 
@@ -500,20 +604,32 @@ public class ProtocolManager {
     // also acts as callback for logging etc.
     private void sendToServer(String msg) throws IOException
     {
-        output.write(msg.getBytes());
-        output.write('\r');
-        output.write('\n');
-        output.flush();
+        synchronized (lockSend) { // output stream is not threadsafe
+            output.write(msg.getBytes());
+            output.write('\r');
+            output.write('\n');
+            output.flush();
 
-        System.err.println("Client: " + msg);
+            // logging
+            if (debugStream != null) {
+                debugStream.println("Client: " + msg);
+            }
+        }
     }
 
     private Command receiveFromServer() throws IOException
     {
         String line = input.readLine();
 
+        if (line == null)
+        {
+            throw new IOException("Encountered EOF while trying to receive message from server");
+        }
+
         // logging
-        System.err.println("Server: " + line);
+        if (debugStream != null) {
+            debugStream.println("Server: " + line);
+        }
 
         Matcher mat = commandPattern.matcher(line);
         if (!mat.matches()) {
@@ -541,22 +657,22 @@ public class ProtocolManager {
     }
 
     // checks whether a command is a correct ping command
-    private boolean isIncorrectPingCommand(Command command)
+    private boolean isCorrectPingCommand(Command command)
     {
-        return !command.original.equals("ping");
+        return command.original.equals("ping");
     }
 
     // checks whether a command is a correct goodbye command
-    private boolean isIncorrectGoodbyeCommand(Command command)
+    private boolean isCorrectGoodbyeCommand(Command command)
     {
-        return !command.original.equals("goodbye");
+        return command.original.equals("goodbye");
     }
 
     // checks whether a command is a correct error command
-    private boolean isIncorrectErrorCommand(Command command)
+    private boolean isCorrectErrorCommand(Command command)
     {
-        return !command.name.equals("error") ||
-                command.args.size() != 1;
+        return command.name.equals("error") &&
+                command.args.size() == 1;
     }
 
     // Checks whether a command is a correct version command
@@ -624,8 +740,8 @@ public class ProtocolManager {
     }
 
     // checks whether the given command is a correct stop command
-    private boolean isIncorrectStopCommand(Command msg)
+    private boolean isCorrectStopCommand(Command msg)
     {
-        return !msg.original.equals("stop");
+        return msg.original.equals("stop");
     }
 }
