@@ -18,9 +18,6 @@ const (
 )
 
 var (
-	port      uint
-	tport     uint
-	wport     uint
 	defSize   uint
 	defStones uint
 	timeout   uint
@@ -57,6 +54,9 @@ func wslisten(wport uint) {
 
 func main() {
 	var (
+		port      uint
+		tport     uint
+		wport     uint
 		key, cert string
 		dbf       string
 	)
