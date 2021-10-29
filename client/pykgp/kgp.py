@@ -18,6 +18,7 @@
 
 import inspect
 import re
+import os
 import socket
 import threading
 import copy
@@ -163,12 +164,15 @@ class Board:
         return b, False
 
 
-def connect(agent, host='localhost', port=2671):
+def connect(agent, host='localhost', port=2671, token=None, name=None, authors=[]):
     """
     Connect to KGP server at host:port as agent.
 
     Agent is a generator function, that produces as many moves as it
     can until the server ends a search request.
+
+    The optional arguments TOKEN, NAME and AUTHORS are used to send
+    the server optional information about the client implementation.
     """
     assert inspect.isgeneratorfunction(agent)
 
@@ -243,6 +247,7 @@ def connect(agent, host='localhost', port=2671):
                 If ref is not None, add a reference.
                 """
                 nonlocal id
+                print(">", ref, cmd, *args)
 
                 pseudo.write(str(id))
                 if ref:
@@ -285,6 +290,8 @@ def connect(agent, host='localhost', port=2671):
             running = {}
 
             for line in pseudo:
+                print("<", line.strip())
+
                 try:
                     match = COMMAND_PATTERN.match(line)
                     if not match:
@@ -303,6 +310,12 @@ def connect(agent, host='localhost', port=2671):
                             send("error", "protocol not supported", ref=cid)
                             raise ValueError()
                         send("mode", "freeplay")
+                        if name:
+                            send("set", "info:name", name)
+                        if authors:
+                            send("set", "info:authors", ",".join(authors))
+                        if token:
+                            send("set", "auth:token", token)
                     elif cmd == "state":
                         board = args[0]
 
