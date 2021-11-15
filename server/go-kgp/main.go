@@ -6,9 +6,6 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"net/http"
-
-	"github.com/gobwas/ws"
 )
 
 const (
@@ -24,7 +21,6 @@ var (
 )
 
 func listen(ln net.Listener) {
-	log.Print("Listening on port 2671")
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
@@ -37,26 +33,10 @@ func listen(ln net.Listener) {
 	}
 }
 
-func wslisten(wport uint) {
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		conn, _, _, err := ws.UpgradeHTTP(r, w)
-		if err != nil {
-			log.Print(err)
-			return
-		}
-
-		log.Printf("New ws connection from %s", conn.RemoteAddr())
-		(&Client{rwc: conn}).Handle()
-	})
-
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", wport), nil))
-}
-
 func main() {
 	var (
 		port      uint
 		tport     uint
-		wport     uint
 		key, cert string
 		dbf       string
 	)
@@ -65,7 +45,6 @@ func main() {
 	flag.UintVar(&defStones, "stones", 7, "Number of stones to use")
 	flag.UintVar(&port, "port", 2671, "Port number of plain connections")
 	flag.UintVar(&tport, "tls-port", 2672, "Port number of encrypted connections")
-	flag.UintVar(&wport, "ws-port", 0, "Port number of websocket connections")
 	flag.StringVar(&cert, "tls-cert", "", "Port number of encrypted connections")
 	flag.StringVar(&key, "tls-key", "", "Port number of encrypted connections")
 	flag.StringVar(&dbf, "db", "kalah.sql", "Path to SQLite database")
@@ -78,6 +57,7 @@ func main() {
 		log.Fatal(err)
 	}
 	go listen(plain)
+	log.Printf("Listening on port %d", port)
 
 	// open encrypted server socket
 	if cert != "" && key != "" {
@@ -93,15 +73,11 @@ func main() {
 		}
 
 		go listen(encr)
+		log.Printf("Listening on port %d (TLS)", tport)
 	} else if key == "" && cert != "" {
 		log.Fatal("No key for certificate")
 	} else if cert == "" && key != "" {
 		log.Fatal("No certificate for key")
-	}
-
-	// open websocket server
-	if wport != 0 {
-		go wslisten(wport)
 	}
 
 	// start database manager
