@@ -2,8 +2,8 @@ This is a server implementation of the Kalah Game Protocl (KGP),
 written in Go[0].  It implements the base protocol, without any
 extensions.  Currently, it only supports the "freeplay" mode.
 
-The only build-dependency is the Go toolchain.  To compile the server,
-run
+The only build-dependency is the Go toolchain, version 1.16 or newer.
+To compile the server, run
 
 	$ go build
 
