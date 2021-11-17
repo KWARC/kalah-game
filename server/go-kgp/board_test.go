@@ -32,7 +32,7 @@ func boardEq(b1 *Board, b2 *Board) bool {
 func TestLegal(t *testing.T) {
 	for i, test := range []struct {
 		start *Board
-		move  uint
+		move  int
 		side  Side
 		legal bool
 	}{
@@ -139,7 +139,7 @@ func TestLegal(t *testing.T) {
 func TestSow(t *testing.T) {
 	for i, test := range []struct {
 		start, end *Board
-		move       uint
+		move       int
 		side       Side
 		again      bool
 	}{
