@@ -199,3 +199,34 @@ func (b *Board) Over() bool {
 	}
 	return empty
 }
+
+func (b *Board) Outcome(side Side) Outcome {
+	var (
+		north = b.north
+		south = b.south
+	)
+
+	for _, pit := range b.northPits {
+		north += pit
+	}
+	for _, pit := range b.southPits {
+		south += pit
+	}
+
+	switch {
+	case north > south:
+		if side == SideNorth {
+			return WIN
+		} else {
+			return LOSS
+		}
+	case south < north:
+		if side == SideNorth {
+			return LOSS
+		} else {
+			return WIN
+		}
+	default:
+		return DRAW
+	}
+}

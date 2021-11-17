@@ -3,30 +3,21 @@ package main
 import (
 	"database/sql"
 	"log"
+	"sync"
+
+	_ "embed"
 
 	_ "github.com/mattn/go-sqlite3"
 )
 
 type DBAction func(*sql.DB) error
 
-func (cli *Client) UpdateDatabase(db *sql.DB) error {
-	res, err := db.Exec(`INSERT INTO agent(token, name, descr)
-                             VALUES (?, ?, ?)
-                               ON CONFLICT (token) DO UPDATE SET
-                                 name = ?, descr = ?`,
-		cli.token, cli.name, cli.descr,
-		cli.name, cli.descr)
-	if err != nil {
-		return err
-	}
-	cli.dbid, err = res.LastInsertId()
-	return err
-}
+//go:embed sql/insert-move.sql
+var sqlInsertMoveSrc string
+var sqlInsertMove *sql.Stmt
 
 func (game *Game) UpdateDatabase(db *sql.DB) error {
-	res, err := db.Exec(`INSERT INTO game(north, south, start)
-                             VALUES (?, ?, DATETIME('now'))`,
-		game.north.dbid, game.south.dbid)
+	res, err := sqlInsertGame.Exec(game.north.dbid, game.south.dbid)
 	if err != nil {
 		return err
 	}
@@ -45,6 +36,37 @@ func (mov *Move) UpdateDatabase(db *sql.DB) error {
 	}
 	_, err := sqlInsertGame.Exec(mov.cli.comment, mov.cli.dbid, mov.game.dbid)
 	return err
+}
+
+//go:embed sql/insert-agent.sql
+var sqlInsertAgentSrc string
+var sqlInsertAgent *sql.Stmt
+
+//go:embed sql/select-agent.sql
+var sqlSelectAgentSrc string
+var sqlSelectAgent *sql.Stmt
+
+func (cli *Client) UpdateDatabase(wait *sync.WaitGroup) DBAction {
+	log.Print("Request to save", cli)
+	return func(db *sql.DB) error {
+		log.Print("Starting to save", cli)
+		res, err := sqlInsertAgent.Exec(
+			cli.token, cli.name, cli.descr,
+			cli.name, cli.descr, cli.score)
+		if err != nil {
+			return err
+		}
+		cli.dbid, err = res.LastInsertId()
+
+		err = sqlSelectAgent.QueryRow(cli.dbid).Scan(&cli.score)
+		if err != nil {
+			cli.kill <- true
+		}
+		if wait != nil {
+			wait.Done()
+		}
+		return nil
+	}
 }
 
 var dbact = make(chan DBAction, 64)

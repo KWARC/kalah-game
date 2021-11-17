@@ -29,6 +29,7 @@ type Client struct {
 	pinged  bool
 	token   string
 	dbid    int64
+	score   float64
 }
 
 // Send forwards an unreferenced message to the client

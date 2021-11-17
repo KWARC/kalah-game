@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"unicode"
 )
 
@@ -80,7 +81,11 @@ func (cli *Client) Set(key, val string) error {
 	case "auth:token":
 		if cli.token == "" {
 			cli.token = val
-			dbact <- cli.UpdateDatabase
+
+			var wg sync.WaitGroup
+			wg.Add(1)
+			dbact <- cli.UpdateDatabase(&wg)
+			wg.Wait()
 		}
 	}
 

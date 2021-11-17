@@ -112,6 +112,10 @@ func (g *Game) Start() {
 
 	defer func() {
 		fmt.Println("Game", g, "finished")
+
+		g.north.updateScore(g.south, g.board.Outcome(SideNorth))
+		g.south.updateScore(g.north, g.board.Outcome(SideSouth))
+
 		g.north.kill <- true
 		g.south.kill <- true
 	}()
