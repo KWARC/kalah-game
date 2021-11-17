@@ -34,16 +34,32 @@ func (game *Game) UpdateDatabase(db *sql.DB) error {
 	return err
 }
 
+//go:embed sql/insert-game.sql
+var sqlInsertGameSrc string
+var sqlInsertGame *sql.Stmt
+
 func (mov *Move) UpdateDatabase(db *sql.DB) error {
-	_, err := db.Exec(`INSERT INTO move(comment, agent, game, played)
-                           VALUES (?, ?, ?, DATETIME('now'))`,
-		mov.cli.comment,
-		mov.cli.dbid,
-		mov.game.dbid)
+	// Do not save a move if the game has been invalidated
+	if mov.game == nil {
+		return nil
+	}
+	_, err := sqlInsertGame.Exec(mov.cli.comment, mov.cli.dbid, mov.game.dbid)
 	return err
 }
 
 var dbact = make(chan DBAction, 64)
+
+//go:embed sql/create-agent.sql
+var sqlCreateAgentSrc string
+var sqlCreateAgent *sql.Stmt
+
+//go:embed sql/create-game.sql
+var sqlCreateGameSrc string
+var sqlCreateGame *sql.Stmt
+
+//go:embed sql/create-move.sql
+var sqlCreateMoveSrc string
+var sqlCreateMove *sql.Stmt
 
 func manageDatabase(file string) {
 	db, err := sql.Open("sqlite3", file+"?mode=rwc&_journal=wal")
@@ -53,34 +69,35 @@ func manageDatabase(file string) {
 	defer close(dbact)
 	defer db.Close()
 
-	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS agent (
-                            id INTEGER PRIMARY KEY AUTOINCREMENT,
-                            token TEXT UNIQUE,
-                            name TEXT,
-                            descr TEXT,
-                            score REAL
-                          );`)
+	// Prepare statements
+	for _, ent := range []struct {
+		sql  string
+		stmt **sql.Stmt
+	}{
+		{sqlInsertMoveSrc, &sqlInsertMove},
+		{sqlInsertGameSrc, &sqlInsertGame},
+		{sqlInsertAgentSrc, &sqlInsertAgent},
+		{sqlSelectAgentSrc, &sqlSelectAgent},
+		{sqlCreateAgentSrc, &sqlCreateAgent},
+		{sqlCreateGameSrc, &sqlCreateGame},
+		{sqlCreateMoveSrc, &sqlCreateMove},
+	} {
+		*ent.stmt, err = db.Prepare(ent.sql)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	// Create tables
+	_, err = sqlCreateAgent.Exec()
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS game (
-                            id INTEGER PRIMARY KEY AUTOINCREMENT,
-                            north REFERENCES agent(id),
-                            south REFERENCES agent(id),
-                            result INTEGER,
-                            start DATETIME
-                          );`)
+	_, err = sqlCreateGame.Exec()
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS move (
-                            comment TEXT,
-                            agent REFERENCES agent(id),
-                            game REFERENCES game(id),
-                            played DATETIME
-                          );`)
+	_, err = sqlCreateMove.Exec()
 	if err != nil {
 		log.Fatal(err)
 	}
