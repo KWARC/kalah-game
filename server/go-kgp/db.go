@@ -171,6 +171,58 @@ func QueryGame(gid uint, c chan<- *Game) DBAction {
 	}
 }
 
+//go:embed sql/select-games.sql
+var sqlSelectGamesSrc string
+var sqlSelectGames *sql.Stmt
+
+func QueryGames(c chan<- *Game, page uint) DBAction {
+	return func(db *sql.DB) (err error) {
+		rows, err := sqlSelectGames.Query(page)
+		if err != nil {
+			close(c)
+			return
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var (
+				game         Game
+				naid, said   int
+				north, south Agent
+			)
+
+			err = rows.Scan(
+				&game.Id, &naid, &said, &game.Result, &game.start,
+			)
+			if err != nil {
+				close(c)
+				return
+			}
+
+			err = sqlSelectAgent.QueryRow(naid).Scan(
+				&north.Name, nil, &north.Score,
+			)
+			if err != nil {
+				close(c)
+				return
+			}
+			game.North = &Client{Agent: north}
+
+			err = sqlSelectAgent.QueryRow(said).Scan(
+				&south.Name, nil, &south.Score,
+			)
+			if err != nil {
+				close(c)
+				return
+			}
+			game.South = &Client{Agent: south}
+
+			c <- &game
+		}
+		return
+	}
+}
+
 var dbact = make(chan DBAction, 64)
 
 //go:embed sql/create-agent.sql
@@ -202,6 +254,7 @@ func manageDatabase(file string) {
 		{sqlInsertGameSrc, &sqlInsertGame},
 		{sqlInsertAgentSrc, &sqlInsertAgent},
 		{sqlSelectAgentSrc, &sqlSelectAgent},
+		{sqlSelectGamesSrc, &sqlSelectGames},
 		{sqlCreateAgentSrc, &sqlCreateAgent},
 		{sqlCreateGameSrc, &sqlCreateGame},
 		{sqlCreateMoveSrc, &sqlCreateMove},
