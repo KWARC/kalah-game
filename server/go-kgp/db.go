@@ -58,7 +58,7 @@ func (cli *Client) UpdateDatabase(wait *sync.WaitGroup) DBAction {
 		}
 		cli.Id, err = res.LastInsertId()
 
-		err = sqlSelectAgent.QueryRow(cli.Id).Scan(&cli.Score)
+		err = sqlSelectAgent.QueryRow(cli.Id).Scan(&cli.Score, nil, nil)
 		if err != nil {
 			cli.kill <- true
 		}
@@ -66,6 +66,21 @@ func (cli *Client) UpdateDatabase(wait *sync.WaitGroup) DBAction {
 			wait.Done()
 		}
 		return nil
+	}
+}
+
+func QueryAgent(aid uint, c chan<- *Client) DBAction {
+	return func(db *sql.DB) error {
+		var cli Client
+
+		err := sqlSelectAgent.QueryRow(aid).Scan(&cli.Score, nil, nil)
+		if err != nil {
+			close(c)
+		} else {
+			c <- &cli
+		}
+
+		return err
 	}
 }
 

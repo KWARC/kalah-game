@@ -1,3 +1,3 @@
 -- -*- sql-product: sqlite; -*-
 
-SELECT score FROM agent  WHERE rowid = ?
+SELECT name, descr, score FROM agent  WHERE id = ?
