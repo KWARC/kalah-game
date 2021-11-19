@@ -223,6 +223,34 @@ func QueryGames(c chan<- *Game, page uint) DBAction {
 	}
 }
 
+//go:embed sql/select-agents.sql
+var sqlSelectAgentsSrc string
+var sqlSelectAgents *sql.Stmt
+
+func QueryAgents(c chan<- *Agent, page uint) DBAction {
+	return func(db *sql.DB) (err error) {
+		rows, err := sqlSelectAgents.Query(page)
+		if err != nil {
+			close(c)
+			return
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var agent Agent
+
+			err = rows.Scan(&agent.Id, &agent.Name, &agent.Score)
+			if err != nil {
+				close(c)
+				return
+			}
+
+			c <- &agent
+		}
+		return
+	}
+}
+
 var dbact = make(chan DBAction, 64)
 
 //go:embed sql/create-agent.sql
@@ -255,6 +283,7 @@ func manageDatabase(file string) {
 		{sqlInsertAgentSrc, &sqlInsertAgent},
 		{sqlSelectAgentSrc, &sqlSelectAgent},
 		{sqlSelectGamesSrc, &sqlSelectGames},
+		{sqlSelectAgentsSrc, &sqlSelectAgents},
 		{sqlCreateAgentSrc, &sqlCreateAgent},
 		{sqlCreateGameSrc, &sqlCreateGame},
 		{sqlCreateMoveSrc, &sqlCreateMove},
