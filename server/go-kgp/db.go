@@ -84,6 +84,93 @@ func QueryAgent(aid uint, c chan<- *Client) DBAction {
 	}
 }
 
+//go:embed sql/select-game.sql
+var sqlSelectGameSrc string
+var sqlSelectGame *sql.Stmt
+
+//go:embed sql/select-moves.sql
+var sqlSelectMovesSrc string
+var sqlSelectMoves *sql.Stmt
+
+func QueryGame(gid uint, c chan<- *Game) DBAction {
+	return func(db *sql.DB) (err error) {
+		var (
+			naid, said   int
+			north, south Agent
+			game         Game
+		)
+
+		err = sqlSelectGame.QueryRow(gid).Scan(
+			&naid, &said, &game.Result, &game.start,
+		)
+		if err != nil {
+			close(c)
+			return
+		}
+
+		err = sqlSelectAgent.QueryRow(naid).Scan(
+			&north.Name, &north.Descr, &north.Score,
+		)
+		if err != nil {
+			close(c)
+			return
+		}
+		game.North = &Client{Agent: north}
+
+		err = sqlSelectAgent.QueryRow(said).Scan(
+			&south.Name, &south.Descr, &south.Score,
+		)
+		if err != nil {
+			close(c)
+			return
+		}
+		game.South = &Client{Agent: south}
+
+		rows, err := sqlSelectMoves.Query(gid)
+		if err != nil {
+			close(c)
+			return
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var (
+				aid  int
+				move Move
+				side Side
+			)
+
+			err = rows.Scan(&aid, &move.comm, &move.pit)
+			if err != nil {
+				close(c)
+				return
+			}
+
+			move.game = &game
+			switch aid {
+			case naid:
+				move.cli = game.North
+				side = SideNorth
+			case said:
+				move.cli = game.South
+				side = SideSouth
+			default:
+				panic("Invalid move in database")
+			}
+
+			// TODO Ensure the next move is on the right
+			// side, by checking the return value in the
+			// next iteration.
+			game.Board.Sow(side, move.pit)
+
+			game.Moves = append(game.Moves, move)
+		}
+
+		c <- &game
+		return
+	}
+}
+
 var dbact = make(chan DBAction, 64)
 
 //go:embed sql/create-agent.sql
