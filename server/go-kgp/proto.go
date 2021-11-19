@@ -71,11 +71,11 @@ func parse(raw string, params ...interface{}) error {
 func (cli *Client) Set(key, val string) error {
 	switch key {
 	case "info:name":
-		cli.name = val
+		cli.Name = val
 	case "info:authors":
-		cli.author = val
+		cli.Author = val
 	case "info:description":
-		cli.descr = val
+		cli.Descr = val
 	case "info:comment":
 		cli.comment = val
 	case "auth:token":

@@ -13,14 +13,20 @@ import (
 	"time"
 )
 
+// An Agent
+type Agent struct {
+	Name   string
+	Author string
+	Descr  string
+	Score  float64
+	Id     int64
+}
+
 // Client wraps a network connection into a player
 type Client struct {
+	Agent
 	game    *Game
 	rwc     io.ReadWriteCloser
-	name    string
-	author  string
-	descr   string
-	comment string
 	lock    sync.Mutex
 	choice  int
 	rid     uint64
@@ -28,8 +34,7 @@ type Client struct {
 	waiting bool
 	pinged  bool
 	token   string
-	dbid    int64
-	score   float64
+	comment string
 }
 
 // Send forwards an unreferenced message to the client

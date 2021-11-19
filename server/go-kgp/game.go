@@ -19,7 +19,7 @@ type Move struct {
 
 // Do ensures a move is valid and then sets it
 func (m Move) Do(game *Game, side Side) bool {
-	if m.pit < 0 || m.pit >= len(game.board.northPits) {
+	if m.pit < 0 || m.pit >= len(game.Board.northPits) {
 		game.Current().Send("error", "illegal move")
 	} else {
 		game.Player(side).choice = m.pit
@@ -35,8 +35,8 @@ type Yield bool
 // Do gives up the remaining time
 func (y Yield) Do(g *Game, _ Side) bool {
 	if y == true {
-		g.north.Send("fail", "game over")
-		g.south.Send("fail", "game over")
+		g.North.Send("fail", "game over")
+		g.South.Send("fail", "game over")
 		g.dead = true
 	}
 	return true
@@ -44,31 +44,34 @@ func (y Yield) Do(g *Game, _ Side) bool {
 
 // Game represents a game between two players
 type Game struct {
-	board Board
-	last  uint64 // id of last state command
-	side  Side
-	ctrl  chan Action
-	north *Client
-	south *Client
-	dead  bool
-	dbid  int64
+	Board  Board
+	last   uint64 // id of last state command
+	side   Side
+	ctrl   chan Action
+	North  *Client
+	South  *Client
+	dead   bool
+	Result bool
+	Id     int64
+	start  time.Time
+	Moves  []Move
 }
 
 // String generates a KGP board representation for the current player
 func (g *Game) String() string {
 	if g.side == SideNorth {
-		return g.board.Mirror().String()
+		return g.Board.Mirror().String()
 	}
-	return g.board.String()
+	return g.Board.String()
 }
 
 // Player returns the player on SIDE of the board
 func (g *Game) Player(side Side) *Client {
 	switch side {
 	case SideNorth:
-		return g.north
+		return g.North
 	case SideSouth:
-		return g.south
+		return g.South
 	default:
 		panic("Invalid state")
 	}
@@ -94,18 +97,18 @@ func (g *Game) IsCurrent(cli *Client) bool {
 func (g *Game) Start() {
 	g.ctrl = make(chan Action)
 
-	if g.north.game != nil {
+	if g.North.game != nil {
 		panic("Already part of game")
 	}
-	g.north.game = g
-	g.north.waiting = false
-	if g.south.game != nil {
+	g.North.game = g
+	g.North.waiting = false
+	if g.South.game != nil {
 		panic("Already part of game")
 	}
-	g.south.game = g
-	g.south.waiting = false
+	g.South.game = g
+	g.South.waiting = false
 
-	g.last = g.north.Send("state", g)
+	g.last = g.North.Send("state", g)
 
 	timer := time.After(time.Duration(timeout) * time.Second)
 	next := false
@@ -113,11 +116,11 @@ func (g *Game) Start() {
 	defer func() {
 		fmt.Println("Game", g, "finished")
 
-		g.north.updateScore(g.south, g.board.Outcome(SideNorth))
-		g.south.updateScore(g.north, g.board.Outcome(SideSouth))
+		g.North.updateScore(g.South, g.Board.Outcome(SideNorth))
+		g.South.updateScore(g.North, g.Board.Outcome(SideSouth))
 
-		g.north.kill <- true
-		g.south.kill <- true
+		g.North.kill <- true
+		g.South.kill <- true
 	}()
 
 	dbact <- g.UpdateDatabase
@@ -139,24 +142,24 @@ func (g *Game) Start() {
 			choice := g.Current().choice
 			g.Current().choice = -1
 
-			if g.board.Over() {
+			if g.Board.Over() {
 				return
-			} else if !g.board.Legal(g.side, choice) {
-				choice = g.board.Random(g.side)
+			} else if !g.Board.Legal(g.side, choice) {
+				choice = g.Board.Random(g.side)
 				msg := fmt.Sprintf("No move legal move, defaulted to %d", choice)
 				if g.side == SideNorth {
-					g.north.Respond(g.last, "error", msg)
+					g.North.Respond(g.last, "error", msg)
 				} else {
-					g.south.Respond(g.last, "error", msg)
+					g.South.Respond(g.last, "error", msg)
 				}
 			}
 
-			again := g.board.Sow(g.side, choice)
+			again := g.Board.Sow(g.side, choice)
 
 			if g.side == SideNorth {
-				g.north.Respond(g.last, "stop")
+				g.North.Respond(g.last, "stop")
 			} else {
-				g.south.Respond(g.last, "stop")
+				g.South.Respond(g.last, "stop")
 			}
 
 			if !again {
@@ -164,9 +167,9 @@ func (g *Game) Start() {
 			}
 
 			if g.side == SideNorth {
-				g.last = g.north.Send("state", g)
+				g.last = g.North.Send("state", g)
 			} else {
-				g.last = g.south.Send("state", g)
+				g.last = g.South.Send("state", g)
 			}
 
 			timer = time.After(time.Duration(timeout) * time.Second)

@@ -50,9 +50,9 @@ func organizer() {
 			qcond.Wait()
 		}
 		go (&Game{
-			board: makeBoard(defSize, defStones),
-			north: queue[0],
-			south: queue[1],
+			Board: makeBoard(defSize, defStones),
+			North: queue[0],
+			South: queue[1],
 		}).Start()
 		queue = queue[2:]
 		qlock.Unlock()

@@ -21,7 +21,7 @@ func (cli *Client) updateScore(opp *Client, outcome Outcome) (err error) {
 	// Calculate the new ELO rating for the current client
 	// according to
 	// https://de.wikipedia.org/wiki/Elo-Zahl#Erwartungswert
-	diff := math.Max(-400, math.Min(opp.score-cli.score, 400))
+	diff := math.Max(-400, math.Min(opp.Score-cli.Score, 400))
 
 	ea := 1 / (1 + math.Pow(10, diff/MAX_DIFF))
 	eb := 1 / (1 + math.Pow(10, -diff/MAX_DIFF))
@@ -31,7 +31,7 @@ func (cli *Client) updateScore(opp *Client, outcome Outcome) (err error) {
 		return nil
 	}
 
-	cli.score = cli.score + K*(float64(outcome)-ea)
+	cli.Score = cli.Score + K*(float64(outcome)-ea)
 
 	// Send database manager a request to update the entry
 	dbact <- cli.UpdateDatabase(nil)

@@ -17,11 +17,11 @@ var sqlInsertMoveSrc string
 var sqlInsertMove *sql.Stmt
 
 func (game *Game) UpdateDatabase(db *sql.DB) error {
-	res, err := sqlInsertGame.Exec(game.north.dbid, game.south.dbid)
+	res, err := sqlInsertGame.Exec(game.North.Id, game.South.Id)
 	if err != nil {
 		return err
 	}
-	game.dbid, err = res.LastInsertId()
+	game.Id, err = res.LastInsertId()
 	return err
 }
 
@@ -34,7 +34,7 @@ func (mov *Move) UpdateDatabase(db *sql.DB) error {
 	if mov.game == nil {
 		return nil
 	}
-	_, err := sqlInsertGame.Exec(mov.cli.comment, mov.cli.dbid, mov.game.dbid)
+	_, err := sqlInsertGame.Exec(mov.cli.comment, mov.cli.Id, mov.game.Id)
 	return err
 }
 
@@ -51,14 +51,14 @@ func (cli *Client) UpdateDatabase(wait *sync.WaitGroup) DBAction {
 	return func(db *sql.DB) error {
 		log.Print("Starting to save", cli)
 		res, err := sqlInsertAgent.Exec(
-			cli.token, cli.name, cli.descr,
-			cli.name, cli.descr, cli.score)
+			cli.token, cli.Name, cli.Descr,
+			cli.Name, cli.Descr, cli.Score)
 		if err != nil {
 			return err
 		}
-		cli.dbid, err = res.LastInsertId()
+		cli.Id, err = res.LastInsertId()
 
-		err = sqlSelectAgent.QueryRow(cli.dbid).Scan(&cli.score)
+		err = sqlSelectAgent.QueryRow(cli.Id).Scan(&cli.Score)
 		if err != nil {
 			cli.kill <- true
 		}
