@@ -47,7 +47,6 @@ var sqlSelectAgentSrc string
 var sqlSelectAgent *sql.Stmt
 
 func (cli *Client) UpdateDatabase(wait *sync.WaitGroup) DBAction {
-	log.Print("Request to save", cli)
 	return func(db *sql.DB) error {
 		log.Print("Starting to save", cli)
 		res, err := sqlInsertAgent.Exec(
