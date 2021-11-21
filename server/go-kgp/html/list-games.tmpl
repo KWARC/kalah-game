@@ -1,0 +1,29 @@
+{{ template "header.tmpl" }}
+
+<table>
+    <thead>
+	<tr>
+	    <td>#</td>
+	    <td>North</td>
+	    <td>South</td>
+	    <td>Started</td>
+	</tr>
+    </thead>
+    <tbody>
+	{{ range . }}
+	<a href="/game?id={{ .Id }}">
+	    <tr>
+		<td>{{ .Id }}</td>
+		<td>{{ .North.Name }}</td>
+		<td>{{ .South.Name }}</td>
+		<td>{{ .Descr }}</td>
+	    </tr>
+	</a>
+	{{ else }}
+	<tr colspan="">No agents in the database</tr>
+	{{ end }}
+    </tbody>
+</table>
+
+
+{{ template "footer.tmpl" }}

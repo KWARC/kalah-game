@@ -1,0 +1,23 @@
+{{ template "header.tmpl" }}
+
+<h1>Agent <q>{{ .Name }}</q></h1>
+
+<table>
+  <tr>
+    <td>Author(s):</td>
+    <td>{{ . }}</td>
+  </tr>
+  <tr>
+    <td>Score:</td>
+    <td>{{ .Score }}</td>
+  </tr>
+</table>
+
+<p>
+  Agent description:
+  <blockquote>
+    {{ .Description }}
+  </blockquote>
+</p>
+
+{{ template "footer.tmpl" }}

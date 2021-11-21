@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"net/http"
 )
 
 const (
@@ -36,6 +37,7 @@ func main() {
 	var (
 		port uint
 		dbf  string
+		web  string
 	)
 
 	flag.UintVar(&defSize, "size", 7, "Size of new boards")
@@ -43,6 +45,7 @@ func main() {
 	flag.UintVar(&port, "port", 2671, "Port number of plain connections")
 	flag.StringVar(&dbf, "db", "kalah.sql", "Path to SQLite database")
 	flag.UintVar(&timeout, "timeout", 5, "Seconds to wait for a move to be made")
+	flag.StringVar(&web, "http", ":8080", "Address to have web server listen on")
 	flag.Parse()
 
 	// open server socket
@@ -52,6 +55,9 @@ func main() {
 	}
 	go listen(plain)
 	log.Printf("Listening on port %d", port)
+
+	// Start web server
+	go log.Fatal(http.ListenAndServe(web, nil))
 
 	// start database manager
 	go manageDatabase(dbf)
