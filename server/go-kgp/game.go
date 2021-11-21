@@ -15,6 +15,7 @@ type Move struct {
 	pit  int
 	cli  *Client
 	game *Game
+	comm string
 }
 
 // Do ensures a move is valid and then sets it
