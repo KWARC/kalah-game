@@ -12,9 +12,9 @@ import (
 
 type DBAction func(*sql.DB) error
 
-//go:embed sql/insert-move.sql
-var sqlInsertMoveSrc string
-var sqlInsertMove *sql.Stmt
+//go:embed sql/insert-game.sql
+var sqlInsertGameSrc string
+var sqlInsertGame *sql.Stmt
 
 func (game *Game) UpdateDatabase(db *sql.DB) error {
 	res, err := sqlInsertGame.Exec(game.North.Id, game.South.Id)
@@ -25,16 +25,16 @@ func (game *Game) UpdateDatabase(db *sql.DB) error {
 	return err
 }
 
-//go:embed sql/insert-game.sql
-var sqlInsertGameSrc string
-var sqlInsertGame *sql.Stmt
+//go:embed sql/insert-move.sql
+var sqlInsertMoveSrc string
+var sqlInsertMove *sql.Stmt
 
 func (mov *Move) UpdateDatabase(db *sql.DB) error {
 	// Do not save a move if the game has been invalidated
 	if mov.game == nil {
 		return nil
 	}
-	_, err := sqlInsertGame.Exec(mov.cli.comment, mov.cli.Id, mov.game.Id)
+	_, err := sqlInsertMove.Exec(mov.cli.comment, mov.cli.Id, mov.game.Id)
 	return err
 }
 
