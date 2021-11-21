@@ -273,6 +273,20 @@ func manageDatabase(file string) {
 	defer close(dbact)
 	defer db.Close()
 
+	// Create tables
+	_, err = sqlCreateAgent.Exec()
+	if err != nil {
+		log.Fatal(err)
+	}
+	_, err = sqlCreateGame.Exec()
+	if err != nil {
+		log.Fatal(err)
+	}
+	_, err = sqlCreateMove.Exec()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	// Prepare statements
 	for _, ent := range []struct {
 		sql  string
@@ -292,20 +306,6 @@ func manageDatabase(file string) {
 		if err != nil {
 			log.Fatal(err)
 		}
-	}
-
-	// Create tables
-	_, err = sqlCreateAgent.Exec()
-	if err != nil {
-		log.Fatal(err)
-	}
-	_, err = sqlCreateGame.Exec()
-	if err != nil {
-		log.Fatal(err)
-	}
-	_, err = sqlCreateMove.Exec()
-	if err != nil {
-		log.Fatal(err)
 	}
 
 	log.Print("Waiting for Database actions")
