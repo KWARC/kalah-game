@@ -13,6 +13,7 @@ var (
 
 // Add CLI to the queue
 func enqueue(cli *Client) {
+	time.Sleep(10 * time.Millisecond)
 	qlock.Lock()
 	queue = append(queue, cli)
 	if len(queue) >= 2 {

@@ -135,7 +135,7 @@ func (cli *Client) Interpret(input string) error {
 		switch mode {
 		case "simple", "freeplay":
 			cli.waiting = true
-			enqueue(cli)
+			go enqueue(cli)
 			cli.Respond(id, "ok")
 		default:
 			cli.Respond(id, "error", "Unsupported Mode")
