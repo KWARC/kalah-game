@@ -62,7 +62,10 @@ func main() {
 	}
 
 	// Start web server
-	go log.Fatal(http.ListenAndServe(web, nil))
+	go func() {
+		log.Printf("Web interface on %s", web)
+		log.Fatal(http.ListenAndServe(web, nil))
+	}()
 
 	// start database manager
 	go manageDatabase(dbf)
