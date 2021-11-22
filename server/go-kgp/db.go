@@ -259,15 +259,12 @@ var dbact = make(chan DBAction, 64)
 
 //go:embed sql/create-agent.sql
 var sqlCreateAgentSrc string
-var sqlCreateAgent *sql.Stmt
 
 //go:embed sql/create-game.sql
 var sqlCreateGameSrc string
-var sqlCreateGame *sql.Stmt
 
 //go:embed sql/create-move.sql
 var sqlCreateMoveSrc string
-var sqlCreateMove *sql.Stmt
 
 func manageDatabase(file string) {
 	db, err := sql.Open("sqlite3", file+"?mode=rwc&_journal=wal")
@@ -278,15 +275,15 @@ func manageDatabase(file string) {
 	defer db.Close()
 
 	// Create tables
-	_, err = sqlCreateAgent.Exec()
+	_, err = db.Exec(sqlCreateAgentSrc)
 	if err != nil {
 		log.Fatal(err)
 	}
-	_, err = sqlCreateGame.Exec()
+	_, err = db.Exec(sqlCreateGameSrc)
 	if err != nil {
 		log.Fatal(err)
 	}
-	_, err = sqlCreateMove.Exec()
+	_, err = db.Exec(sqlCreateMoveSrc)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -302,9 +299,6 @@ func manageDatabase(file string) {
 		{sqlSelectAgentSrc, &sqlSelectAgent},
 		{sqlSelectGamesSrc, &sqlSelectGames},
 		{sqlSelectAgentsSrc, &sqlSelectAgents},
-		{sqlCreateAgentSrc, &sqlCreateAgent},
-		{sqlCreateGameSrc, &sqlCreateGame},
-		{sqlCreateMoveSrc, &sqlCreateMove},
 	} {
 		*ent.stmt, err = db.Prepare(ent.sql)
 		if err != nil {
