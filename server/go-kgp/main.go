@@ -17,6 +17,7 @@ var (
 	defSize   uint
 	defStones uint
 	timeout   uint
+	debug     bool
 )
 
 func listen(ln net.Listener) {
@@ -49,6 +50,7 @@ func main() {
 	flag.StringVar(&dbf, "db", "kalah.sql", "Path to SQLite database")
 	flag.UintVar(&timeout, "timeout", 5, "Seconds to wait for a move to be made")
 	flag.StringVar(&web, "http", ":8080", "Address to have web server listen on")
+	flag.BoolVar(&debug, "debug", false, "Print all network I/O")
 	flag.Parse()
 
 	if ws {

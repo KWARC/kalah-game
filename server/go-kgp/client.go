@@ -72,6 +72,9 @@ func (cli *Client) Respond(to uint64, command string, args ...interface{}) uint6
 			panic("Unsupported type")
 		}
 	}
+	if debug {
+		log.Print(">", buf.String())
+	}
 	fmt.Fprint(buf, "\r\n")
 
 	// attempt to send this message before any other message is sent
@@ -152,7 +155,11 @@ func (cli *Client) Handle() {
 			}
 
 			// Interpret line
-			err := cli.Interpret(scanner.Text())
+			input := scanner.Text()
+			if debug {
+				log.Print("<", input)
+			}
+			err := cli.Interpret(input)
 			if err != nil {
 				log.Println(err)
 			}
