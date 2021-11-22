@@ -312,6 +312,8 @@ func manageDatabase(file string) {
 		{sqlSelectAgentSrc, &sqlSelectAgent},
 		{sqlSelectGamesSrc, &sqlSelectGames},
 		{sqlSelectAgentsSrc, &sqlSelectAgents},
+		{sqlSelectGameSrc, &sqlSelectGames},
+		{sqlSelectMovesSrc, &sqlSelectMoves},
 	} {
 		*ent.stmt, err = db.Prepare(ent.sql)
 		if err != nil {
