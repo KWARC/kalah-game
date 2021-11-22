@@ -63,6 +63,7 @@ func (cli *Client) UpdateDatabase(wait *sync.WaitGroup) DBAction {
 		err = sqlSelectAgent.QueryRow(cli.token).Scan(
 			&cli.Id, &name, &descr, &cli.Score)
 		if err != nil {
+			log.Println(err)
 			cli.kill <- true
 		}
 		if wait != nil {
@@ -79,6 +80,7 @@ func QueryAgent(aid uint, c chan<- *Client) DBAction {
 		err := sqlSelectAgent.QueryRow(aid).Scan(
 			&cli.Id, &cli.Name, &cli.Descr, &cli.Score)
 		if err != nil {
+			log.Println(err)
 			close(c)
 		} else {
 			c <- &cli
@@ -108,6 +110,7 @@ func QueryGame(gid uint, c chan<- *Game) DBAction {
 			&naid, &said, &game.Result, &game.start,
 		)
 		if err != nil {
+			log.Println(err)
 			close(c)
 			return
 		}
@@ -116,6 +119,7 @@ func QueryGame(gid uint, c chan<- *Game) DBAction {
 			&north.Id, &north.Name, &north.Descr, &north.Score,
 		)
 		if err != nil {
+			log.Println(err)
 			close(c)
 			return
 		}
@@ -125,6 +129,7 @@ func QueryGame(gid uint, c chan<- *Game) DBAction {
 			&south.Id, &south.Name, &south.Descr, &south.Score,
 		)
 		if err != nil {
+			log.Println(err)
 			close(c)
 			return
 		}
@@ -132,6 +137,7 @@ func QueryGame(gid uint, c chan<- *Game) DBAction {
 
 		rows, err := sqlSelectMoves.Query(gid)
 		if err != nil {
+			log.Println(err)
 			close(c)
 			return
 		}
@@ -146,6 +152,7 @@ func QueryGame(gid uint, c chan<- *Game) DBAction {
 
 			err = rows.Scan(&aid, &move.comm, &move.pit)
 			if err != nil {
+				log.Println(err)
 				close(c)
 				return
 			}
@@ -183,6 +190,7 @@ func QueryGames(c chan<- *Game, page uint) DBAction {
 	return func(db *sql.DB) (err error) {
 		rows, err := sqlSelectGames.Query(page)
 		if err != nil {
+			log.Println(err)
 			close(c)
 			return
 		}
@@ -199,6 +207,7 @@ func QueryGames(c chan<- *Game, page uint) DBAction {
 				&game.Id, &naid, &said, &game.Result, &game.start,
 			)
 			if err != nil {
+				log.Println(err)
 				close(c)
 				return
 			}
@@ -207,6 +216,7 @@ func QueryGames(c chan<- *Game, page uint) DBAction {
 				&north.Id, &north.Name, &north.Descr, &north.Score,
 			)
 			if err != nil {
+				log.Println(err)
 				close(c)
 				return
 			}
@@ -216,6 +226,7 @@ func QueryGames(c chan<- *Game, page uint) DBAction {
 				&south.Id, &south.Name, &south.Descr, &south.Score,
 			)
 			if err != nil {
+				log.Println(err)
 				close(c)
 				return
 			}
@@ -235,6 +246,7 @@ func QueryAgents(c chan<- *Agent, page uint) DBAction {
 	return func(db *sql.DB) (err error) {
 		rows, err := sqlSelectAgents.Query(page)
 		if err != nil {
+			log.Println(err)
 			close(c)
 			return
 		}
@@ -245,6 +257,7 @@ func QueryAgents(c chan<- *Agent, page uint) DBAction {
 
 			err = rows.Scan(&agent.Id, &agent.Name, &agent.Score)
 			if err != nil {
+				log.Println(err)
 				close(c)
 				return
 			}
