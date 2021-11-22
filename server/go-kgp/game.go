@@ -35,7 +35,7 @@ type Yield bool
 
 // Do gives up the remaining time
 func (y Yield) Do(g *Game, _ Side) bool {
-	if y == true {
+	if y {
 		g.North.Send("fail", "game over")
 		g.South.Send("fail", "game over")
 		g.dead = true
