@@ -1,7 +1,9 @@
 package main
 
-import "log"
-import "sync"
+import (
+	"sync"
+	"time"
+)
 
 var (
 	qlock = sync.Mutex{}
@@ -13,51 +15,66 @@ var (
 func enqueue(cli *Client) {
 	qlock.Lock()
 	queue = append(queue, cli)
-	qlock.Unlock()
 	if len(queue) >= 2 {
 		qcond.Signal()
 	}
+	qlock.Unlock()
 }
 
 // Remove CLI from the queue
-func unqueue(cli *Client) {
+func forget(cli *Client) {
 	qlock.Lock()
 	for i, c := range queue {
 		if c == cli {
 			queue = append(queue[:i], queue[i+1:]...)
+			break
 		}
 	}
 	qlock.Unlock()
 }
 
 // Move CLI up the queue
-func boost(cli *Client) {
+func promote(cli *Client) {
 	qlock.Lock()
 	for i, c := range queue {
 		if c == cli {
 			queue = append(queue[:i], queue[i+1:]...)
 			queue = append([]*Client{cli}, queue...)
+			break
 		}
 	}
 	qlock.Unlock()
 }
 
-// Wait for games to be organizable
+// Attempt to match clients for new games
+func match() {
+	north := queue[0]
+	for i, cli := range queue[1:] {
+		if cli.token != north.token || cli.token == "" {
+			south := cli
+			queue = append(queue[:i], queue[i+1:]...)
+			queue = queue[1:]
+
+			go (&Game{
+				Board: makeBoard(defSize, defStones),
+				North: north,
+				South: south,
+			}).Start()
+			return
+		}
+	}
+}
+
+// Try to organise matches
 func organizer() {
 	for {
 		qlock.Lock()
-		for len(queue) < 2 {
+		for {
 			qcond.Wait()
+			if len(queue) < 2 {
+				continue
+			}
+			match()
 		}
-		go (&Game{
-			Board: makeBoard(defSize, defStones),
-			North: queue[0],
-			South: queue[1],
-		}).Start()
-		queue = queue[2:]
-		qlock.Unlock()
-
-		log.Printf("Start new game")
 	}
-
 }

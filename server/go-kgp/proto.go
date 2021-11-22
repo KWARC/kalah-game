@@ -176,7 +176,7 @@ func (cli *Client) Interpret(input string) error {
 	case "pong":
 		cli.pinged = false
 		if cli.waiting {
-			boost(cli)
+			promote(cli)
 		}
 	case "set":
 		// Note that VAL doesn't have to be a string per spec,

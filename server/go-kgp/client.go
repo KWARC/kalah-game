@@ -107,6 +107,7 @@ func (cli *Client) Handle() {
 	if cli.rwc == nil {
 		panic("No ReadWriteCloser")
 	}
+	defer forget(cli)
 	defer cli.rwc.Close()
 
 	// Initialize the client channels
