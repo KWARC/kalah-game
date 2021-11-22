@@ -34,7 +34,11 @@ func (mov *Move) UpdateDatabase(db *sql.DB) error {
 	if mov.game == nil {
 		return nil
 	}
-	_, err := sqlInsertMove.Exec(mov.cli.comment, mov.cli.Id, mov.game.Id)
+	_, err := sqlInsertMove.Exec(
+		mov.cli.comment,
+		mov.cli.Id,
+		mov.game.Id,
+		mov.pit)
 	return err
 }
 
