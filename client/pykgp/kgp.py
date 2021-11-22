@@ -279,7 +279,7 @@ def connect(agent, host='localhost', port=2671, token=None, name=None, authors=[
                 issued the request.
                 """
                 for move in agent(state):
-                    if type(move) not is int:
+                    if not type(move) is int:
                         raise TypeError("Not a move")
                     if timeout.is_set():
                         break
