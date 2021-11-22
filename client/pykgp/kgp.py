@@ -164,7 +164,7 @@ class Board:
         return b, False
 
 
-def connect(agent, host='localhost', port=2671, token=None, name=None, authors=[]):
+def connect(agent, host='localhost', port=2671, token=None, name=None, authors=[], log=False):
     """
     Connect to KGP server at host:port as agent.
 
@@ -247,7 +247,8 @@ def connect(agent, host='localhost', port=2671, token=None, name=None, authors=[
                 If ref is not None, add a reference.
                 """
                 nonlocal id
-                print(">", ref, cmd, *args)
+                if log:
+                    print(">", ref, cmd, *args)
 
                 pseudo.write(str(id))
                 if ref:
@@ -290,7 +291,8 @@ def connect(agent, host='localhost', port=2671, token=None, name=None, authors=[
             running = {}
 
             for line in pseudo:
-                print("<", line.strip())
+                if log:
+                    print("<", line.strip())
 
                 try:
                     match = COMMAND_PATTERN.match(line)
