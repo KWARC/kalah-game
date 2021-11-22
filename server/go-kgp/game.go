@@ -146,8 +146,10 @@ func (g *Game) Start() {
 			if g.Board.Over() {
 				return
 			} else if !g.Board.Legal(g.side, choice) {
+				oldchoice := choice
 				choice = g.Board.Random(g.side)
-				msg := fmt.Sprintf("No move legal move, defaulted to %d", choice)
+				msg := fmt.Sprintf("Move %d illegal, used %d",
+					oldchoice, choice)
 				if g.side == SideNorth {
 					g.North.Respond(g.last, "error", msg)
 				} else {
