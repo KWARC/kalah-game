@@ -310,7 +310,7 @@ func manageDatabase(file string) {
 		{sqlInsertGameSrc, &sqlInsertGame},
 		{sqlInsertAgentSrc, &sqlInsertAgent},
 		{sqlSelectAgentSrc, &sqlSelectAgent},
-		{sqlSelectGamesSrc, &sqlSelectGames},
+		{sqlSelectGamesSrc, &sqlSelectGame},
 		{sqlSelectAgentsSrc, &sqlSelectAgents},
 		{sqlSelectGameSrc, &sqlSelectGames},
 		{sqlSelectMovesSrc, &sqlSelectMoves},
