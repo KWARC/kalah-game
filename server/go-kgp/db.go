@@ -64,7 +64,7 @@ func (cli *Client) UpdateDatabase(wait *sync.WaitGroup) DBAction {
 			&cli.Id, &name, &descr, &cli.Score)
 		if err != nil {
 			log.Println(err)
-			cli.kill <- true
+			cli.killFunc()
 		}
 		if wait != nil {
 			wait.Done()
@@ -100,6 +100,7 @@ var sqlSelectMoves *sql.Stmt
 
 func QueryGame(gid uint, c chan<- *Game) DBAction {
 	return func(db *sql.DB) (err error) {
+
 		var (
 			naid, said   int
 			north, south Agent

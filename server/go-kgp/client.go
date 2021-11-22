@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -25,16 +26,16 @@ type Agent struct {
 // Client wraps a network connection into a player
 type Client struct {
 	Agent
-	game    *Game
-	rwc     io.ReadWriteCloser
-	lock    sync.Mutex
-	choice  int
-	rid     uint64
-	kill    chan bool
-	waiting bool
-	pinged  bool
-	token   string
-	comment string
+	game     *Game
+	rwc      io.ReadWriteCloser
+	lock     sync.Mutex
+	choice   int
+	rid      uint64
+	killFunc context.CancelFunc
+	waiting  bool
+	pinged   bool
+	token    string
+	comment  string
 }
 
 // Send forwards an unreferenced message to the client
@@ -110,8 +111,8 @@ func (cli *Client) Handle() {
 	defer forget(cli)
 	defer cli.rwc.Close()
 
-	// Initialize the client channels
-	cli.kill = make(chan bool)
+	context, cancel := context.WithCancel(context.Background())
+	cli.killFunc = cancel
 
 	// Initiate the protocol with the client
 	cli.Send("kgp", majorVersion, minorVersion, patchVersion)
@@ -125,7 +126,7 @@ func (cli *Client) Handle() {
 			// If the timer fired, check the ping flag and
 			// kill the client if it is still set
 			if cli.pinged {
-				cli.kill <- true
+				cli.killFunc()
 				break
 			}
 			// In case it was not set, ping the client
@@ -163,13 +164,13 @@ func (cli *Client) Handle() {
 
 			log.Print(err)
 		}
-		cli.kill <- true
+		cli.killFunc()
 	}()
 
 	// When the client is killed (a game has finished, the client
 	// timed out, ...) we log this and mark the client as dead for
 	// the input thread
-	<-cli.kill
+	<-context.Done()
 	log.Printf("Close connection for %p", cli)
 	dead = true
 }

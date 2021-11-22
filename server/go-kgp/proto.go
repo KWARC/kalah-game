@@ -14,7 +14,7 @@ var (
 		`(?:([[:digit:]]+)(?:@([[:digit:]]+))?[[:space:]]+)?` +
 		`([[:alnum:]]+)(?:[[:space:]]+(.*))?` +
 		`[[:space:]]*$`)
-	errArgumentMismatch = errors.New("Argument mismatch")
+	errArgumentMismatch = errors.New("argument mismatch")
 )
 
 // parse destructs RAW and tries to assign the parts to PARAMS

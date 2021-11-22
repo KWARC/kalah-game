@@ -120,8 +120,8 @@ func (g *Game) Start() {
 		g.North.updateScore(g.South, g.Board.Outcome(SideNorth))
 		g.South.updateScore(g.North, g.Board.Outcome(SideSouth))
 
-		g.North.kill <- true
-		g.South.kill <- true
+		g.North.killFunc()
+		g.South.killFunc()
 	}()
 
 	dbact <- g.UpdateDatabase

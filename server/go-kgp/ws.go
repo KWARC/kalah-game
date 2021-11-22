@@ -23,6 +23,7 @@ func listenUpgrade(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.Close()
 
+	log.Printf("New connection from %s", conn.RemoteAddr())
 	client := &Client{
 		rwc: &wsrwc{c: conn},
 	}
@@ -38,7 +39,7 @@ type wsrwc struct {
 }
 
 func (c *wsrwc) Write(p []byte) (int, error) {
-	err := c.c.WriteMessage(websocket.BinaryMessage, p)
+	err := c.c.WriteMessage(websocket.TextMessage, p)
 	if err != nil {
 		return 0, err
 	}
