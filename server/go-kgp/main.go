@@ -40,6 +40,8 @@ func main() {
 		ws     bool
 	)
 
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+
 	flag.UintVar(&defSize, "size", 7, "Size of new boards")
 	flag.UintVar(&defStones, "stones", 7, "Number of stones to use")
 	flag.StringVar(&socket, "socket", ":2671", "Address to listen on for socket connections")
