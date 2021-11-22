@@ -308,6 +308,9 @@ func manageDatabase(file string) {
 
 	log.Print("Waiting for Database actions")
 	for act := range dbact {
+		if act == nil {
+			continue
+		}
 		err := act(db)
 		if err != nil {
 			log.Print(err)
