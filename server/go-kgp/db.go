@@ -52,16 +52,16 @@ var sqlSelectAgent *sql.Stmt
 
 func (cli *Client) UpdateDatabase(wait *sync.WaitGroup) DBAction {
 	return func(db *sql.DB) error {
-		log.Print("Starting to save", cli)
-		res, err := sqlInsertAgent.Exec(
+		_, err := sqlInsertAgent.Exec(
 			cli.token, cli.Name, cli.Descr,
-			cli.Name, cli.Descr, cli.Score)
+			cli.Name, cli.Descr)
 		if err != nil {
 			return err
 		}
-		cli.Id, err = res.LastInsertId()
 
-		err = sqlSelectAgent.QueryRow(cli.Id).Scan(&cli.Score, nil, nil)
+		var name, descr string
+		err = sqlSelectAgent.QueryRow(cli.token).Scan(
+			&cli.Id, &name, &descr, &cli.Score)
 		if err != nil {
 			cli.kill <- true
 		}
@@ -76,7 +76,8 @@ func QueryAgent(aid uint, c chan<- *Client) DBAction {
 	return func(db *sql.DB) error {
 		var cli Client
 
-		err := sqlSelectAgent.QueryRow(aid).Scan(&cli.Score, nil, nil)
+		err := sqlSelectAgent.QueryRow(aid).Scan(
+			&cli.Id, &cli.Name, &cli.Descr, &cli.Score)
 		if err != nil {
 			close(c)
 		} else {
@@ -112,7 +113,7 @@ func QueryGame(gid uint, c chan<- *Game) DBAction {
 		}
 
 		err = sqlSelectAgent.QueryRow(naid).Scan(
-			&north.Name, &north.Descr, &north.Score,
+			&north.Id, &north.Name, &north.Descr, &north.Score,
 		)
 		if err != nil {
 			close(c)
@@ -121,7 +122,7 @@ func QueryGame(gid uint, c chan<- *Game) DBAction {
 		game.North = &Client{Agent: north}
 
 		err = sqlSelectAgent.QueryRow(said).Scan(
-			&south.Name, &south.Descr, &south.Score,
+			&south.Id, &south.Name, &south.Descr, &south.Score,
 		)
 		if err != nil {
 			close(c)
@@ -203,7 +204,7 @@ func QueryGames(c chan<- *Game, page uint) DBAction {
 			}
 
 			err = sqlSelectAgent.QueryRow(naid).Scan(
-				&north.Name, nil, &north.Score,
+				&north.Id, &north.Name, &north.Descr, &north.Score,
 			)
 			if err != nil {
 				close(c)
@@ -212,7 +213,7 @@ func QueryGames(c chan<- *Game, page uint) DBAction {
 			game.North = &Client{Agent: north}
 
 			err = sqlSelectAgent.QueryRow(said).Scan(
-				&south.Name, nil, &south.Score,
+				&south.Id, &south.Name, &south.Descr, &south.Score,
 			)
 			if err != nil {
 				close(c)
