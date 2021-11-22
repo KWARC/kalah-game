@@ -111,7 +111,6 @@ func (cli *Client) Handle() {
 	defer cli.rwc.Close()
 
 	// Initialize the client channels
-	input := make(chan string)
 	cli.kill = make(chan bool)
 
 	// Initiate the protocol with the client
@@ -144,13 +143,19 @@ func (cli *Client) Handle() {
 			// Prevent flooding by waiting a for a moment
 			// between lines
 			time.Sleep(time.Microsecond)
+
 			// Check if the client has been killed
 			// by someone else
 			if dead {
 				break
 			}
-			// Send the current line back to the main thread for processing
-			input <- scanner.Text()
+
+			// Interpret line
+			err := cli.Interpret(scanner.Text())
+			if err != nil {
+				log.Println(err)
+			}
+
 		}
 		// See https://github.com/golang/go/commit/e9ad52e46dee4b4f9c73ff44f44e1e234815800f
 		err := scanner.Err()
@@ -161,25 +166,10 @@ func (cli *Client) Handle() {
 		cli.kill <- true
 	}()
 
-	// Handle either the killing of the client or the receiving of
-	// input, whatever comes first.
-	for {
-		select {
-		case line := <-input:
-			// Any received input is deferred to the
-			// interpreter, and any errors are logged.
-			err := cli.Interpret(line)
-			if err != nil {
-				log.Println(err)
-			}
-		case <-cli.kill:
-			// When the client is killed (a game has
-			// finished, the client timed out, ...) we log
-			// this and mark the client as dead for the
-			// input thread
-			log.Printf("Close connection for %p", cli)
-			dead = true
-			return
-		}
-	}
+	// When the client is killed (a game has finished, the client
+	// timed out, ...) we log this and mark the client as dead for
+	// the input thread
+	<-cli.kill
+	log.Printf("Close connection for %p", cli)
+	dead = true
 }
