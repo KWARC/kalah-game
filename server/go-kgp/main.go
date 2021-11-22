@@ -38,23 +38,29 @@ func main() {
 		port uint
 		dbf  string
 		web  string
+		ws   bool
 	)
 
 	flag.UintVar(&defSize, "size", 7, "Size of new boards")
 	flag.UintVar(&defStones, "stones", 7, "Number of stones to use")
 	flag.UintVar(&port, "port", 2671, "Port number of plain connections")
+	flag.BoolVar(&ws, "websocket", false, "Listen for websocket upgrades only")
 	flag.StringVar(&dbf, "db", "kalah.sql", "Path to SQLite database")
 	flag.UintVar(&timeout, "timeout", 5, "Seconds to wait for a move to be made")
 	flag.StringVar(&web, "http", ":8080", "Address to have web server listen on")
 	flag.Parse()
 
-	// open server socket
-	plain, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
-	if err != nil {
-		log.Fatal(err)
+	if ws {
+		http.HandleFunc("/socket", listenUpgrade)
+		log.Println("Listening for upgrades on /socket")
+	} else {
+		plain, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+		if err != nil {
+			log.Fatal(err)
+		}
+		go listen(plain)
+		log.Printf("Listening on port %d", port)
 	}
-	go listen(plain)
-	log.Printf("Listening on port %d", port)
 
 	// Start web server
 	go log.Fatal(http.ListenAndServe(web, nil))
