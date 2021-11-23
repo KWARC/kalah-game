@@ -24,22 +24,19 @@ func listenUpgrade(w http.ResponseWriter, r *http.Request) {
 	defer conn.Close()
 
 	log.Printf("New connection from %s", conn.RemoteAddr())
-	client := &Client{
-		rwc: &wsrwc{c: conn},
-	}
-	client.Handle()
+	(&Client{rwc: &wsrwc{Conn: conn}}).Handle()
 }
 
 // adapted from https://github.com/gorilla/websocket/issues/282
 
 // wsrwc is a read-write-closer using websockets
 type wsrwc struct {
+	*websocket.Conn
 	r io.Reader
-	c *websocket.Conn
 }
 
 func (c *wsrwc) Write(p []byte) (int, error) {
-	err := c.c.WriteMessage(websocket.TextMessage, p)
+	err := c.WriteMessage(websocket.TextMessage, p)
 	if err != nil {
 		return 0, err
 	}
@@ -51,7 +48,7 @@ func (c *wsrwc) Read(p []byte) (int, error) {
 		if c.r == nil {
 			// Advance to next message.
 			var err error
-			_, c.r, err = c.c.NextReader()
+			_, c.r, err = c.NextReader()
 			if err != nil {
 				return 0, err
 			}
@@ -69,8 +66,4 @@ func (c *wsrwc) Read(p []byte) (int, error) {
 		}
 		return n, err
 	}
-}
-
-func (c *wsrwc) Close() error {
-	return c.c.Close()
 }
