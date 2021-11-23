@@ -38,6 +38,13 @@ type Client struct {
 	comment  string
 }
 
+func (cli *Client) String() string {
+	if conn, ok := cli.rwc.(net.Conn); ok {
+		return fmt.Sprint(conn.RemoteAddr())
+	}
+	return fmt.Sprintf("%p", cli)
+}
+
 // Send forwards an unreferenced message to the client
 func (cli *Client) Send(command string, args ...interface{}) uint64 {
 	return cli.Respond(0, command, args...)
@@ -73,7 +80,7 @@ func (cli *Client) Respond(to uint64, command string, args ...interface{}) uint6
 		}
 	}
 	if debug {
-		log.Print(">", buf.String())
+		log.Print(cli, " > ", buf.String())
 	}
 	fmt.Fprint(buf, "\r\n")
 
@@ -129,6 +136,7 @@ func (cli *Client) Handle() {
 			// If the timer fired, check the ping flag and
 			// kill the client if it is still set
 			if cli.pinged {
+				log.Printf("%s did not respond to a ping in time", cli)
 				cli.killFunc()
 				break
 			}
@@ -157,7 +165,7 @@ func (cli *Client) Handle() {
 			// Interpret line
 			input := scanner.Text()
 			if debug {
-				log.Print("<", input)
+				log.Print(cli, " < ", input)
 			}
 			err := cli.Interpret(input)
 			if err != nil {
@@ -168,7 +176,6 @@ func (cli *Client) Handle() {
 		// See https://github.com/golang/go/commit/e9ad52e46dee4b4f9c73ff44f44e1e234815800f
 		err := scanner.Err()
 		if err != nil && !strings.Contains(err.Error(), "use of closed network connection") {
-
 			log.Print(err)
 		}
 		cli.killFunc()
@@ -178,6 +185,6 @@ func (cli *Client) Handle() {
 	// timed out, ...) we log this and mark the client as dead for
 	// the input thread
 	<-context.Done()
-	log.Printf("Close connection for %p", cli)
+	log.Printf("Close connection for %s", cli)
 	dead = true
 }
