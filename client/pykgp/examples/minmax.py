@@ -3,36 +3,32 @@
 import kgp
 
 
-def evaluation(state):
+def evaluate(state):
     return state[kgp.NORTH] - state[kgp.SOUTH]
 
 
 def search(state, depth, side):
-    if depth <= 0:
-        return state
-
-    choose = None
-    if side == kgp.NORTH:
-        choose = max
-    elif side == kgp.SOUTH:
-        choose = min
-
     def child(state, move):
-        result, again = state.sow(side, move)
+        if depth <= 0:
+            return (evaluate(state), move)
+
+        after, again = state.sow(side, move)
+        if after.is_final():
+            return (evaluate(after), move)
         if again:
-            return search(result, depth-1, side)
+            return search(after, depth-1, side)
         else:
-            return search(result, depth-1, not side)
+            return search(after, depth-1, not side)
 
-    return choose([child(state, move)
-                   for move in state.legal_moves(side)],
-                  key=evaluation)
+    choose = max if side == kgp.NORTH else min
+    return choose((child(state, move) for move in state.legal_moves(side)),
+                  key=lambda ent: ent[0])
 
 
-def minmax_agent(state):
-    for depth in iter(int, 1):
-        yield search(state, depth, kgp.NORTH)
+def agent(state):
+    for depth in range(1, 16):
+        yield search(state, depth, kgp.NORTH)[1]
 
 
 if __name__ == "__main__":
-    kgp.connect(minmax_agent)
+    kgp.connect(agent)
