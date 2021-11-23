@@ -263,6 +263,7 @@ def connect(agent, host='localhost', port=2671, token=None, name=None, authors=[
                 if debug:
                     print(">", msg, file=sys.stderr)
                 pseudo.write(msg + "\r\n")
+                pseudo.flush()
 
                 with lock:
                     id += 2
