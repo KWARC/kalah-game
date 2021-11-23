@@ -71,9 +71,9 @@ func main() {
 		log.Fatal(http.ListenAndServe(web, nil))
 	}()
 
-	// start database manager
-	go manageDatabase(dbf)
-
 	// start match scheduler
-	organizer()
+	go organizer()
+
+	// start database manager
+	manageDatabase(dbf)
 }

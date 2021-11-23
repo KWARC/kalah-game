@@ -3,6 +3,8 @@ package main
 import (
 	"database/sql"
 	"log"
+	"os"
+	"os/signal"
 	"sync"
 
 	_ "embed"
@@ -285,8 +287,14 @@ func manageDatabase(file string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer close(dbact)
 	defer db.Close()
+
+	go func() {
+		intr := make(chan os.Signal)
+		signal.Notify(intr, os.Interrupt)
+		<-intr
+		close(dbact)
+	}()
 
 	// Create tables
 	_, err = db.Exec(sqlCreateAgentSrc)
