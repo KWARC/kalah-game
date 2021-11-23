@@ -41,8 +41,6 @@ func main() {
 		ws     bool
 	)
 
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
-
 	flag.UintVar(&defSize, "size", 7, "Size of new boards")
 	flag.UintVar(&defStones, "stones", 7, "Number of stones to use")
 	flag.StringVar(&socket, "socket", ":2671", "Address to listen on for socket connections")
@@ -52,6 +50,10 @@ func main() {
 	flag.StringVar(&web, "http", ":8080", "Address to have web server listen on")
 	flag.BoolVar(&debug, "debug", false, "Print all network I/O")
 	flag.Parse()
+
+	if debug {
+		log.SetFlags(log.LstdFlags | log.Lshortfile)
+	}
 
 	if ws {
 		http.HandleFunc("/socket", listenUpgrade)
