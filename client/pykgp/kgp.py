@@ -22,6 +22,7 @@ import os
 import sys
 import socket
 import threading
+import multiprocessing
 import copy
 
 _BOARD_PATTERN = re.compile(r'^(<(\d+(?:,\d+){4,})>)\s*')
@@ -266,28 +267,25 @@ def connect(agent, host='localhost', port=2671, token=None, name=None, authors=[
                 with lock:
                     id += 2
 
-            def query(state, timeout, cid):
+            def query(state, cid):
                 """
                 Start querying agent what move to make.
 
-                State is the current board state, timeout a
-                threading.Event object to indicate when the search
-                time is over and cid the ID of the state command that
-                issued the request.
+                State is the current board state and cid the ID of the
+                state command that issued the request.
+
                 """
                 if state.is_final():
                     return
                 for move in agent(state):
                     if not type(move) is int:
                         raise TypeError("Not a move")
-                    if timeout.is_set():
-                        break
                     if move:
                         send("move", move, ref=cid)
                 else:
                     send("yield", ref=cid)
 
-            running = {}
+            threads = {}
 
             for line in pseudo:
                 if debug:
@@ -320,22 +318,21 @@ def connect(agent, host='localhost', port=2671, token=None, name=None, authors=[
                     elif cmd == "state":
                         board = args[0]
 
-                        assert cid not in running
+                        if cid in threads:
+                            # Duplicate IDs by the server are ignored
+                            continue
 
-                        timeout = threading.Event()
-                        thread = threading.Thread(
-                            name='query-{}'.format(cid),
-                            args=(board, timeout, cid),
+                        threads[cid] = multiprocessing.Process(
+                            name=f'query-{cid}',
+                            args=(board, cid),
                             target=query,
                             daemon=True)
-
-                        running[cid] = timeout
-                        thread.start()
+                        threads[cid].start()
                     elif cmd == "stop":
-                        if ref and ref in running:
-                            timeout = running[ref]
-                            timeout.set()
-                            running.pop(ref, None)
+                        if ref and ref in threads:
+                            thread = threads[ref]
+                            thread.terminate()
+                            threads.pop(ref, None)
                     elif cmd == "ok":
                         pass    # ignored
                     elif cmd == "error":
