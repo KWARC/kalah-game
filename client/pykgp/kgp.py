@@ -116,6 +116,9 @@ class Board:
         return [move for move in range(self.size)
                 if self.is_legal(side, move)]
 
+    def is_final(self):
+        return (not self.legal_moves(NORTH)) or (not self.legal_moves(SOUTH))
+
     def copy(self):
         """Return a deep copy of the current board state."""
         return copy.deepcopy(self)
@@ -278,6 +281,8 @@ def connect(agent, host='localhost', port=2671, token=None, name=None, authors=[
                 time is over and cid the ID of the state command that
                 issued the request.
                 """
+                if state.is_final():
+                    return
                 for move in agent(state):
                     if not type(move) is int:
                         raise TypeError("Not a move")
