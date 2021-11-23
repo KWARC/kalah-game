@@ -167,12 +167,8 @@ func (cli *Client) Interpret(input string) error {
 		game.ctrl <- Yield(false)
 		// cli.Respond(game.last, "stop")
 	case "ok", "fail", "error":
-		var msg string
-		parse(args, &msg) // parsing errors are ignored
-
-		if cmd == "fail" && game != nil {
-			game.ctrl <- Yield(true)
-		}
+		// We do not expect the client to confirm or reject anything,
+		// so we can ignore these response messages.
 	case "pong":
 		cli.pinged = false
 		if cli.waiting {
