@@ -25,6 +25,12 @@ import threading
 import multiprocessing
 import copy
 
+try:
+    import websocket
+except ModuleNotFoundError:
+    pass
+
+
 _BOARD_PATTERN = re.compile(r'^(<(\d+(?:,\d+){4,})>)\s*')
 
 
@@ -232,124 +238,143 @@ def connect(agent, host='localhost', port=2671, token=None, name=None, authors=[
             else:
                 return parsed
 
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.setblocking(True)
-        sock.connect((host, port))
-        with sock.makefile(mode='rw') as pseudo:
-            lock = threading.Lock()
-            id = 1
+    def handle(read, write):
+        lock = threading.Lock()
+        id = 1
 
-            def send(cmd, *args, ref=None):
-                """
-                Send cmd with args to server.
+        def send(cmd, *args, ref=None):
+            """
+            Send cmd with args to server.
 
-                If ref is not None, add a reference.
-                """
-                nonlocal id
+            If ref is not None, add a reference.
+            """
+            nonlocal id
 
-                msg = str(id)
-                if ref:
-                    msg += f'@{ref}'
-                msg += " " + cmd
+            msg = str(id)
+            if ref:
+                msg += f'@{ref}'
+            msg += " " + cmd
 
-                for arg in args:
-                    msg += " "
-                    if isinstance(arg, str):
-                        string = re.sub(r'"', '\\"', arg)
-                        msg += f'"{string}"'
-                    else:
-                        msg += str(arg)
-
-                if debug:
-                    print(">", msg, file=sys.stderr)
-                pseudo.write(msg + "\r\n")
-                pseudo.flush()
-
-                with lock:
-                    id += 2
-
-            def query(state, cid):
-                """
-                Start querying agent what move to make.
-
-                State is the current board state and cid the ID of the
-                state command that issued the request.
-
-                """
-                if state.is_final():
-                    return
-                for move in agent(state):
-                    if not type(move) is int:
-                        raise TypeError("Not a move")
-                    if move:
-                        send("move", move, ref=cid)
+            for arg in args:
+                msg += " "
+                if isinstance(arg, str):
+                    string = re.sub(r'"', '\\"', arg)
+                    msg += f'"{string}"'
                 else:
-                    send("yield", ref=cid)
+                    msg += str(arg)
 
-            threads = {}
+            if debug:
+                print(">", msg, file=sys.stderr)
+            write(msg + "\r\n")
 
-            for line in pseudo:
-                if debug:
-                    print("<", line.strip(), file=sys.stderr)
+            with lock:
+                id += 2
 
-                try:
-                    match = COMMAND_PATTERN.match(line)
-                    if not match:
+        def query(state, cid):
+            """
+            Start querying agent what move to make.
+
+            State is the current board state and cid the ID of the
+            state command that issued the request.
+
+            """
+            if state.is_final():
+                return
+            for move in agent(state):
+                if not type(move) is int:
+                    raise TypeError("Not a move")
+                if move:
+                    send("move", move, ref=cid)
+            else:
+                send("yield", ref=cid)
+
+        threads = {}
+
+        for line in read():
+            if debug:
+                print("<", line.strip(), file=sys.stderr)
+
+            try:
+                match = COMMAND_PATTERN.match(line)
+                if not match:
+                    continue
+                cid, ref = None, None
+                if match.group('id'):
+                    cid = int(match.group('id'))
+                if match.group('ref'):
+                    ref = int(match.group('ref'))
+                cmd = match.group('cmd')
+                args = split(match.group('args'))
+
+                if cmd == "kgp":
+                    major, _minor, _patch = args
+                    if major != 1:
+                        send("error", "protocol not supported", ref=cid)
+                        raise ValueError()
+                    send("mode", "freeplay")
+                    if name:
+                        send("set", "info:name", name)
+                    if authors:
+                        send("set", "info:authors", ",".join(authors))
+                    if token:
+                        send("set", "auth:token", token)
+                elif cmd == "state":
+                    board = args[0]
+
+                    if cid in threads:
+                        # Duplicate IDs by the server are ignored
                         continue
-                    cid, ref = None, None
-                    if match.group('id'):
-                        cid = int(match.group('id'))
-                    if match.group('ref'):
-                        ref = int(match.group('ref'))
-                    cmd = match.group('cmd')
-                    args = split(match.group('args'))
 
-                    if cmd == "kgp":
-                        major, _minor, _patch = args
-                        if major != 1:
-                            send("error", "protocol not supported", ref=cid)
-                            raise ValueError()
-                        send("mode", "freeplay")
-                        if name:
-                            send("set", "info:name", name)
-                        if authors:
-                            send("set", "info:authors", ",".join(authors))
-                        if token:
-                            send("set", "auth:token", token)
-                    elif cmd == "state":
-                        board = args[0]
+                    threads[cid] = multiprocessing.Process(
+                        name=f'query-{cid}',
+                        args=(board, cid),
+                        target=query,
+                        daemon=True)
+                    threads[cid].start()
+                elif cmd == "stop":
+                    if ref and ref in threads:
+                        thread = threads[ref]
+                        thread.terminate()
+                        threads.pop(ref, None)
+                elif cmd == "ok":
+                    pass    # ignored
+                elif cmd == "error":
+                    pass    # ignored
+                elif cmd == "fail":
+                    return
+                elif cmd == "ping":
+                    if len(args) >= 1:
+                        send("pong", args[0], ref=cid)
+                    else:
+                        send("pong", ref=cid)
 
-                        if cid in threads:
-                            # Duplicate IDs by the server are ignored
-                            continue
+            except ValueError:
+                pass
+            except TypeError:
+                pass
 
-                        threads[cid] = multiprocessing.Process(
-                            name=f'query-{cid}',
-                            args=(board, cid),
-                            target=query,
-                            daemon=True)
-                        threads[cid].start()
-                    elif cmd == "stop":
-                        if ref and ref in threads:
-                            thread = threads[ref]
-                            thread.terminate()
-                            threads.pop(ref, None)
-                    elif cmd == "ok":
-                        pass    # ignored
-                    elif cmd == "error":
-                        pass    # ignored
-                    elif cmd == "fail":
-                        return
-                    elif cmd == "ping":
-                        if len(args) >= 1:
-                            send("pong", args[0], ref=cid)
-                        else:
-                            send("pong", ref=cid)
+    if host.startswith("ws"):
+        assert 'websocket' in sys.modules,\
+            "websocket library couldn't be loaded"
 
-                except ValueError:
-                    pass
-                except TypeError:
-                    pass
+        ws = websocket.WebSocket()
+        ws.connect(host)
+        def lines():
+            try:
+                while True:
+                    yield ws.recv()
+            except websocket._exceptions.WebSocketConnectionClosedException:
+                pass
+        handle(lines, ws.send)
+    else:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.setblocking(True)
+            sock.connect((host, port))
+            def write(msg):
+                pseudo.write(msg)
+                pseudo.flush()
+            with sock.makefile(mode='rw') as pseudo:
+                handle(lambda: pseudo, write)
 
 # Local Variables:
 # indent-tabs-mode: nil
