@@ -19,6 +19,7 @@
 import inspect
 import re
 import os
+import sys
 import socket
 import threading
 import copy
@@ -158,7 +159,7 @@ class Board:
         return b, False
 
 
-def connect(agent, host='localhost', port=2671, token=None, name=None, authors=[], log=False):
+def connect(agent, host='localhost', port=2671, token=None, name=None, authors=[], debug=False):
     """
     Connect to KGP server at host:port as agent.
 
@@ -167,6 +168,9 @@ def connect(agent, host='localhost', port=2671, token=None, name=None, authors=[
 
     The optional arguments TOKEN, NAME and AUTHORS are used to send
     the server optional information about the client implementation.
+
+    If DEBUG has a true value, the network communication is printed on
+    to the standard error stream.
     """
     assert inspect.isgeneratorfunction(agent)
 
@@ -241,24 +245,23 @@ def connect(agent, host='localhost', port=2671, token=None, name=None, authors=[
                 If ref is not None, add a reference.
                 """
                 nonlocal id
-                if log:
-                    print(">", ref, cmd, *args)
 
-                pseudo.write(str(id))
+                msg = str(id)
                 if ref:
-                    pseudo.write('@{}'.format(ref))
-                pseudo.write(' {}'.format(cmd))
+                    msg += f'@{ref}'
+                msg += " " + cmd
 
                 for arg in args:
-                    pseudo.write(" ")
+                    msg += " "
                     if isinstance(arg, str):
                         string = re.sub(r'"', '\\"', arg)
-                        pseudo.write('"{}"'.format(string))
+                        msg += f'"{string}"'
                     else:
-                        pseudo.write(str(arg))
+                        msg += str(arg)
 
-                pseudo.write('\r\n')
-                pseudo.flush()
+                if debug:
+                    print(">", msg, file=sys.stderr)
+                pseudo.write(msg + "\r\n")
 
                 with lock:
                     id += 2
@@ -287,8 +290,8 @@ def connect(agent, host='localhost', port=2671, token=None, name=None, authors=[
             running = {}
 
             for line in pseudo:
-                if log:
-                    print("<", line.strip())
+                if debug:
+                    print("<", line.strip(), file=sys.stderr)
 
                 try:
                     match = COMMAND_PATTERN.match(line)
