@@ -68,30 +68,21 @@ class Board:
         return '<{}>'.format(','.join(map(str, data)))
 
     def __getitem__(self, key):
-        try:
-            side, pit = key
-            return self.pit(side, pit)
-        except ValueError:
-            side = key
-            assert side in (NORTH, SOUTH)
-
-            if side == NORTH:
-                return self.north
-            elif side == SOUTH:
-                return self.south
+        if key == NORTH:
+            return self.north
+        elif key == SOUTH:
+            return self.south
+        side, pit = key
+        return self.pit(side, pit)
 
     def __setitem__(self, key, value):
-        try:
+        if key == NORTH:
+            self.north = value
+        elif key == SOUTH:
+            self.south = value
+        else:
             side, pit = key
             self.side(side)[pit] = value
-        except ValueError:
-            side = key
-            assert side in (NORTH, SOUTH)
-
-            if side == NORTH:
-                self.north = value
-            elif side == SOUTH:
-                self.south = value
 
     def side(self, side):
         """Return the pits for SIDE."""
