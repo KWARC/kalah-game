@@ -1,6 +1,7 @@
 package main
 
 import (
+	"math/rand"
 	"sync"
 	"time"
 )
@@ -57,7 +58,9 @@ func match() {
 			queue = queue[1:]
 
 			go (&Game{
-				Board: makeBoard(defSize, defStones),
+				Board: makeBoard(
+					conf.Game.Sizes[rand.Intn(len(conf.Game.Sizes))],
+					conf.Game.Stones[rand.Intn(len(conf.Game.Stones))]),
 				North: north,
 				South: south,
 			}).Start()

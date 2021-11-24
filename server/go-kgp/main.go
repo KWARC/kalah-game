@@ -2,23 +2,22 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
+	"os"
 )
 
 const (
 	majorVersion = 1
 	minorVersion = 0
 	patchVersion = 0
+
+	defConfName = "server.toml"
 )
 
-var (
-	defSize   uint
-	defStones uint
-	timeout   uint
-	debug     bool
-)
+var conf = defaultConfig
 
 func listen(ln net.Listener) {
 	for {
@@ -35,41 +34,41 @@ func listen(ln net.Listener) {
 
 func main() {
 	var (
-		socket string
-		dbf    string
-		web    string
-		ws     bool
+		confFile = flag.String("conf", defConfName, "Name of configuration file")
 	)
 
-	flag.UintVar(&defSize, "size", 7, "Size of new boards")
-	flag.UintVar(&defStones, "stones", 7, "Number of stones to use")
-	flag.StringVar(&socket, "socket", ":2671", "Address to listen on for socket connections")
-	flag.BoolVar(&ws, "websocket", false, "Listen for websocket upgrades only")
-	flag.StringVar(&dbf, "db", "kalah.sql", "Path to SQLite database")
-	flag.UintVar(&timeout, "timeout", 5, "Seconds to wait for a move to be made")
-	flag.StringVar(&web, "http", ":8080", "Address to have web server listen on")
-	flag.BoolVar(&debug, "debug", false, "Print all network I/O")
+	flag.UintVar(&conf.TCP.Port, "port", 2671, "Port for TCP connections")
+	flag.UintVar(&conf.Web.Port, "webport", 8080, "Port for HTTP connections")
+	flag.BoolVar(&conf.WS.Enabled, "websocket", false, "Listen for websocket upgrades only")
+	flag.StringVar(&conf.Database, "db", "kalah.sql", "Path to SQLite database")
+	flag.UintVar(&conf.Game.Timeout, "timeout", 5, "Seconds to wait for a move to be made")
+	flag.BoolVar(&conf.Debug, "debug", false, "Print all network I/O")
 	flag.Parse()
 
-	if debug {
+	conf, err := openConf(*confFile)
+	if err != nil && (!os.IsNotExist(err) || *confFile != defConfName) {
+		log.Fatal(err)
+	}
+
+	if conf.Debug {
 		log.SetFlags(log.LstdFlags | log.Lshortfile)
 	}
 
-	if ws {
+	if conf.WS.Enabled {
 		http.HandleFunc("/socket", listenUpgrade)
 		log.Println("Listening for upgrades on /socket")
 	} else {
-		plain, err := net.Listen("tcp", socket)
+		tcp := fmt.Sprintf("%s:%d", conf.TCP.Host, conf.TCP.Port)
+		plain, err := net.Listen("tcp", tcp)
 		if err != nil {
 			log.Fatal(err)
 		}
 		go listen(plain)
-		log.Printf("Listening on socket %s", socket)
 	}
 
 	// Start web server
 	go func() {
-		log.Printf("Web interface on %s", web)
+		web := fmt.Sprintf("%s:%d", conf.Web.Host, conf.Web.Port)
 		log.Fatal(http.ListenAndServe(web, nil))
 	}()
 
@@ -77,5 +76,5 @@ func main() {
 	go organizer()
 
 	// start database manager
-	manageDatabase(dbf)
+	manageDatabase(conf.Database)
 }

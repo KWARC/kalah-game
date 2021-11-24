@@ -111,7 +111,7 @@ func (g *Game) Start() {
 
 	g.last = g.North.Send("state", g)
 
-	timer := time.After(time.Duration(timeout) * time.Second)
+	timer := time.After(time.Duration(conf.Game.Timeout) * time.Second)
 	next := false
 
 	defer func() {
@@ -175,7 +175,7 @@ func (g *Game) Start() {
 				g.last = g.South.Send("state", g)
 			}
 
-			timer = time.After(time.Duration(timeout) * time.Second)
+			timer = time.After(time.Duration(conf.Game.Timeout) * time.Second)
 		}
 	}
 }

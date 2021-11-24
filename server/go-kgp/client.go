@@ -79,7 +79,7 @@ func (cli *Client) Respond(to uint64, command string, args ...interface{}) uint6
 			panic("Unsupported type")
 		}
 	}
-	if debug {
+	if conf.Debug {
 		log.Print(cli, " > ", buf.String())
 	}
 	fmt.Fprint(buf, "\r\n")
@@ -129,7 +129,7 @@ func (cli *Client) Handle() {
 
 	// Start a thread to periodically send ping requests to the
 	// client
-	ticker := time.NewTicker(time.Duration(1+timeout) * time.Second)
+	ticker := time.NewTicker(time.Duration(1+conf.Game.Timeout) * time.Second)
 	defer ticker.Stop()
 	go func() {
 		for range ticker.C {
@@ -164,7 +164,7 @@ func (cli *Client) Handle() {
 
 			// Interpret line
 			input := scanner.Text()
-			if debug {
+			if conf.Debug {
 				log.Print(cli, " < ", input)
 			}
 			err := cli.Interpret(input)
