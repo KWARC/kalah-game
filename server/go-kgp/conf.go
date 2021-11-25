@@ -9,8 +9,8 @@ import (
 
 type GameConf struct {
 	Timeout uint   `toml:"timeout"`
-	Sizes   []uint `toml:sizes`
-	Stones  []uint `toml:stones`
+	Sizes   []uint `toml:"sizes"`
+	Stones  []uint `toml:"stones"`
 }
 
 type WSConf struct {
