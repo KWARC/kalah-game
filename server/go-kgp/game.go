@@ -102,12 +102,10 @@ func (g *Game) Start() {
 		panic("Already part of game")
 	}
 	g.North.game = g
-	g.North.waiting = false
 	if g.South.game != nil {
 		panic("Already part of game")
 	}
 	g.South.game = g
-	g.South.waiting = false
 
 	g.last = g.North.Send("state", g)
 

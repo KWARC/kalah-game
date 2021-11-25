@@ -32,7 +32,6 @@ type Client struct {
 	choice   int
 	rid      uint64
 	killFunc context.CancelFunc
-	waiting  bool
 	pinged   bool
 	token    string
 	comment  string

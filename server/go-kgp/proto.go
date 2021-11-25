@@ -122,7 +122,7 @@ func (cli *Client) Interpret(input string) error {
 
 	switch cmd {
 	case "mode":
-		if game != nil || cli.waiting {
+		if game != nil {
 			return nil
 		}
 
@@ -134,8 +134,8 @@ func (cli *Client) Interpret(input string) error {
 
 		switch mode {
 		case "simple", "freeplay":
-			cli.waiting = true
 			go enqueue(cli)
+			cli.game = nil
 			cli.Respond(id, "ok")
 		default:
 			cli.Respond(id, "error", "Unsupported Mode")
@@ -171,7 +171,7 @@ func (cli *Client) Interpret(input string) error {
 		// so we can ignore these response messages.
 	case "pong":
 		cli.pinged = false
-		if cli.waiting {
+		if cli.game == nil {
 			promote(cli)
 		}
 	case "set":
