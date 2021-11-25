@@ -17,7 +17,7 @@ const (
 	defConfName = "server.toml"
 )
 
-var conf = defaultConfig
+var conf *Conf = defaultConfig
 
 func listen(ln net.Listener) {
 	for {
@@ -45,9 +45,12 @@ func main() {
 	flag.BoolVar(&conf.Debug, "debug", false, "Print all network I/O")
 	flag.Parse()
 
-	conf, err := openConf(*confFile)
+	newconf, err := openConf(*confFile)
 	if err != nil && (!os.IsNotExist(err) || *confFile != defConfName) {
 		log.Fatal(err)
+	}
+	if newconf != nil {
+		conf = newconf
 	}
 
 	if conf.Debug {
