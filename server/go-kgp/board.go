@@ -63,11 +63,11 @@ func (b *Board) Mirror() *Board {
 func (b *Board) String() string {
 	var buf bytes.Buffer
 
-	fmt.Fprintf(&buf, "<%d,%d,%d", len(b.northPits), b.north, b.south)
-	for _, pit := range b.northPits {
+	fmt.Fprintf(&buf, "<%d,%d,%d", len(b.northPits), b.south, b.north)
+	for _, pit := range b.southPits {
 		fmt.Fprintf(&buf, ",%d", pit)
 	}
-	for _, pit := range b.southPits {
+	for _, pit := range b.northPits {
 		fmt.Fprintf(&buf, ",%d", pit)
 	}
 	fmt.Fprint(&buf, ">")
