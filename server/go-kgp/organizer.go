@@ -57,6 +57,10 @@ func match() {
 			queue = append(queue[:i], queue[i+1:]...)
 			queue = queue[1:]
 
+			if rand.Intn(2) == 0 {
+				south, north = north, south
+			}
+
 			go (&Game{
 				Board: makeBoard(
 					conf.Game.Sizes[rand.Intn(len(conf.Game.Sizes))],
