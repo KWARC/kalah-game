@@ -40,9 +40,9 @@ type Client struct {
 
 func (cli *Client) String() string {
 	if conn, ok := cli.rwc.(net.Conn); ok {
-		return fmt.Sprint(conn.RemoteAddr())
+		return fmt.Sprintf("%s (%q)", conn.RemoteAddr(), cli.token)
 	}
-	return fmt.Sprintf("%p", cli)
+	return fmt.Sprintf("%p (%q)", cli, cli.token)
 }
 
 // Send forwards an unreferenced message to the client
