@@ -7,6 +7,8 @@ import (
 	"net"
 	"net/http"
 	"os"
+
+	"github.com/BurntSushi/toml"
 )
 
 const (
@@ -35,6 +37,7 @@ func listen(ln net.Listener) {
 func main() {
 	var (
 		confFile = flag.String("conf", defConfName, "Name of configuration file")
+		dumpConf = flag.Bool("dump-config", false, "Dump default configuration")
 	)
 
 	flag.UintVar(&conf.TCP.Port, "port", 2671, "Port for TCP connections")
@@ -44,6 +47,15 @@ func main() {
 	flag.UintVar(&conf.Game.Timeout, "timeout", 5, "Seconds to wait for a move to be made")
 	flag.BoolVar(&conf.Debug, "debug", false, "Print all network I/O")
 	flag.Parse()
+
+	if *dumpConf {
+		enc := toml.NewEncoder(os.Stdout)
+		err := enc.Encode(defaultConfig)
+		if err != nil {
+			log.Fatal("Failed to encode default configuration")
+		}
+		os.Exit(0)
+	}
 
 	newconf, err := openConf(*confFile)
 	if err != nil && (!os.IsNotExist(err) || *confFile != defConfName) {
