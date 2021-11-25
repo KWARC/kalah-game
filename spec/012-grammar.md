@@ -38,15 +38,15 @@ double quotes"`, `"like \" this"`, ...) or a board literal.
 Board literals are wrapped in angled-brackets and consist of a an
 array of positive, unsigned integers separated using commas. The first
 number indicates the board size $n$, the second and third give the
-number of stones in the north and south Kalah respectively. Values 4 to
-$4 + n$ list the number of stones in the north pits, $4 + n + 1$ to
-$4 + 2n + 1$ the number of stones in the south pits:
+number of stones in the south and north Kalah respectively. Values 4 to
+$4 + n$ list the number of stones in the south pits, $4 + n + 1$ to
+$4 + 2n + 1$ the number of stones in the north pits:
 
     <3,10,2,1,2,3,4,2,0>
      ^ ^  ^ ^     ^
      | |  | |     |
-     | |  | |     \__ South pits: 4, 2 and 0
-     | |  | \________ North pits: 2, 1 and 3
-     | |  \__________ South Kalah
-     | \_____________ North Kalah
+     | |  | |     \__ North pits: 4, 2 and 0
+     | |  | \________ South pits: 2, 1 and 3
+     | |  \__________ North Kalah
+     | \_____________ South Kalah
 	 \_______________ Board Size
