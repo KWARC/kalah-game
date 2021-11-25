@@ -20,8 +20,8 @@ type Move struct {
 
 // Do ensures a move is valid and then sets it
 func (m Move) Do(game *Game, side Side) bool {
-	if m.pit < 0 || m.pit >= len(game.Board.northPits) {
-		game.Current().Send("error", "illegal move")
+	if !game.Board.Legal(side, m.pit) {
+		game.Current().Send("error", fmt.Sprintf("Illegal move %d", m.pit+1))
 	} else {
 		game.Player(side).choice = m.pit
 	}
