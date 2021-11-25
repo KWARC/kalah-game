@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 
-import kgp
+import os
 from random import choice
 
+import kgp
 
 def random_agent(state):
     try:
@@ -12,4 +13,4 @@ def random_agent(state):
 
 
 if __name__ == "__main__":
-    kgp.connect(random_agent)
+    kgp.connect(random_agent, token=os.getenv("TOKEN"))

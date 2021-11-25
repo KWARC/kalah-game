@@ -18,9 +18,18 @@
 
 import inspect
 import re
+import os
+import sys
 import socket
 import threading
+import multiprocessing
 import copy
+
+try:
+    import websocket
+except ModuleNotFoundError:
+    pass
+
 
 _BOARD_PATTERN = re.compile(r'^(<(\d+(?:,\d+){4,})>)\s*')
 
@@ -67,30 +76,21 @@ class Board:
         return '<{}>'.format(','.join(map(str, data)))
 
     def __getitem__(self, key):
-        try:
-            side, pit = key
-            return self.pit(side, pit)
-        except ValueError:
-            side = key
-            assert side in (NORTH, SOUTH)
-
-            if side == NORTH:
-                return self.north
-            elif side == SOUTH:
-                return self.south
+        if key == NORTH:
+            return self.north
+        elif key == SOUTH:
+            return self.south
+        side, pit = key
+        return self.pit(side, pit)
 
     def __setitem__(self, key, value):
-        try:
+        if key == NORTH:
+            self.north = value
+        elif key == SOUTH:
+            self.south = value
+        else:
             side, pit = key
             self.side(side)[pit] = value
-        except ValueError:
-            side = key
-            assert side in (NORTH, SOUTH)
-
-            if side == NORTH:
-                self.north = value
-            elif side == SOUTH:
-                self.south = value
 
     def side(self, side):
         """Return the pits for SIDE."""
@@ -114,6 +114,9 @@ class Board:
         """Return a list of legal moves for side."""
         return [move for move in range(self.size)
                 if self.is_legal(side, move)]
+
+    def is_final(self):
+        return (not self.legal_moves(NORTH)) or (not self.legal_moves(SOUTH))
 
     def copy(self):
         """Return a deep copy of the current board state."""
@@ -163,12 +166,18 @@ class Board:
         return b, False
 
 
-def connect(agent, host='localhost', port=2671):
+def connect(agent, host='localhost', port=2671, token=None, name=None, authors=[], debug=False):
     """
     Connect to KGP server at host:port as agent.
 
     Agent is a generator function, that produces as many moves as it
     can until the server ends a search request.
+
+    The optional arguments TOKEN, NAME and AUTHORS are used to send
+    the server optional information about the client implementation.
+
+    If DEBUG has a true value, the network communication is printed on
+    to the standard error stream.
     """
     assert inspect.isgeneratorfunction(agent)
 
@@ -229,113 +238,143 @@ def connect(agent, host='localhost', port=2671):
             else:
                 return parsed
 
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.setblocking(True)
-        sock.connect((host, port))
-        with sock.makefile(mode='rw') as pseudo:
-            lock = threading.Lock()
-            id = 1
+    def handle(read, write):
+        lock = threading.Lock()
+        id = 1
 
-            def send(cmd, *args, ref=None):
-                """
-                Send cmd with args to server.
+        def send(cmd, *args, ref=None):
+            """
+            Send cmd with args to server.
 
-                If ref is not None, add a reference.
-                """
-                nonlocal id
+            If ref is not None, add a reference.
+            """
+            nonlocal id
 
-                pseudo.write(str(id))
-                if ref:
-                    pseudo.write('@{}'.format(ref))
-                pseudo.write(' {}'.format(cmd))
+            msg = str(id)
+            if ref:
+                msg += f'@{ref}'
+            msg += " " + cmd
 
-                for arg in args:
-                    pseudo.write(" ")
-                    if isinstance(arg, str):
-                        string = re.sub(r'"', '\\"', arg)
-                        pseudo.write('"{}"'.format(string))
-                    else:
-                        pseudo.write(str(arg))
-
-                pseudo.write('\r\n')
-                pseudo.flush()
-
-                with lock:
-                    id += 2
-
-            def query(state, timeout, cid):
-                """
-                Start querying agent what move to make.
-
-                State is the current board state, timeout a
-                threading.Event object to indicate when the search
-                time is over and cid the ID of the state command that
-                issued the request.
-                """
-                for move in agent(state):
-                    if timeout.is_set():
-                        break
-                    if move:
-                        send("move", move, ref=cid)
+            for arg in args:
+                msg += " "
+                if isinstance(arg, str):
+                    string = re.sub(r'"', '\\"', arg)
+                    msg += f'"{string}"'
                 else:
-                    send("yield", ref=cid)
+                    msg += str(arg)
 
-            running = {}
+            if debug:
+                print(">", msg, file=sys.stderr)
+            write(msg + "\r\n")
 
-            for line in pseudo:
-                try:
-                    match = COMMAND_PATTERN.match(line)
-                    if not match:
+            with lock:
+                id += 2
+
+        def query(state, cid):
+            """
+            Start querying agent what move to make.
+
+            State is the current board state and cid the ID of the
+            state command that issued the request.
+
+            """
+            if state.is_final():
+                return
+            for move in agent(state):
+                if not type(move) is int:
+                    raise TypeError("Not a move")
+                if move:
+                    send("move", move, ref=cid)
+            else:
+                send("yield", ref=cid)
+
+        threads = {}
+
+        for line in read():
+            if debug:
+                print("<", line.strip(), file=sys.stderr)
+
+            try:
+                match = COMMAND_PATTERN.match(line)
+                if not match:
+                    continue
+                cid, ref = None, None
+                if match.group('id'):
+                    cid = int(match.group('id'))
+                if match.group('ref'):
+                    ref = int(match.group('ref'))
+                cmd = match.group('cmd')
+                args = split(match.group('args'))
+
+                if cmd == "kgp":
+                    major, _minor, _patch = args
+                    if major != 1:
+                        send("error", "protocol not supported", ref=cid)
+                        raise ValueError()
+                    send("mode", "freeplay")
+                    if name:
+                        send("set", "info:name", name)
+                    if authors:
+                        send("set", "info:authors", ",".join(authors))
+                    if token:
+                        send("set", "auth:token", token)
+                elif cmd == "state":
+                    board = args[0]
+
+                    if cid in threads:
+                        # Duplicate IDs by the server are ignored
                         continue
-                    cid, ref = None, None
-                    if match.group('id'):
-                        cid = int(match.group('id'))
-                    if match.group('ref'):
-                        ref = int(match.group('ref'))
-                    cmd = match.group('cmd')
-                    args = split(match.group('args'))
 
-                    if cmd == "kgp":
-                        major, _minor, _patch = args
-                        if major != 1:
-                            send("error", "protocol not supported", ref=cid)
-                            raise ValueError()
-                        send("mode", "freeplay")
-                    elif cmd == "state":
-                        board = args[0]
+                    threads[cid] = multiprocessing.Process(
+                        name=f'query-{cid}',
+                        args=(board, cid),
+                        target=query,
+                        daemon=True)
+                    threads[cid].start()
+                elif cmd == "stop":
+                    if ref and ref in threads:
+                        thread = threads[ref]
+                        thread.terminate()
+                        threads.pop(ref, None)
+                elif cmd == "ok":
+                    pass    # ignored
+                elif cmd == "error":
+                    pass    # ignored
+                elif cmd == "fail":
+                    return
+                elif cmd == "ping":
+                    if len(args) >= 1:
+                        send("pong", args[0], ref=cid)
+                    else:
+                        send("pong", ref=cid)
 
-                        assert cid not in running
+            except ValueError:
+                pass
+            except TypeError:
+                pass
 
-                        timeout = threading.Event()
-                        thread = threading.Thread(
-                            name='query-{}'.format(cid),
-                            args=(board, timeout, cid),
-                            target=query,
-                            daemon=True)
+    if host.startswith("ws"):
+        assert 'websocket' in sys.modules,\
+            "websocket library couldn't be loaded"
 
-                        running[cid] = timeout
-                        thread.start()
-                    elif cmd == "stop":
-                        if ref and ref in running:
-                            timeout = running[ref]
-                            timeout.set()
-                            running.pop(ref, None)
-                    elif cmd == "ok":
-                        pass    # ignored
-                    elif cmd == "error":
-                        pass    # ignored
-                    elif cmd == "fail":
-                        return
-                    elif cmd == "ping":
-                        if len(args) >= 1:
-                            send("pong", args[0], ref=cid)
-                        else:
-                            send("pong", ref=cid)
-
-                except ValueError:
-                    pass
-                except TypeError:
-                    pass
+        ws = websocket.WebSocket()
+        ws.connect(host)
+        def lines():
+            try:
+                while True:
+                    yield ws.recv()
+            except websocket._exceptions.WebSocketConnectionClosedException:
+                pass
+        handle(lines, ws.send)
+    else:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.setblocking(True)
+            sock.connect((host, port))
+            def write(msg):
+                pseudo.write(msg)
+                pseudo.flush()
+            with sock.makefile(mode='rw') as pseudo:
+                handle(lambda: pseudo, write)
 
 # Local Variables:
 # indent-tabs-mode: nil
