@@ -236,9 +236,10 @@ func TestSow(t *testing.T) {
 	}
 }
 
-func TestOver(t *testing.T) {
+func TestOverFor(t *testing.T) {
 	for _, test := range []struct {
 		board *Board
+		side  Side
 		over  bool
 	}{
 		{
@@ -248,6 +249,16 @@ func TestOver(t *testing.T) {
 				south:     0,
 				southPits: []uint{3, 3, 3},
 			},
+			side: SideNorth,
+			over: false,
+		}, {
+			board: &Board{
+				north:     0,
+				northPits: []uint{3, 3, 3},
+				south:     0,
+				southPits: []uint{3, 3, 3},
+			},
+			side: SideSouth,
 			over: false,
 		}, {
 			board: &Board{
@@ -256,7 +267,17 @@ func TestOver(t *testing.T) {
 				south:     0,
 				southPits: []uint{3, 3, 3},
 			},
+			side: SideNorth,
 			over: true,
+		}, {
+			board: &Board{
+				north:     0,
+				northPits: []uint{0, 0, 0},
+				south:     0,
+				southPits: []uint{3, 3, 3},
+			},
+			side: SideSouth,
+			over: false,
 		}, {
 			board: &Board{
 				north:     0,
@@ -264,6 +285,16 @@ func TestOver(t *testing.T) {
 				south:     0,
 				southPits: []uint{0, 0, 0},
 			},
+			side: SideNorth,
+			over: false,
+		}, {
+			board: &Board{
+				north:     0,
+				northPits: []uint{3, 3, 3},
+				south:     0,
+				southPits: []uint{0, 0, 0},
+			},
+			side: SideSouth,
 			over: true,
 		}, {
 			board: &Board{
@@ -272,10 +303,20 @@ func TestOver(t *testing.T) {
 				south:     0,
 				southPits: []uint{0, 0, 0},
 			},
+			side: SideNorth,
+			over: true,
+		}, {
+			board: &Board{
+				north:     0,
+				northPits: []uint{0, 0, 0},
+				south:     0,
+				southPits: []uint{0, 0, 0},
+			},
+			side: SideSouth,
 			over: true,
 		},
 	} {
-		if test.board.Over() != test.over {
+		if test.board.OverFor(test.side) != test.over {
 			t.Fail()
 		}
 	}
