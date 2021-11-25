@@ -177,7 +177,6 @@ func (b *Board) Sow(self Side, pit int) bool {
 	return false
 }
 
-// Over returns true if the game has finished
 // OverFor returns true if the game has finished for a side
 func (b *Board) OverFor(side Side) bool {
 	var pits []uint
@@ -196,26 +195,9 @@ func (b *Board) OverFor(side Side) bool {
 	return true
 }
 
+// Over returns true if the game is over for either side
 func (b *Board) Over() bool {
-	empty := true
-	for _, pit := range b.northPits {
-		if pit > 0 {
-			empty = false
-			break
-		}
-	}
-	if empty {
-		return true
-	}
-
-	empty = true
-	for _, pit := range b.southPits {
-		if pit > 0 {
-			empty = false
-			break
-		}
-	}
-	return empty
+	return b.OverFor(SideNorth) || b.OverFor(SideSouth)
 }
 
 func (b *Board) Outcome(side Side) Outcome {
