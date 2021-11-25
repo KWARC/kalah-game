@@ -1,4 +1,4 @@
-package kgp;
+package info.kwarc.kalah.jkpg;
 
 import java.io.IOException;
 import java.math.BigInteger;
@@ -12,18 +12,15 @@ public class ExampleAgent extends Agent {
 
     // Token could be any String, but PLEASE use a big randomized String for security's sake
     // If you're lazy, just concat together some random (decimal/hexadecimal) integers
-    private static final String TOKEN =
-	"10666affd0cde9c3c54b86ef6782d146bf055b8fc4a492ad46bb44d077df79ec" +
-	"3eac04c9a0c71a7ee5d4717f6348a1fd88d2a1819e21d32156c72000bedac513" +
-	"1476177c192a54fa08ae234c94ddb25d71b911b83ee610fe5541f630f73dbabd" +
-	"660c11abaa33534fbe51d11c32bae7f537a75bc19a4c3d85da77828b6f39f2f7";
+    private static final String TOKEN = "10666affd0cde9c3c54b86ef6782d146bf055b8fc4a492ad46bb44d077df79ec3eac04c9a0c71a7ee5d4717f6348a1fd88d2a1819e21d32156c72000bedac5131476177c192a54fa08ae234c94ddb25d71b911b83ee610fe5541f630f73dbabd660c11abaa33534fbe51d11c32bae7f537a75bc19a4c3d85da77828b6f39f2f7";
     private final Random rng;
 
-    public ExampleAgent(String host, int port) {
+    public ExampleAgent(String host, int port, boolean encrypted) {
 
         super(
                 host,
                 port,
+                ProtocolManager.ConnectionType.WS,
                 "ExampleAgentName",
                 "Philip Kaludercic, Tobias Völk",
                 "Sophisticated Kalah agent developed by Philip Kaludercic und Tobias Völk in 2021.\n\n" +
@@ -65,7 +62,9 @@ public class ExampleAgent extends Agent {
             this.submitMove(chosenMove);
 
             // Commenting on the current position and/or move choice
-            sendComment("Currently best move: " + (chosenMove + 1));
+            sendComment("Currently best move: " + (chosenMove + 1) + "\n" +
+                    "Evaluation: -3\n" +
+                    "Computation steps: 5");
 
             sleep(timeToWait);
 
@@ -97,8 +96,8 @@ public class ExampleAgent extends Agent {
         // Agent initialization happens before we connect to the server
         // Not that tournament programs might start your client in a process and punish it
         // if it doesn't connect to the server within a specified amount of time
-        // 2671 is the Kalah Game Protocol default port
-        Agent agent = new ExampleAgent("localhost", 2671);
+        // 2671/2672 is the Kalah Game Protocol default port for unencrypted/encrypted
+        Agent agent = new ExampleAgent("localhost", 2671, false); // TODO adapt encrypted default port
 
         // If necessary, do some other stuff here before connecting.
         // The game might start immediately after connecting!

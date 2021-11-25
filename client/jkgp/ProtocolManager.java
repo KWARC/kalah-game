@@ -1,7 +1,8 @@
-package kgp;
+package info.kwarc.kalah.jkpg;
 
 import java.io.*;
-import java.net.*;
+import java.net.ProtocolException;
+import java.net.SocketException;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.BrokenBarrierException;
@@ -37,6 +38,11 @@ public class ProtocolManager {
             this.original = original;
             this.name = name;
             this.args = args;
+        }
+
+        @Override
+        public String toString() {
+            return this.original;
         }
     }
 
@@ -84,14 +90,14 @@ public class ProtocolManager {
                     "<\\d+(,\\d+)*>",
             Pattern.CASE_INSENSITIVE);
 
-    private static PrintStream debugStream = System.out;
+    private static PrintStream debugStream = null;
 
     public static void setDebugStream(OutputStream o) {
         debugStream = new PrintStream(o);
     }
 
     private final String host;
-    private final int port;
+    private final Integer port;
 
     private final Agent agent;
 
@@ -99,11 +105,9 @@ public class ProtocolManager {
     private Integer clock = null, opClock = null;
     private String serverName = null;
 
-    private Socket clientSocket;
-    private BufferedReader input;
-    private OutputStream output;
+    private Connection connection;
 
-    private KalahState kalahState = null; // TODO think about reset/init of all vars
+    private KalahState kalahState = null;
 
     // Set to true by network thread upon receiving stop command
     // Set to false by network thread after having sent yield/ok
@@ -116,24 +120,30 @@ public class ProtocolManager {
     // Cyclic barrier to synchronize to start/stop agent search without busy-waiting
     private final CyclicBarrier bar = new CyclicBarrier(2);
 
-    // To only send one thing to the server at a time
-    private final Object lockSend = new Object();
-
     // To only run one session at a time
     private final Object lockSession = new Object();
 
     private enum ProtocolState {
         WAITING_FOR_VERSION, // awaiting initial communication, server sends version, both exchange some set-options
 
-        WAITING_FOR_STATE, // agent is stopped, waiting for next state TODO implement this in loop
+        WAITING_FOR_STATE, // agent is stopped, waiting for next state
         SEARCHING, // told agent to start computation, might receive AgentFinished in this state if agent yields
         WAITING_FOR_AGENT_TO_STOP, // told agent to stop (because server told us to stop), waiting for AgentFinished event
     }
 
+    public enum ConnectionType {
+        TCP,
+        WS,
+        WSS,
+    }
+
+    private ConnectionType conType;
+
     // Creates new instance of communication to given server for the given agent
-    public ProtocolManager(String host, int port, Agent agent) {
+    public ProtocolManager(String host, int port, ConnectionType conType, Agent agent) {
         this.host = host;
         this.port = port;
+        this.conType = conType;
         this.agent = agent;
     }
 
@@ -149,20 +159,18 @@ public class ProtocolManager {
             opClock = null;
             serverName = null;
 
-            clientSocket = null;
-            input = null;
-            output = null;
-
             kalahState = null;
 
             running = true;
 
             // create a connection
-	    clientSocket = new Socket(host, port);
-
-            // get streams from socket
-            input = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-            output = clientSocket.getOutputStream();
+            if (conType == ConnectionType.TCP) {
+                connection = new ConnectionTCP(host, port);
+            } else if (conType == ConnectionType.WS) {
+                connection = new ConnectionWebSocket("ws://" + host);
+            } else {
+                connection = new ConnectionWebSocket("wss://" + host);
+            }
 
             LinkedBlockingQueue<Event> events = new LinkedBlockingQueue<>();
 
@@ -172,10 +180,12 @@ public class ProtocolManager {
                         while (running) {
                             try {
                                 // get line from server and pass it on for processing
-                                events.add(receiveFromServer()); // always enough space to insert
+                                Command msg = receiveFromServer();
+                                events.add(msg); // always enough space to insert
                             } catch (IOException e) {
                                 // if there's an exception, pass it on for processing
                                 events.add(new NetworkThreadException(e));
+                                break;
                             }
                         }
                     }).start();
@@ -206,9 +216,10 @@ public class ProtocolManager {
 
                                 // Tell outside about it though
                                 exception = e;
+                                break;
+                            } finally {
+                                events.add(new AgentFinished(exception, !shouldStop));
                             }
-
-                            events.add(new AgentFinished(exception, !shouldStop));
                         }
                     }).start();
 
@@ -236,7 +247,6 @@ public class ProtocolManager {
                         } else {
                             sendToServer("ok");
                         }
-                        state = ProtocolState.WAITING_FOR_STATE;
 
                         state = ProtocolState.WAITING_FOR_STATE;
                     } else if (event instanceof NetworkThreadException) {
@@ -245,7 +255,9 @@ public class ProtocolManager {
                     } else if (event instanceof Command) {
                         Command cmd = (Command) event;
 
-                        if ("ping".equals(cmd.name)) {
+                        if ("ok".equals(cmd.name)) {
+                            // do nothing
+                        } else if ("ping".equals(cmd.name)) {
                             reactToPing(cmd);
                         } else if ("error".equals(cmd.name)) {
                             reactToError(cmd);
@@ -314,9 +326,7 @@ public class ProtocolManager {
                                 // although having that volatile variable in between might accomplish that as well?
                                 try {
                                     bar.await();
-                                } catch (InterruptedException e) {
-                                    e.printStackTrace();
-                                } catch (BrokenBarrierException e) {
+                                } catch (InterruptedException | BrokenBarrierException e) {
                                     e.printStackTrace();
                                 }
 
@@ -388,7 +398,9 @@ public class ProtocolManager {
         if (!isCorrectErrorCommand(msg)) {
             throw new ProtocolException("Not a correct error command: " + msg.original);
         }
-        throw new ProtocolException("Received error command from server: " + msg);
+
+        System.err.println("Received and ignored error command from server: " + msg.original);
+        // throw new ProtocolException("Received error command from server: " + msg.original);
     }
 
     // react to goodbye
@@ -536,7 +548,7 @@ public class ProtocolManager {
     }
 
     // see documentation of onState(...)
-    boolean shouldStop() throws IOException
+    boolean shouldStop()
     {
         return shouldStop;
     }
@@ -569,31 +581,29 @@ public class ProtocolManager {
 
     private void closeConnection() throws IOException
     {
-        input.close();
-        output.close();
-        clientSocket.close();
+        connection.close();
     }
 
     // sends command to server, adds \r\n, flushes
     // also acts as callback for logging etc.
     private void sendToServer(String msg) throws IOException
     {
-        synchronized (lockSend) { // output stream is not threadsafe
-            output.write(msg.getBytes());
-            output.write('\r');
-            output.write('\n');
-            output.flush();
+        connection.send(msg);
 
-            // logging
-            if (debugStream != null) {
-                debugStream.println("Client: " + msg);
-            }
+        // logging
+        if (debugStream != null) {
+            debugStream.println("Client: " + msg);
         }
     }
 
     private Command receiveFromServer() throws IOException
     {
-        String line = input.readLine();
+        String line;
+        try {
+            line = connection.receive();
+        } catch (InterruptedException ie) {
+            throw new IOException("Interrupted Exception: " + ie.getMessage());
+        }
 
         if (line == null)
         {
@@ -621,7 +631,10 @@ public class ProtocolManager {
             i = arg.end();
         }
 
-        return new Command(line, name, args);
+        return new Command(line.substring(
+                mat.start(3)),
+                name,
+                args);
     }
 
     // sends error command to server

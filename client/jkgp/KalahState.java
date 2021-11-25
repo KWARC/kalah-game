@@ -1,4 +1,4 @@
-package kgp;
+package info.kwarc.kalah.jkpg;
 
 import java.util.ArrayList;
 import java.util.Arrays;

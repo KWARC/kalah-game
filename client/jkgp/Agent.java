@@ -1,7 +1,6 @@
-package kgp;
+package info.kwarc.kalah.jkpg;
 
 import java.io.IOException;
-import java.math.BigInteger;
 
 // though that would mean that every server would have to develop it's own library
 
@@ -15,6 +14,7 @@ public abstract class Agent {
 
     // can be null
     private String name, authors, description, token;
+    private ProtocolManager.ConnectionType conType;
 
     // MANDATORY: Read the documentation of submitMove() and shouldStop()
     // Find the best move for the given state here
@@ -25,20 +25,21 @@ public abstract class Agent {
     private final ProtocolManager com;
 
     // Creates an agent
-    // If host and port are non-null, the agent will connect to that server,
-    // otherwise connects to localhost:2671 if the connection is encrypted
+    // If host and port are non-null and the connection is TCP, the agent will connect to that server.
+    // If host is non-null and the connection is WS or WSS, the agent will connect to that server.
     // If name/authors/description is non-null, the server is told the value of name/authors/description
-    //
-    // If token is non-null, the client will authenticate itself to the server
-    public Agent(String host, int port, String name, String authors, String description, String token) {
+    // If token is non-null, the client will authenticate itself to the server using that token
+    public Agent(String host, Integer port, ProtocolManager.ConnectionType conType, String name, String authors, String description, String token) {
 
-        com = new ProtocolManager(host, port, this);
+        com = new ProtocolManager(host, port, conType, this);
 
         this.name = name;
         this.authors = authors;
         this.description = description;
 
         this.token = token;
+
+        this.conType = conType;
     }
 
     // Returns the name of the agent or null if not specified
