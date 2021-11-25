@@ -110,6 +110,32 @@ retry:
 	return id
 }
 
+func (cli *Client) Pinger(done <-chan struct{}) {
+	ticker := time.NewTicker(time.Duration(1+conf.Game.Timeout) * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-done:
+			return
+		case <-ticker.C:
+		}
+
+		// If the timer fired, check the ping flag and
+		// kill the client if it is still set
+		if cli.pinged {
+			log.Printf("%s did not respond to a ping in time", cli)
+			cli.killFunc()
+			break
+		}
+		// In case it was not set, ping the client
+		// again and reset the flag
+		cli.Send("ping")
+		cli.pinged = true
+	}
+
+}
+
 // Handle controls a connection and reads user input
 func (cli *Client) Handle() {
 
@@ -127,25 +153,14 @@ func (cli *Client) Handle() {
 	// Initiate the protocol with the client
 	cli.Send("kgp", majorVersion, minorVersion, patchVersion)
 
-	// Start a thread to periodically send ping requests to the
-	// client
-	ticker := time.NewTicker(time.Duration(1+conf.Game.Timeout) * time.Second)
-	defer ticker.Stop()
-	go func() {
-		for range ticker.C {
-			// If the timer fired, check the ping flag and
-			// kill the client if it is still set
-			if cli.pinged {
-				log.Printf("%s did not respond to a ping in time", cli)
-				cli.killFunc()
-				break
-			}
-			// In case it was not set, ping the client
-			// again and reset the flag
-			cli.Send("ping")
-			cli.pinged = true
-		}
-	}()
+	// Optionally start a thread to periodically send ping
+	// requests to the client
+	var done chan struct{}
+	_, isWS := cli.rwc.(*wsrwc)
+	if conf.TCP.Ping && !isWS {
+		done = make(chan (struct{}))
+		go cli.Pinger(done)
+	}
 
 	// Start a thread to read the user input from rwc
 	dead := false
@@ -187,4 +202,9 @@ func (cli *Client) Handle() {
 	<-context.Done()
 	log.Printf("Close connection for %s", cli)
 	dead = true
+
+	// Kill ping thread if requested for the connection
+	if done != nil {
+		close(done)
+	}
 }
