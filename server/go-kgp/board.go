@@ -174,6 +174,10 @@ func (b *Board) Sow(self Side, pit int) bool {
 		}
 	}
 
+	if b.Over() {
+		b.Collect()
+	}
+
 	return false
 }
 
@@ -229,4 +233,26 @@ func (b *Board) Outcome(side Side) Outcome {
 	default:
 		return DRAW
 	}
+}
+
+// Move all stones for SIDE to the Kalah on SIDE
+func (b *Board) Collect() {
+	var north, south uint
+
+	if !b.Over() {
+		panic("Stones may not be collected")
+	}
+
+	for i, p := range b.northPits {
+		north += p
+		b.northPits[i] = 0
+	}
+
+	for i, p := range b.southPits {
+		south += p
+		b.southPits[i] = 0
+	}
+
+	b.north += north
+	b.south += south
 }
