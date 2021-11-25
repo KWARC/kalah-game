@@ -164,9 +164,9 @@ func (cli *Client) Interpret(input string) error {
 			return nil
 		}
 
-		game.ctrl <- Yield(false)
 		// cli.Respond(game.last, "stop")
 	case "ok", "fail", "error":
+		game.ctrl <- Yield{}
 		// We do not expect the client to confirm or reject anything,
 		// so we can ignore these response messages.
 	case "pong":

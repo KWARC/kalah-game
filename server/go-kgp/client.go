@@ -101,8 +101,8 @@ retry:
 			}
 			i--
 			goto retry
-		} else if cli.game != nil {
-			cli.game.ctrl <- Yield(true)
+		} else {
+			cli.killFunc()
 		}
 	}
 

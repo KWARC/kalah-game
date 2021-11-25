@@ -29,17 +29,11 @@ func (m Move) Do(game *Game, side Side) bool {
 	return false
 }
 
-// Yield is an Action to give up the remaining time.  If Yield wrapps
-// a true bool value, the entire game is cancelled
-type Yield bool
+// Yield is an Action to give up the remaining time.
+type Yield struct{}
 
 // Do gives up the remaining time
-func (y Yield) Do(g *Game, _ Side) bool {
-	if y {
-		g.North.Send("fail", "game over")
-		g.South.Send("fail", "game over")
-		g.dead = true
-	}
+func (y Yield) Do(g *Game, side Side) bool {
 	return true
 }
 
