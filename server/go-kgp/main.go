@@ -17,7 +17,7 @@ const (
 	defConfName = "server.toml"
 )
 
-var conf *Conf = defaultConfig
+var conf *Conf = &defaultConfig
 
 func listen(ln net.Listener) {
 	for {

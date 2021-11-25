@@ -37,7 +37,7 @@ type Conf struct {
 	TCP      TCPConf  `toml:"tcp"`
 }
 
-var defaultConfig = &Conf{
+var defaultConfig = Conf{
 	Debug:    false,
 	Database: "kalah.sql",
 	Game: GameConf{
