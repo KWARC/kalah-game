@@ -7,7 +7,7 @@ import kgp
 
 def random_agent(state):
     try:
-        yield choice(state.legal_moves(kgp.NORTH))
+        yield choice(state.legal_moves(kgp.SOUTH))
     except IndexError:
         pass
 

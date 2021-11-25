@@ -8,11 +8,11 @@ import kgp
 
 # We will be using a simple evaluation strategy: Compare the
 # difference of stones in my (north) store vs. the opponents store
-# (south).  kgp.py always assumes the agent is on the north side of
+# (south).  kgp.py always assumes the agent is on the south side of
 # the board, to avoid confusion.
 
 def evaluate(state):
-    return state[kgp.NORTH] - state[kgp.SOUTH]
+    return state[kgp.SOUTH] - state[kgp.NORTH]
 
 # The following procedure implements the actual search.  We
 # recursively traverse the search space, using EVALUATE from above to
@@ -33,7 +33,7 @@ def search(state, depth, side):
         else:
             return search(after, depth-1, not side)
 
-    choose = max if side == kgp.NORTH else min
+    choose = max if side == kgp.SOUTH else min
     return choose((child(state, move) for move in state.legal_moves(side)),
                   key=lambda ent: ent[0])
 
@@ -60,7 +60,7 @@ def search(state, depth, side):
 
 def agent(state):
     for depth in range(1, 16):
-        yield search(state, depth, kgp.NORTH)[1]
+        yield search(state, depth, kgp.SOUTH)[1]
 
 # We can now use the generator function as an agent.  By default,
 # KGP.CONNECT will connect to localhost:2671.  For the training-server
