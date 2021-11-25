@@ -79,6 +79,7 @@ func QueryAgent(aid uint, c chan<- *Client) DBAction {
 	return func(db *sql.DB) error {
 		var cli Client
 
+		defer close(c)
 		err := sqlSelectAgent.QueryRow(aid).Scan(
 			&cli.Id, &cli.Name, &cli.Descr, &cli.Score)
 		if err != nil {
@@ -102,13 +103,13 @@ var sqlSelectMoves *sql.Stmt
 
 func QueryGame(gid uint, c chan<- *Game) DBAction {
 	return func(db *sql.DB) (err error) {
-
 		var (
 			naid, said   int
 			north, south Agent
 			game         Game
 		)
 
+		defer close(c)
 		err = sqlSelectGame.QueryRow(gid).Scan(
 			&naid, &said, &game.Result, &game.start,
 		)
@@ -191,6 +192,7 @@ var sqlSelectGames *sql.Stmt
 
 func QueryGames(c chan<- *Game, page uint) DBAction {
 	return func(db *sql.DB) (err error) {
+		defer close(c)
 		rows, err := sqlSelectGames.Query(page)
 		if err != nil {
 			log.Println(err)
@@ -247,6 +249,7 @@ var sqlSelectAgents *sql.Stmt
 
 func QueryAgents(c chan<- *Agent, page uint) DBAction {
 	return func(db *sql.DB) (err error) {
+		defer close(c)
 		rows, err := sqlSelectAgents.Query(page)
 		if err != nil {
 			log.Println(err)
