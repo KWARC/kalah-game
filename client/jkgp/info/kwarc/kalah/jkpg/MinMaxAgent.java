@@ -1,8 +1,6 @@
 package info.kwarc.kalah.jkpg;
 
 import java.io.IOException;
-import java.util.Random;
-
 import info.kwarc.kalah.jkpg.KalahState.*;
 
 
@@ -34,7 +32,7 @@ public class MinMaxAgent extends Agent {
         submitMove(ks.lowestLegalMove());
 
         // iterative deepening
-        for(int max_depth = 1;;max_depth++) {
+        for(int max_depth = 1; max_depth <= level; max_depth++) {
 
             Integer eval = searchHelper(0, max_depth, ks);
 
