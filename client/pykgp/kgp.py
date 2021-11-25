@@ -51,11 +51,11 @@ class Board:
             if len(data) != data[0] * 2 + 2 + 1:
                 return None
 
-            return Board(north, south, rest[:size], rest[size:])
+            return Board(south, north, rest[:size], rest[size:])
         except ValueError:
             return None
 
-    def __init__(self, north, south, north_pits, south_pits):
+    def __init__(self, south, north, south_pits, north_pits):
         """Create a new board."""
         assert len(north_pits) == len(south_pits)
 
