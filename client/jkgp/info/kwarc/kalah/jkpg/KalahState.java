@@ -309,7 +309,7 @@ public class KalahState {
     public void cleanUpOneSidedHouses() {
         if(getHouseSumSouth() == 0)
         {
-            for(int i = 0; i< getBoardSize(); i++)
+            for(int i = 0; i < getBoardSize(); i++)
             {
                 storeNorth += housesNorth[i];
                 housesNorth[i] = 0;
@@ -317,7 +317,7 @@ public class KalahState {
         }
         else if(getHouseSumNorth() == 0)
         {
-            for(int i = 0; i< getBoardSize(); i++)
+            for(int i = 0; i < getBoardSize(); i++)
             {
                 storeSouth += housesSouth[i];
                 housesSouth[i] = 0;

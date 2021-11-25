@@ -49,13 +49,11 @@ public class ProtocolManager {
     private static class AgentFinished extends Event {
 
         Exception exception; // the exception agent through during search or null if there was none
-        boolean yielded; // whether the agent yielded (true) or stopped because the server told it so (false)
 
-        AgentFinished(Exception exception, boolean yielded)
+        AgentFinished(Exception exception)
         {
             super();
             this.exception = exception;
-            this.yielded = yielded;
         }
     }
 
@@ -90,7 +88,7 @@ public class ProtocolManager {
                     "<\\d+(,\\d+)*>",
             Pattern.CASE_INSENSITIVE);
 
-    private static PrintStream debugStream = null;
+    private static PrintStream debugStream = System.out;
 
     public static void setDebugStream(OutputStream o) {
         debugStream = new PrintStream(o);
@@ -107,7 +105,10 @@ public class ProtocolManager {
 
     private Connection connection;
 
-    private KalahState kalahState = null;
+    private KalahState kalahStateManager = null;
+    private KalahState kalahStateAgent = null;
+
+    private ProtocolState state = null;
 
     // Set to true by network thread upon receiving stop command
     // Set to false by network thread after having sent yield/ok
@@ -159,7 +160,10 @@ public class ProtocolManager {
             opClock = null;
             serverName = null;
 
-            kalahState = null;
+            kalahStateManager = null;
+            kalahStateAgent = null;
+
+            state = ProtocolState.WAITING_FOR_VERSION;
 
             running = true;
 
@@ -209,7 +213,9 @@ public class ProtocolManager {
                             Exception exception = null;
 
                             try {
-                                agent.search(kalahState);
+                                // send copy so you can change the other one without
+                                // having to wait for the agent to finish
+                                agent.search(kalahStateAgent);
                             } catch (Exception e) {
                                 // Print error, life goes on
                                 e.printStackTrace();
@@ -218,13 +224,13 @@ public class ProtocolManager {
                                 exception = e;
                                 break;
                             } finally {
-                                events.add(new AgentFinished(exception, !shouldStop));
+                                events.add(new AgentFinished(exception));
                             }
                         }
                     }).start();
 
+
             // main thread for processing communication
-            ProtocolState state = ProtocolState.WAITING_FOR_VERSION;
 
             try {
                 while (true) {
@@ -241,14 +247,15 @@ public class ProtocolManager {
                     if (event instanceof AgentFinished) { // agent stopped/yielded
                         AgentFinished af = (AgentFinished) event;
 
-                        // TODO does server always send a stop even when receiving a yield?
-                        if (af.yielded) {
-                            sendToServer("yield");
+                        sendToServer("yield");
+
+                        if (kalahStateManager == null) {
+                            // Did not receive state command yet, but agent is ready now
+                            state = ProtocolState.WAITING_FOR_STATE;
                         } else {
-                            sendToServer("ok");
+                            startGame();
                         }
 
-                        state = ProtocolState.WAITING_FOR_STATE;
                     } else if (event instanceof NetworkThreadException) {
                         // throw on whatever happened in network thread
                         throw ((NetworkThreadException) event).exception;
@@ -298,7 +305,11 @@ public class ProtocolManager {
                             if (!isCorrectStateCommand(cmd)) {
                                 throw new ProtocolException("Not a correct state command: " + cmd.original);
                             }
-                            if (state == ProtocolState.WAITING_FOR_STATE) {
+                            if (state == ProtocolState.WAITING_FOR_STATE ||
+                                    state == ProtocolState.WAITING_FOR_AGENT_TO_STOP) {
+
+                                // Just set state
+
                                 String[] sp = cmd.args.get(0).substring(1, cmd.args.get(0).length() - 1).split(",");
 
                                 int[] integers = new int[sp.length];
@@ -309,29 +320,33 @@ public class ProtocolManager {
 
                                 int boardSize = integers[0];
 
-                                kalahState = new KalahState(boardSize, -1);
+                                kalahStateManager = new KalahState(boardSize, -1);
 
-                                kalahState.setStoreSouth(integers[1]);
-                                kalahState.setStoreNorth(integers[2]);
+                                kalahStateManager.setStoreSouth(integers[1]);
+                                kalahStateManager.setStoreNorth(integers[2]);
 
                                 for (int i = 0; i < boardSize; i++) {
-                                    kalahState.setHouse(KalahState.Player.SOUTH, i, integers[i + 3]);
-                                    kalahState.setHouse(KalahState.Player.NORTH, i, integers[i + 3 + boardSize]);
+                                    kalahStateManager.setHouse(KalahState.Player.SOUTH, i, integers[i + 3]);
+                                    kalahStateManager.setHouse(KalahState.Player.NORTH, i, integers[i + 3 + boardSize]);
                                 }
 
-                                shouldStop = false;
-
-                                // Command agent thread to search by joining him on the cyclic barrier
-                                // This barrier also ensures that the agent sees the new state
-                                // although having that volatile variable in between might accomplish that as well?
-                                try {
-                                    bar.await();
-                                } catch (InterruptedException | BrokenBarrierException e) {
-                                    e.printStackTrace();
+                                if (kalahStateManager.getHouseSumSouth() == 0) {
+                                    // no legal moves
+                                    throw new ProtocolException("Server sent state with no legal moves:\n" + kalahStateManager);
                                 }
 
-                                state = ProtocolState.SEARCHING;
+                                // Only start searching if the agent is ready
+
+                                if (state == ProtocolState.WAITING_FOR_STATE) {
+                                    startGame();
+                                } else if (state == ProtocolState.WAITING_FOR_AGENT_TO_STOP){
+                                    // waiting for agent to stop
+                                } else {
+                                    throw new RuntimeException("Wrong internal state");
+                                }
+
                             } else {
+                                sendError("ABC");
                                 throw new ProtocolException("Didn't expect " + cmd.name + " here");
 
                             }
@@ -385,6 +400,27 @@ public class ProtocolManager {
         }
     }
 
+    // start game
+    private void startGame() {
+        // state and agent are available, start searching!
+        shouldStop = false;
+
+        // copy state to agent so you can change it without disturbing the agent
+        kalahStateAgent = new KalahState(kalahStateManager);
+        kalahStateManager = null;
+
+        // Command agent thread to search by joining him on the cyclic barrier
+        // This barrier also ensures that the agent sees the new state
+        // although having that volatile variable in between might accomplish that as well?
+        try {
+            bar.await();
+        } catch (InterruptedException | BrokenBarrierException e) {
+            e.printStackTrace();
+        }
+
+        state = ProtocolState.SEARCHING;
+    }
+
     // react to ping
     private void reactToPing(Command cmd) throws IOException {
         if (!isCorrectPingCommand(cmd)) {
@@ -399,7 +435,8 @@ public class ProtocolManager {
             throw new ProtocolException("Not a correct error command: " + msg.original);
         }
 
-        System.err.println("Received and ignored error command from server: " + msg.original);
+        System.err.println("Received and ignored error command from server: " + msg.original + "\n" +
+                kalahStateAgent + "\n");
         // throw new ProtocolException("Received error command from server: " + msg.original);
     }
 
@@ -607,7 +644,7 @@ public class ProtocolManager {
 
         if (line == null)
         {
-            throw new IOException("Encountered EOF while trying to receive message from server");
+            throw new IOException("Server closed connection without saying goodbye, client sad :(");
         }
 
         // logging

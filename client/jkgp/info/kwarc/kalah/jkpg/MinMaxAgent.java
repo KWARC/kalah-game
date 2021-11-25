@@ -1,6 +1,8 @@
 package info.kwarc.kalah.jkpg;
 
 import java.io.IOException;
+import java.util.Random;
+
 import info.kwarc.kalah.jkpg.KalahState.*;
 
 
@@ -15,11 +17,11 @@ public class MinMaxAgent extends Agent {
                 host,
                 port,
                 conType,
-                "MinMax",
+                "MinMax " + level,
                 "Tobias Völk [Tutor]",
                 "MinMax, Iterative deepening until server tells it to stop or depth " + level + " is reached.\n" +
                         "Doesn't care by how many seeds it wins/looses",
-                "MinMax " + level
+                "" + Math.abs(new Random().nextLong())
         );
 
         this.level = level;
@@ -115,10 +117,12 @@ public class MinMaxAgent extends Agent {
                     // mandatory
                     submitMove(best_move);
 
-                    // optional
-                    sendComment("Best move: " + (best_move + 1) + "\n" +
+                    String comment = "Best move: " + (best_move + 1) + "\n" +
                             "Eval: " + best_eval + "\n" +
-                            "Depth: " + max_depth);
+                            "Depth: " + max_depth;
+
+                    // optional
+                    //sendComment(comment);
                 }
 
                 return best_eval;
@@ -138,11 +142,11 @@ public class MinMaxAgent extends Agent {
         // Starting MinMax agents of levels (=max. search depths) 0 to 5, 10 instances each
         // Do not start more instances than you've threads unless your agent yield early ^^
 
-        for (int level = 0; level <= 5; level ++) {
+        for (int level = 0; level <= 0; level ++) {
             final int finalLevel = level;
-            for (int j=0; j < 20; j++) {
+            for (int j=0; j < 2; j++) {
                 new Thread(() -> {
-                    Agent agent = new MinMaxAgent("localhost", 2671, ProtocolManager.ConnectionType.TCP, finalLevel);
+                    Agent agent = new MinMaxAgent("cip1e1.cip.cs.fau.de", 2671, ProtocolManager.ConnectionType.TCP, finalLevel);
                     try {
                         agent.run();
                     } catch (IOException e) {
