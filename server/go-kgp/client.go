@@ -200,7 +200,17 @@ func (cli *Client) Handle() {
 	// timed out, ...) we log this and mark the client as dead for
 	// the input thread
 	<-context.Done()
-	log.Printf("Close connection for %s", cli)
+
+	// To avoid concurrency issues, the client lock is reserved
+	// for the rest of the function/goroutine's lifetime
+	cli.lock.Lock()
+	defer cli.lock.Unlock()
+
+	// Send a simple goodbye, ignoring errors if the network
+	// connection was broken
+	fmt.Fprint(cli.rwc, "goodbye\r\n")
+
+	// Kill input processing thread
 	dead = true
 
 	// Kill ping thread if requested for the connection
