@@ -5,17 +5,17 @@ import (
 	"math"
 )
 
-type Outcome float64
-
 const (
 	MAX_DIFF = 400
 	EPS      = 0.0001
 	K        = 20
-
-	WIN  = 1.0
-	DRAW = 0.5
-	LOSS = 0.0
 )
+
+var OutcomeToPoints = map[Outcome]float64{
+	WIN:  1.0,
+	DRAW: 0.5,
+	LOSS: 0.0,
+}
 
 func (cli *Client) updateScore(opp *Client, outcome Outcome) (err error) {
 	// Calculate the new ELO rating for the current client
@@ -31,7 +31,8 @@ func (cli *Client) updateScore(opp *Client, outcome Outcome) (err error) {
 		return nil
 	}
 
-	cli.Score = cli.Score + K*(float64(outcome)-ea)
+	log.Printf("Change %s score by %g", cli, K*(OutcomeToPoints[outcome]-ea))
+	cli.Score = cli.Score + K*(OutcomeToPoints[outcome]-ea)
 
 	// Send database manager a request to update the entry
 	dbact <- cli.UpdateDatabase(nil)

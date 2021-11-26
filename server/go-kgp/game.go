@@ -6,6 +6,15 @@ import (
 	"time"
 )
 
+type Outcome uint8
+
+const (
+	_ = iota
+	WIN
+	DRAW
+	LOSS
+)
+
 // An Action is sent from a client to game to change the latters state
 type Action interface {
 	Do(*Game, Side) bool
