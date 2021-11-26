@@ -24,8 +24,8 @@ func (m Move) Do(game *Game, side Side) bool {
 		game.Current().Send("error", fmt.Sprintf("Illegal move %d", m.pit+1))
 	} else {
 		game.Player(side).choice = m.pit
+		dbact <- m.UpdateDatabase
 	}
-	dbact <- m.UpdateDatabase
 	return false
 }
 
