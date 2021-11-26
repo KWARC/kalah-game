@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"unicode"
 )
 
@@ -133,12 +134,14 @@ func (cli *Client) Interpret(input string) error {
 		}
 
 		switch mode {
-		case "simple", "freeplay":
-			go enqueue(cli)
-			cli.game = nil
+		case "simple":
+			cli.simple = true
+			fallthrough
+		case "freeplay":
+			enqueue(cli)
 			cli.Respond(id, "ok")
 		default:
-			cli.Respond(id, "error", "Unsupported Mode")
+			cli.Error(id, "Unsupported mode %q", mode)
 		}
 	case "move":
 		if game == nil ||
@@ -164,9 +167,13 @@ func (cli *Client) Interpret(input string) error {
 			return nil
 		}
 
-		// cli.Respond(game.last, "stop")
-	case "ok", "fail", "error":
 		game.ctrl <- Yield{}
+		if cli.simple && cli.pending < 0 {
+			cli.Error(id, "Preemptive yield")
+			cli.killFunc()
+		}
+		atomic.AddInt64(&cli.pending, -1)
+	case "ok", "error":
 		// We do not expect the client to confirm or reject anything,
 		// so we can ignore these response messages.
 	case "pong":

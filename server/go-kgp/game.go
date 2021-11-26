@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"sync/atomic"
 	"time"
 )
 
@@ -140,7 +141,6 @@ func (g *Game) Start() {
 	g.Current().choice = -1
 
 	timer := time.After(time.Duration(conf.Game.Timeout) * time.Second)
-	next := false
 
 	defer func() {
 		fmt.Println("Game", g, "finished")
@@ -166,7 +166,9 @@ func (g *Game) Start() {
 
 	dbact <- g.UpdateDatabase
 
+	g.Current().choice = -1
 	for {
+		next := false
 		select {
 		case act := <-g.ctrl:
 			next = act.Do(g, g.side)
@@ -181,39 +183,30 @@ func (g *Game) Start() {
 
 		if next {
 			choice := g.Current().choice
-			g.Current().choice = -1
 
+			// We generate a random move to replace
+			// whatever the current choice is, either if
+			// no choice was made (denoted by a -1) or if
+			// the client is playing in simple mode and
+			// there are pending stop requests that have
+			// to be responded to with a yield
+			if choice == -1 || (g.Current().simple && g.Current().pending > 0) {
+				choice = g.Board.Random(g.side)
+			}
+			again := g.Board.Sow(g.side, choice)
 			if g.Board.Over() {
 				return
-			} else if !g.Board.Legal(g.side, choice) {
-				oldchoice := choice
-				choice = g.Board.Random(g.side)
-				msg := fmt.Sprintf("Move %d illegal, used %d",
-					oldchoice, choice)
-				if g.side == SideNorth {
-					g.North.Respond(g.last, "error", msg)
-				} else {
-					g.South.Respond(g.last, "error", msg)
-				}
 			}
 
-			again := g.Board.Sow(g.side, choice)
-
-			if g.side == SideNorth {
-				g.North.Respond(g.last, "stop")
-			} else {
-				g.South.Respond(g.last, "stop")
-			}
+			g.Current().Respond(g.last, "stop")
+			atomic.AddInt64(&g.Current().pending, 1)
 
 			if !again {
 				g.side = !g.side
 			}
 
-			if g.side == SideNorth {
-				g.last = g.North.Send("state", g)
-			} else {
-				g.last = g.South.Send("state", g)
-			}
+			g.Current().Send("state", g)
+			g.Current().choice = -1
 
 			timer = time.After(time.Duration(conf.Game.Timeout) * time.Second)
 		}

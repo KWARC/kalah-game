@@ -35,6 +35,8 @@ type Client struct {
 	pinged   bool
 	token    string
 	comment  string
+	simple   bool
+	pending  int64
 }
 
 func (cli *Client) String() string {
