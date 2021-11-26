@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"time"
 )
 
@@ -101,7 +102,11 @@ func (g *Game) Start() {
 	}
 	g.South.game = g
 
-	g.last = g.North.Send("state", g)
+	log.Printf("Start game between %s and %s", g.North, g.South)
+
+	g.side = SideSouth
+	g.last = g.South.Send("state", g)
+	g.Current().choice = -1
 
 	timer := time.After(time.Duration(conf.Game.Timeout) * time.Second)
 	next := false
