@@ -284,7 +284,7 @@ def connect(agent, host='localhost', port=2671, token=None, name=None, authors=[
                 if not type(move) is int:
                     raise TypeError("Not a move")
                 if move:
-                    send("move", move, ref=cid)
+                    send("move", move+1, ref=cid)
             else:
                 send("yield", ref=cid)
 
