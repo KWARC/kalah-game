@@ -18,6 +18,7 @@ const (
 
 // An Action is sent from a client to game to change the latters state
 type Action interface {
+	// Returns true if the game should proceed to the next round
 	Do(*Game, Side) bool
 }
 
