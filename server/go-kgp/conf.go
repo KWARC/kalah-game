@@ -27,6 +27,7 @@ type TCPConf struct {
 	Host    string `toml:"host"`
 	Port    uint   `toml:"port"`
 	Ping    bool   `toml:"ping"`
+	Retries uint   `toml:"retries"`
 }
 
 type Conf struct {
@@ -58,6 +59,7 @@ var defaultConfig = Conf{
 		Host:    "0.0.0.0",
 		Port:    2671,
 		Ping:    true,
+		Retries: 8,
 	},
 }
 

@@ -87,7 +87,7 @@ func (cli *Client) Respond(to uint64, command string, args ...interface{}) uint6
 	defer cli.lock.Unlock()
 	cli.lock.Lock()
 
-	i := 8 // allow 8 unsuccesful retries
+	i := conf.TCP.Retries // allow 8 unsuccesful retries
 retry:
 	n, err := io.Copy(cli.rwc, buf)
 	if err != nil {
