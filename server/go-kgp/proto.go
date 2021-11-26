@@ -186,6 +186,8 @@ func (cli *Client) Interpret(input string) error {
 		}
 
 		return cli.Set(key, val)
+	case "goodbye":
+		cli.killFunc()
 	}
 
 	return nil
