@@ -40,14 +40,24 @@ func main() {
 		dumpConf = flag.Bool("dump-config", false, "Dump default configuration")
 	)
 
-	flag.UintVar(&conf.TCP.Port, "port", 2671, "Port for TCP connections")
-	flag.UintVar(&conf.Web.Port, "webport", 8080, "Port for HTTP connections")
-	flag.BoolVar(&conf.WS.Enabled, "websocket", false, "Listen for websocket upgrades only")
-	flag.UintVar(&conf.Game.Timeout, "timeout", 5, "Seconds to wait for a move to be made")
-	flag.BoolVar(&conf.Debug, "debug", false, "Print all network I/O")
+	flag.UintVar(&conf.TCP.Port, "port",
+		conf.TCP.Port,
+		"Port for TCP connections")
+	flag.UintVar(&conf.Web.Port, "webport",
+		conf.Web.Port,
+		"Port for HTTP connections")
+	flag.BoolVar(&conf.WS.Enabled, "websocket",
+		conf.WS.Enabled,
+		"Listen for websocket upgrades only")
 	flag.StringVar(&conf.Database.File, "db",
 		conf.Database.File,
 		"Path to SQLite database")
+	flag.UintVar(&conf.Game.Timeout, "timeout",
+		conf.Game.Timeout,
+		"Seconds to wait for a move to be made")
+	flag.BoolVar(&conf.Debug, "debug",
+		conf.Debug,
+		"Print all network I/O")
 	flag.Parse()
 
 	if *dumpConf {
