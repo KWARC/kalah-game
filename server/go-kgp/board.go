@@ -119,7 +119,8 @@ func (b *Board) Sow(self Side, pit int) bool {
 	)
 
 	if !b.Legal(self, pit) {
-		panic("Illegal move")
+		panic(fmt.Sprintf("Illegal move %d by %s in %s",
+			pit, self, b))
 	}
 
 	// pick up stones from pit
