@@ -43,9 +43,11 @@ func main() {
 	flag.UintVar(&conf.TCP.Port, "port", 2671, "Port for TCP connections")
 	flag.UintVar(&conf.Web.Port, "webport", 8080, "Port for HTTP connections")
 	flag.BoolVar(&conf.WS.Enabled, "websocket", false, "Listen for websocket upgrades only")
-	flag.StringVar(&conf.Database, "db", "kalah.sql", "Path to SQLite database")
 	flag.UintVar(&conf.Game.Timeout, "timeout", 5, "Seconds to wait for a move to be made")
 	flag.BoolVar(&conf.Debug, "debug", false, "Print all network I/O")
+	flag.StringVar(&conf.Database.File, "db",
+		conf.Database.File,
+		"Path to SQLite database")
 	flag.Parse()
 
 	if *dumpConf {
@@ -87,9 +89,9 @@ func main() {
 		log.Fatal(http.ListenAndServe(web, nil))
 	}()
 
-	// start match scheduler
-	go organizer()
+	// Start database manager
+	go manageDatabase()
 
-	// start database manager
-	manageDatabase(conf.Database)
+	// Start match scheduler
+	organizer()
 }

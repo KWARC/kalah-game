@@ -2,6 +2,8 @@ package main
 
 import (
 	"math/rand"
+	"os"
+	"os/signal"
 	"sync"
 	"time"
 )
@@ -75,6 +77,13 @@ func match() {
 
 // Try to organise matches
 func organizer() {
+	go func() {
+		intr := make(chan os.Signal)
+		signal.Notify(intr, os.Interrupt)
+		<-intr
+		os.Exit(1)
+	}()
+
 	for {
 		qlock.Lock()
 		for {

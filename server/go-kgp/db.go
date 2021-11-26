@@ -2,9 +2,8 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
-	"os"
-	"os/signal"
 	"sync"
 
 	_ "embed"
@@ -274,8 +273,6 @@ func QueryAgents(c chan<- *Agent, page uint) DBAction {
 	}
 }
 
-var dbact = make(chan DBAction, 64)
-
 //go:embed sql/create-agent.sql
 var sqlCreateAgentSrc string
 
@@ -285,19 +282,45 @@ var sqlCreateGameSrc string
 //go:embed sql/create-move.sql
 var sqlCreateMoveSrc string
 
-func manageDatabase(file string) {
-	db, err := sql.Open("sqlite3", file+"?mode=rwc&_journal=wal")
+var dbact = make(chan DBAction)
+
+func databaseManager(id uint, db *sql.DB, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	for act := range dbact {
+		if act == nil {
+			continue
+		}
+
+		err := act(db)
+		if err != nil {
+			if conf.Database.Threads <= 1 {
+				log.Print("[DB] ", err)
+			} else {
+				log.Printf("[DBM %d] %s", id, err)
+
+			}
+		}
+	}
+}
+
+func manageDatabase() {
+	if !conf.Database.Enabled {
+		for range dbact {
+			// Ignore all actions if the database has been
+			// disabled
+		}
+		return
+	}
+
+	uri := fmt.Sprintf("%s?mode=%s&_journal=wal",
+		conf.Database.File,
+		conf.Database.Mode)
+	db, err := sql.Open("sqlite3", uri)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer db.Close()
-
-	go func() {
-		intr := make(chan os.Signal)
-		signal.Notify(intr, os.Interrupt)
-		<-intr
-		close(dbact)
-	}()
 
 	// Create tables
 	_, err = db.Exec(sqlCreateAgentSrc)
@@ -333,15 +356,10 @@ func manageDatabase(file string) {
 		}
 	}
 
-	log.Print("Waiting for Database actions")
-	for act := range dbact {
-		if act == nil {
-			continue
-		}
-		err := act(db)
-		if err != nil {
-			log.Print(err)
-		}
+	var wg sync.WaitGroup
+	for id := uint(0); id < conf.Database.Threads; id++ {
+		wg.Add(1)
+		go databaseManager(id, db, &wg)
 	}
-	log.Print("Terminating Database manager")
+	wg.Wait()
 }

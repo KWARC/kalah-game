@@ -30,10 +30,17 @@ type TCPConf struct {
 	Retries uint   `toml:"retries"`
 }
 
+type DBConf struct {
+	Enabled bool   `toml:"enabled"`
+	File    string `toml:"file"`
+	Threads uint   `toml:""`
+	Mode    string `toml:"mode"`
+}
+
 type Conf struct {
 	Debug    bool     `toml:"debug"`
-	Database string   `toml:"database"`
 	Endless  bool     `toml:"endless"`
+	Database DBConf   `toml:"database"`
 	Game     GameConf `toml:"game"`
 	Web      WebConf  `toml:"web"`
 	WS       WSConf   `toml:"websocket"`
@@ -41,8 +48,13 @@ type Conf struct {
 }
 
 var defaultConfig = Conf{
-	Debug:    false,
-	Database: "kalah.sql",
+	Debug: false,
+	Database: DBConf{
+		Enabled: true,
+		File:    "kalah.sql",
+		Threads: 1,
+		Mode:    "rwc",
+	},
 	Endless: true,
 	Game: GameConf{
 		Timeout: 5,
