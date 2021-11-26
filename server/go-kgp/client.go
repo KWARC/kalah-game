@@ -102,7 +102,10 @@ retry:
 
 		nerr, ok := err.(net.Error)
 		if i > 0 && (!ok || (ok && nerr.Temporary())) {
-			time.Sleep(10 * time.Millisecond)
+			wait := time.Millisecond
+			wait <<= (conf.TCP.Retries - i)
+			wait *= 10
+			time.Sleep(wait)
 			if n > 0 {
 				// discard first n bytes
 				buf = bytes.NewBuffer(buf.Bytes()[n:])
