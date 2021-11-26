@@ -83,8 +83,9 @@ func main() {
 
 	if conf.WS.Enabled {
 		http.HandleFunc("/socket", listenUpgrade)
-		log.Println("Listening for upgrades on /socket")
-	} else {
+	}
+
+	if conf.TCP.Enabled {
 		tcp := fmt.Sprintf("%s:%d", conf.TCP.Host, conf.TCP.Port)
 		plain, err := net.Listen("tcp", tcp)
 		if err != nil {
