@@ -95,7 +95,6 @@ func (cli *Client) Respond(to uint64, command string, args ...interface{}) uint6
 retry:
 	n, err := io.Copy(cli.rwc, buf)
 	if err != nil {
-		log.Println(i, err)
 		nerr, ok := err.(net.Error)
 		if i > 0 && (!ok || (ok && nerr.Temporary())) {
 			time.Sleep(10 * time.Millisecond)
@@ -106,6 +105,7 @@ retry:
 			i--
 			goto retry
 		} else {
+			log.Println(cli, err)
 			cli.killFunc()
 		}
 	}
