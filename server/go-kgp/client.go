@@ -49,6 +49,10 @@ func (cli *Client) Send(command string, args ...interface{}) uint64 {
 	return cli.Respond(0, command, args...)
 }
 
+func (cli *Client) Error(to uint64, command string, args ...interface{}) {
+	cli.Respond(to, "error", args...)
+}
+
 // Respond forwards a referenced message to the client
 func (cli *Client) Respond(to uint64, command string, args ...interface{}) uint64 {
 	var (
