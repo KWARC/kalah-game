@@ -139,8 +139,20 @@ func (g *Game) Start() {
 		g.North.updateScore(g.South, g.Board.Outcome(SideNorth))
 		g.South.updateScore(g.North, g.Board.Outcome(SideSouth))
 
-		g.North.killFunc()
-		g.South.killFunc()
+		dbact <- g.UpdateDatabase
+
+		if conf.Endless {
+			// In the "endless" mode, the client is just
+			// added back to the waiting queue as soon as
+			// the game is over.
+			g.North.game = nil
+			g.South.game = nil
+			enqueue(g.North)
+			enqueue(g.South)
+		} else {
+			g.North.killFunc()
+			g.South.killFunc()
+		}
 	}()
 
 	dbact <- g.UpdateDatabase

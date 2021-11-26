@@ -228,4 +228,16 @@ func (cli *Client) Handle() {
 	if done != nil {
 		close(done)
 	}
+
+	// If the client was currently playing a game, we have to
+	// consider what our opponent is doing
+	opp := cli.game.Other(cli)
+	if opp != nil {
+		opp.game = nil
+		if conf.Endless {
+			enqueue(opp)
+		} else {
+			opp.killFunc()
+		}
+	}
 }

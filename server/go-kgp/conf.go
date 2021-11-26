@@ -33,6 +33,7 @@ type TCPConf struct {
 type Conf struct {
 	Debug    bool     `toml:"debug"`
 	Database string   `toml:"database"`
+	Endless  bool     `toml:"endless"`
 	Game     GameConf `toml:"game"`
 	Web      WebConf  `toml:"web"`
 	WS       WSConf   `toml:"websocket"`
@@ -42,6 +43,7 @@ type Conf struct {
 var defaultConfig = Conf{
 	Debug:    false,
 	Database: "kalah.sql",
+	Endless: true,
 	Game: GameConf{
 		Timeout: 5,
 		Sizes:   []uint{4, 5, 6, 7, 8, 9, 10, 11, 12},
