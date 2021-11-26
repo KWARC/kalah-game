@@ -89,7 +89,29 @@ func (g *Game) IsCurrent(cli *Client) bool {
 	return g.Current() == cli
 }
 
-// Start beings coordinating a game between NORTH and SOUTH
+// Other returns the opponent of CLI, or nil if CLI is not playing a
+// game
+func (g *Game) Other(cli *Client) *Client {
+	if g == nil {
+		return nil
+	}
+	switch cli {
+	case g.North:
+		if g.North.game == nil {
+			return nil
+		}
+		return g.South
+	case g.South:
+		if g.South.game == nil {
+			return nil
+		}
+		return g.North
+	default:
+		panic(fmt.Sprintf("%s is not part of %s", cli, g))
+	}
+}
+
+// Start manages a game between the north and south client
 func (g *Game) Start() {
 	g.ctrl = make(chan Action)
 
