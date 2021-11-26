@@ -16,7 +16,7 @@ seen in this example:
 	s: 4 state <3,0,0,3,3,3,3,3,3>
 	c: @4 move 1
 	s: 6@4 stop
-	s: 8 state <3,1,0,0,4,4,3,3,3>
+	s: 8 state <3,1,3,0,4,4,4,3,3>
 	c: @8 move 3
 	c: @8 move 2
 	c: @8 yield
@@ -44,13 +44,17 @@ the "freeplay" mode:
   
   The client always interprets the request as making the move as the
   "south" player.
-  
+
 `move [integer]` (client)
 
 : In response to a `state` command, the client informs the server of
   their preliminary decision. Multiple `move` commands can be sent
   out, iteratively improving over the previous decision.
   
+  An integer $n$ designates the $n$'th pit, that is to say uses
+  1-based numbering.  The value must be in between $1 \leq n < s$,
+  where $s$ is the board size.
+
 `stop` (server)
 
 : An indication by the server that it is not interested in any more
