@@ -55,10 +55,10 @@ type Game struct {
 	ctrl   chan Action
 	North  *Client
 	South  *Client
-	dead   bool
 	Result bool
 	Id     int64
 	start  time.Time
+	IsOver bool
 	Moves  []Move
 }
 
@@ -175,7 +175,7 @@ func (g *Game) Start() {
 			next = true
 		}
 
-		if g.dead {
+		if g.IsOver {
 			break
 		}
 
