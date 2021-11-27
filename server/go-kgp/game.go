@@ -62,7 +62,7 @@ type Game struct {
 	side Side
 	// The control channel that is used to send actions like move
 	// or yield.  These are processed in .Start().
-	ctrl chan Action
+	ctrl chan<- Action
 	// The two clients
 	North *Client
 	South *Client
@@ -141,7 +141,8 @@ func (g *Game) Other(cli *Client) *Client {
 
 // Start manages a game between the north and south client
 func (g *Game) Start() {
-	g.ctrl = make(chan Action)
+	ctrl := make(chan Action)
+	g.ctrl = ctrl
 
 	if g.North.game != nil {
 		panic("Already part of game")
@@ -188,7 +189,7 @@ func (g *Game) Start() {
 	for {
 		next := false
 		select {
-		case act := <-g.ctrl:
+		case act := <-ctrl:
 			next = act.Do(g, g.side)
 		case <-timer:
 			// the timer is delaying the game
