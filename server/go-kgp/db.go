@@ -319,8 +319,15 @@ func manageDatabase() {
 	go func() {
 		intr := make(chan os.Signal)
 		signal.Notify(intr, os.Interrupt)
+
+		// The first interrupt signals the database managers to stop
+		// accepting more requests
 		<-intr
 		close(dbact)
+
+		// The second interrupt force-exits the process
+		<-intr
+		os.Exit(1)
 	}()
 
 	// Create tables
