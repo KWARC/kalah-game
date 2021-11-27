@@ -2,42 +2,62 @@ package main
 
 import (
 	"database/sql"
+	"embed"
 	"fmt"
+	"io/fs"
 	"log"
 	"os"
 	"os/signal"
+	"path"
 	"sync"
+	"time"
 
 	_ "embed"
+
+	"strings"
 
 	_ "github.com/mattn/go-sqlite3"
 )
 
+const perPage = 25
+
+// The database manager accepts "database actions", ie. functions that
+// operate on a database.  These are sent to the database manager or
+// managers via the channel DBACT, that executes the action and
+// handles possible errors.
+
 type DBAction func(*sql.DB) error
 
-//go:embed sql/insert-game.sql
-var sqlInsertGameSrc string
-var sqlInsertGame *sql.Stmt
+var dbact = make(chan DBAction, 1)
 
-func (game *Game) UpdateDatabase(db *sql.DB) error {
-	res, err := sqlInsertGame.Exec(game.North.Id, game.South.Id)
-	if err != nil {
-		return err
+// The SQL queries are stored under ./sql/, and they are loaded by the
+// database manager.  These are prepared and stored in QUERIES, that
+// the database actions use.
+
+//go:embed sql
+var sqlDir embed.FS
+
+var queries = make(map[string]*sql.Stmt)
+
+func (game *Game) updateDatabase(db *sql.DB) (err error) {
+	if game.IsOver() {
+		_, err = queries["update-game"].Exec(game.Board.Outcome(SideSouth), game.Id)
+	} else {
+		res, err := queries["insert-game"].Exec(game.North.Id, game.South.Id)
+		if err != nil {
+			return err
+		}
+		game.Id, err = res.LastInsertId()
 	}
-	game.Id, err = res.LastInsertId()
-	return err
+	return
 }
 
-//go:embed sql/insert-move.sql
-var sqlInsertMoveSrc string
-var sqlInsertMove *sql.Stmt
-
-func (mov *Move) UpdateDatabase(db *sql.DB) error {
+func (mov *Move) updateDatabase(db *sql.DB) error {
 	// Do not save a move if the game has been invalidated
 	if mov.game == nil {
 		return nil
 	}
-	_, err := sqlInsertMove.Exec(
+	_, err := queries["insert-move"].Exec(
 		mov.cli.comment,
 		mov.cli.Id,
 		mov.game.Id,
@@ -45,17 +65,9 @@ func (mov *Move) UpdateDatabase(db *sql.DB) error {
 	return err
 }
 
-//go:embed sql/insert-agent.sql
-var sqlInsertAgentSrc string
-var sqlInsertAgent *sql.Stmt
-
-//go:embed sql/select-agent.sql
-var sqlSelectAgentSrc string
-var sqlSelectAgent *sql.Stmt
-
-func (cli *Client) UpdateDatabase(wait *sync.WaitGroup) DBAction {
+func (cli *Client) updateDatabase(wait *sync.WaitGroup) DBAction {
 	return func(db *sql.DB) error {
-		_, err := sqlInsertAgent.Exec(
+		_, err := queries["insert-agent"].Exec(
 			cli.token, cli.Name, cli.Descr,
 			cli.Name, cli.Descr)
 		if err != nil {
@@ -63,10 +75,9 @@ func (cli *Client) UpdateDatabase(wait *sync.WaitGroup) DBAction {
 		}
 
 		var name, descr string
-		err = sqlSelectAgent.QueryRow(cli.token).Scan(
+		err = queries["select-agent-token"].QueryRow(cli.token).Scan(
 			&cli.Id, &name, &descr, &cli.Score)
 		if err != nil {
-			log.Println(err)
 			cli.killFunc()
 		}
 		if wait != nil {
@@ -76,98 +87,55 @@ func (cli *Client) UpdateDatabase(wait *sync.WaitGroup) DBAction {
 	}
 }
 
-func QueryAgent(aid uint, c chan<- *Client) DBAction {
+func queryAgent(aid int, c chan<- *Agent) DBAction {
 	return func(db *sql.DB) error {
-		var cli Client
+		var agent Agent
 
 		defer close(c)
-		err := sqlSelectAgent.QueryRow(aid).Scan(
-			&cli.Id, &cli.Name, &cli.Descr, &cli.Score)
-		if err != nil {
-			log.Println(err)
-			close(c)
-		} else {
-			c <- &cli
+		err := queries["select-agent-id"].QueryRow(aid).Scan(
+			&agent.Name,
+			&agent.Descr,
+			&agent.Score)
+		if err == nil {
+			c <- &agent
 		}
 
 		return err
 	}
 }
 
-//go:embed sql/select-game.sql
-var sqlSelectGameSrc string
-var sqlSelectGame *sql.Stmt
-
-//go:embed sql/select-moves.sql
-var sqlSelectMovesSrc string
-var sqlSelectMoves *sql.Stmt
-
-func QueryGame(gid uint, c chan<- *Game) DBAction {
+func queryGame(gid int, c chan<- *Game) DBAction {
 	return func(db *sql.DB) (err error) {
-		var (
-			naid, said   int
-			north, south Agent
-			game         Game
-		)
-
 		defer close(c)
-		err = sqlSelectGame.QueryRow(gid).Scan(
-			&naid, &said, &game.Result, &game.start,
-		)
+		row := queries["select-game"].QueryRow(gid)
+		game, err := scanGame(row.Scan)
 		if err != nil {
-			log.Println(err)
-			close(c)
 			return
 		}
 
-		err = sqlSelectAgent.QueryRow(naid).Scan(
-			&north.Id, &north.Name, &north.Descr, &north.Score,
-		)
+		rows, err := queries["select-moves"].Query(gid)
 		if err != nil {
-			log.Println(err)
-			close(c)
 			return
 		}
-		game.North = &Client{Agent: north}
-
-		err = sqlSelectAgent.QueryRow(said).Scan(
-			&south.Id, &south.Name, &south.Descr, &south.Score,
-		)
-		if err != nil {
-			log.Println(err)
-			close(c)
-			return
-		}
-		game.South = &Client{Agent: south}
-
-		rows, err := sqlSelectMoves.Query(gid)
-		if err != nil {
-			log.Println(err)
-			close(c)
-			return
-		}
-		defer rows.Close()
 
 		for rows.Next() {
 			var (
-				aid  int
+				aid  int64
 				move Move
 				side Side
 			)
 
 			err = rows.Scan(&aid, &move.comm, &move.pit)
 			if err != nil {
-				log.Println(err)
-				close(c)
 				return
 			}
 
-			move.game = &game
+			move.game = game
 			switch aid {
-			case naid:
+			case game.North.Id:
 				move.cli = game.North
 				side = SideNorth
-			case said:
+			case game.South.Id:
 				move.cli = game.South
 				side = SideSouth
 			default:
@@ -182,79 +150,94 @@ func QueryGame(gid uint, c chan<- *Game) DBAction {
 			game.Moves = append(game.Moves, move)
 		}
 
-		c <- &game
+		c <- game
 		return
 	}
 }
 
-//go:embed sql/select-games.sql
-var sqlSelectGamesSrc string
-var sqlSelectGames *sql.Stmt
+func scanGame(scan func(dest ...interface{}) error) (*Game, error) {
+	var (
+		game         Game
+		north, south Agent
+		started      string
+		ended        *string
+		outcome      *uint8
+	)
 
-func QueryGames(c chan<- *Game, page uint) DBAction {
+	err := scan(
+		&game.Id,
+		&north.Id,
+		&south.Id,
+		&outcome,
+		&started,
+		&ended)
+	if err != nil {
+		return nil, err
+	}
+
+	game.Started, _ = time.Parse("2006-01-02 15:04:05", started)
+	if ended != nil {
+		game.Ended, _ = time.Parse("2006-01-02 15:04:05", *ended)
+		game.Outcome = ONGOING
+	} else if outcome == nil {
+		game.Outcome = RESIGN
+	} else {
+		game.Outcome = Outcome(*outcome)
+	}
+
+	err = queries["select-agent-id"].QueryRow(north.Id).Scan(
+		&north.Name,
+		&north.Descr,
+		&north.Score)
+	if err != nil {
+		return nil, err
+	}
+	game.North = &Client{Agent: north}
+
+	err = queries["select-agent-id"].QueryRow(south.Id).Scan(
+		&south.Name,
+		&south.Descr,
+		&south.Score)
+	if err != nil {
+		return nil, err
+	}
+	game.South = &Client{Agent: south}
+	return &game, nil
+}
+
+func queryGames(c chan<- *Game, page int, aid *int) DBAction {
 	return func(db *sql.DB) (err error) {
+		var rows *sql.Rows
+
 		defer close(c)
-		rows, err := sqlSelectGames.Query(page)
+		if aid == nil {
+			rows, err = queries["select-games"].Query(page, perPage)
+		} else {
+			rows, err = queries["select-games-by"].Query(*aid, page)
+		}
 		if err != nil {
-			log.Println(err)
-			close(c)
 			return
 		}
 		defer rows.Close()
 
+		var game *Game
 		for rows.Next() {
-			var (
-				game         Game
-				naid, said   int
-				north, south Agent
-			)
-
-			err = rows.Scan(
-				&game.Id, &naid, &said, &game.Result, &game.start,
-			)
+			game, err = scanGame(rows.Scan)
 			if err != nil {
-				log.Println(err)
-				close(c)
-				return
+				break
 			}
-
-			err = sqlSelectAgent.QueryRow(naid).Scan(
-				&north.Id, &north.Name, &north.Descr, &north.Score,
-			)
-			if err != nil {
-				log.Println(err)
-				close(c)
-				return
-			}
-			game.North = &Client{Agent: north}
-
-			err = sqlSelectAgent.QueryRow(said).Scan(
-				&south.Id, &south.Name, &south.Descr, &south.Score,
-			)
-			if err != nil {
-				log.Println(err)
-				close(c)
-				return
-			}
-			game.South = &Client{Agent: south}
-
-			c <- &game
+			c <- game
 		}
-		return
+
+		return rows.Err()
 	}
 }
 
-//go:embed sql/select-agents.sql
-var sqlSelectAgentsSrc string
-var sqlSelectAgents *sql.Stmt
-
-func QueryAgents(c chan<- *Agent, page uint) DBAction {
+func queryAgents(c chan<- *Agent, page int) DBAction {
 	return func(db *sql.DB) (err error) {
 		defer close(c)
-		rows, err := sqlSelectAgents.Query(page)
+		rows, err := queries["select-agents"].Query(page, perPage)
 		if err != nil {
-			log.Println(err)
-			close(c)
 			return
 		}
 		defer rows.Close()
@@ -264,8 +247,6 @@ func QueryAgents(c chan<- *Agent, page uint) DBAction {
 
 			err = rows.Scan(&agent.Id, &agent.Name, &agent.Score)
 			if err != nil {
-				log.Println(err)
-				close(c)
 				return
 			}
 
@@ -274,17 +255,6 @@ func QueryAgents(c chan<- *Agent, page uint) DBAction {
 		return
 	}
 }
-
-//go:embed sql/create-agent.sql
-var sqlCreateAgentSrc string
-
-//go:embed sql/create-game.sql
-var sqlCreateGameSrc string
-
-//go:embed sql/create-move.sql
-var sqlCreateMoveSrc string
-
-var dbact = make(chan DBAction)
 
 func databaseManager(id uint, db *sql.DB, wg *sync.WaitGroup) {
 	defer wg.Done()
@@ -300,7 +270,6 @@ func databaseManager(id uint, db *sql.DB, wg *sync.WaitGroup) {
 				log.Print("[DB] ", err)
 			} else {
 				log.Printf("[DBM %d] %s", id, err)
-
 			}
 		}
 	}
@@ -330,38 +299,28 @@ func manageDatabase() {
 		os.Exit(1)
 	}()
 
-	// Create tables
-	_, err = db.Exec(sqlCreateAgentSrc)
-	if err != nil {
-		log.Fatal(err)
-	}
-	_, err = db.Exec(sqlCreateGameSrc)
-	if err != nil {
-		log.Fatal(err)
-	}
-	_, err = db.Exec(sqlCreateMoveSrc)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Prepare statements
-	for _, ent := range []struct {
-		sql  string
-		stmt **sql.Stmt
-	}{
-		{sqlInsertMoveSrc, &sqlInsertMove},
-		{sqlInsertGameSrc, &sqlInsertGame},
-		{sqlInsertAgentSrc, &sqlInsertAgent},
-		{sqlSelectAgentSrc, &sqlSelectAgent},
-		{sqlSelectGamesSrc, &sqlSelectGame},
-		{sqlSelectAgentsSrc, &sqlSelectAgents},
-		{sqlSelectGameSrc, &sqlSelectGames},
-		{sqlSelectMovesSrc, &sqlSelectMoves},
-	} {
-		*ent.stmt, err = db.Prepare(ent.sql)
+	err = fs.WalkDir(sqlDir, "sql", func(file string, d fs.DirEntry, err error) error {
+		base := path.Base(file)
+		if !d.Type().IsRegular() {
+			return nil
+		}
+		data, err := fs.ReadFile(sqlDir, file)
 		if err != nil {
 			log.Fatal(err)
 		}
+
+		if strings.HasPrefix(base, "create-") {
+			_, err = db.Exec(string(data))
+		} else {
+			queries[strings.TrimSuffix(base, ".sql")], err = db.Prepare(string(data))
+		}
+		if err != nil {
+			log.Fatal(err)
+		}
+		return nil
+	})
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	var wg sync.WaitGroup

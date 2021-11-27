@@ -10,10 +10,11 @@ import (
 type Outcome uint8
 
 const (
-	_ = iota
+	ONGOING = iota
 	WIN
 	DRAW
 	LOSS
+	RESIGN
 )
 
 // An Action is sent from a client to game to change the latters state
@@ -36,7 +37,7 @@ func (m Move) Do(game *Game, side Side) bool {
 		game.Current().Send("error", fmt.Sprintf("Illegal move %d", m.pit+1))
 	} else {
 		game.Player(side).choice = m.pit
-		dbact <- m.UpdateDatabase
+		dbact <- m.updateDatabase
 	}
 	return false
 }
@@ -51,17 +52,29 @@ func (y Yield) Do(g *Game, side Side) bool {
 
 // Game represents a game between two players
 type Game struct {
-	Board  Board
-	last   uint64 // id of last state command
-	side   Side
-	ctrl   chan Action
-	North  *Client
-	South  *Client
-	Result bool
-	Id     int64
-	start  time.Time
-	IsOver bool
-	Moves  []Move
+	Board Board
+	// The ID of the last state command, used to verify if a
+	// move/yield response should be ignored or not in freeplay
+	// mode.
+	last uint64
+	// The side of the board that is currently deciding to make a
+	// move.  See .North and .South.
+	side Side
+	// The control channel that is used to send actions like move
+	// or yield.  These are processed in .Start().
+	ctrl chan Action
+	// The two clients
+	North *Client
+	South *Client
+	// Data for the web interface.
+	//
+	// These fields are usually empty, unless a Game object has
+	// been queried from the database and passed on to a template.
+	Id      int64
+	Moves   []Move
+	Outcome Outcome // For south
+	Ended   time.Time
+	Started time.Time
 }
 
 // String generates a KGP board representation for the current player
@@ -70,6 +83,10 @@ func (g *Game) String() string {
 		return g.Board.Mirror().String()
 	}
 	return g.Board.String()
+}
+
+func (g *Game) IsOver() bool {
+	return g.Outcome != ONGOING
 }
 
 // Player returns the player on SIDE of the board
@@ -149,7 +166,7 @@ func (g *Game) Start() {
 		g.North.updateScore(g.South, g.Board.Outcome(SideNorth))
 		g.South.updateScore(g.North, g.Board.Outcome(SideSouth))
 
-		dbact <- g.UpdateDatabase
+		dbact <- g.updateDatabase
 
 		if conf.Endless {
 			// In the "endless" mode, the client is just
@@ -165,7 +182,7 @@ func (g *Game) Start() {
 		}
 	}()
 
-	dbact <- g.UpdateDatabase
+	dbact <- g.updateDatabase
 
 	g.Current().choice = -1
 	for {
@@ -178,7 +195,7 @@ func (g *Game) Start() {
 			next = true
 		}
 
-		if g.IsOver {
+		if g.IsOver() {
 			break
 		}
 

@@ -86,7 +86,7 @@ func (cli *Client) Set(key, val string) error {
 
 			var wg sync.WaitGroup
 			wg.Add(1)
-			dbact <- cli.UpdateDatabase(&wg)
+			dbact <- cli.updateDatabase(&wg)
 			wg.Wait()
 		}
 	}

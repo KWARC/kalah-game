@@ -3,6 +3,6 @@
 SELECT id, name, score
 FROM agent
 ORDER BY score DESC
-LIMIT 100
-OFFSET ? * 100
+LIMIT ?2
+OFFSET ?1 * ?2
 

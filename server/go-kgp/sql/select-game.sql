@@ -1,5 +1,5 @@
 -- -*- sql-product: sqlite; -*-
 
-SELECT north, south, result, start
+SELECT id, north, south, outcome, start, end
 FROM game
 WHERE id = ?

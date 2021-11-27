@@ -30,38 +30,67 @@ func init() {
 }
 
 func showGame(w http.ResponseWriter, r *http.Request) {
-	var c chan *Game
+	id, err := strconv.Atoi(path.Base(r.URL.Path))
+	if err != nil {
+		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		return
+	}
 
-	dbact <- QueryGame(0, c)
 	err := T.ExecuteTemplate(w, "show-game.tmpl", <-c)
+	c := make(chan *Game)
+	dbact <- queryGame(id, c)
 	if err != nil {
 		log.Print(err)
 	}
 }
 
 func showAgent(w http.ResponseWriter, r *http.Request) {
-	var c chan *Client
+	id, err := strconv.Atoi(path.Base(r.URL.Path))
+	if err != nil {
+		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		return
+	}
 
 	dbact <- QueryAgent(0, c)
 	err := T.ExecuteTemplate(w, "show-agent.tmpl", <-c)
+	page, err := strconv.Atoi(r.URL.Query().Get("page"))
+	if err != nil {
+		page = 1
+	}
+
+	c := make(chan *Agent)
+	dbact <- queryAgent(id, c)
+	games := make(chan *Game)
+	dbact <- queryGames(games, page-1, &id)
+
 	if err != nil {
 		log.Print(err)
 	}
 }
 
 func listGames(w http.ResponseWriter, r *http.Request) {
-	gchan := make(chan *Game)
-	dbact <- QueryGames(gchan, 0)
 	err := T.ExecuteTemplate(w, "list-games.tmpl", gchan)
+	page, err := strconv.Atoi(r.URL.Query().Get("page"))
+	if err != nil {
+		page = 1
+	}
+
+	c := make(chan *Game)
+	dbact <- queryGames(c, page-1, nil)
 	if err != nil {
 		log.Print(err)
 	}
 }
 
 func listAgents(w http.ResponseWriter, r *http.Request) {
-	achan := make(chan *Agent)
-	dbact <- QueryAgents(achan, 0)
 	err := T.ExecuteTemplate(w, "list-agents.tmpl", achan)
+	page, err := strconv.Atoi(r.URL.Query().Get("page"))
+	if err != nil {
+		page = 1
+	}
+
+	c := make(chan *Agent)
+	dbact <- queryAgents(c, page-1)
 	if err != nil {
 		log.Print(err)
 	}

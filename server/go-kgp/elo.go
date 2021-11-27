@@ -35,7 +35,7 @@ func (cli *Client) updateScore(opp *Client, outcome Outcome) (err error) {
 	cli.Score = cli.Score + K*(OutcomeToPoints[outcome]-ea)
 
 	// Send database manager a request to update the entry
-	dbact <- cli.UpdateDatabase(nil)
+	dbact <- cli.updateDatabase(nil)
 
 	return nil
 }
