@@ -31,7 +31,6 @@ type TCPConf struct {
 }
 
 type DBConf struct {
-	Enabled bool   `toml:"enabled"`
 	File    string `toml:"file"`
 	Threads uint   `toml:""`
 	Mode    string `toml:"mode"`
@@ -50,7 +49,6 @@ type Conf struct {
 var defaultConfig = Conf{
 	Debug: false,
 	Database: DBConf{
-		Enabled: true,
 		File:    "kalah.sql",
 		Threads: 1,
 		Mode:    "rwc",

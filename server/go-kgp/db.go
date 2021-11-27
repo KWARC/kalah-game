@@ -307,14 +307,6 @@ func databaseManager(id uint, db *sql.DB, wg *sync.WaitGroup) {
 }
 
 func manageDatabase() {
-	if !conf.Database.Enabled {
-		for range dbact {
-			// Ignore all actions if the database has been
-			// disabled
-		}
-		return
-	}
-
 	uri := fmt.Sprintf("%s?mode=%s&_journal=wal",
 		conf.Database.File,
 		conf.Database.Mode)
