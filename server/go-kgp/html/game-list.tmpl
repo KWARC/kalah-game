@@ -1,0 +1,54 @@
+<table class="list">
+  <thead>
+      <tr>
+	  <td>Id</td>
+	  <td>North</td>
+	  <td>South</td>
+	  <td>Started</td>
+	  <td>Ended?</td>
+	  <td>Result</td>
+      </tr>
+  </thead>
+  <tbody>
+    {{ range .Games }}
+      <tr>
+	<td><a href="/game/{{ .Id }}">{{ .Id }}</a></td>
+	<td>
+	{{ with .North }}
+	  {{ if ne .Id 0 }}
+	    <a href="/agent/{{ .Id }}">{{ .Name }}</a>
+	  {{ else }}
+	    Anon.
+	  {{ end }}
+	{{ end }}
+	</td>
+	<td>
+	{{ with .South }}
+	  {{ if ne .Id 0}}
+	    <a href="/agent/{{ .Id }}">{{ .Name }}</a>
+	  {{ else }}
+	    Anon.
+	  {{ end }}
+	{{ end }}
+	</td>
+	<td>
+	  {{ timefmt .Started }}
+	</td>
+	<td>
+	  {{ if isOver . }}
+	     {{ timefmt .Ended }}
+	  {{ else }}
+	     Active
+	  {{ end}}
+	</td>
+	<td>
+	  {{ result .Outcome }}
+	</td>
+      </tr>
+    {{ else }}
+       <tr><td colspan="6"><em>No games for the query</em></td></tr>
+    {{ end }}
+  </tbody>
+</table>
+
+{{ template "pagination.tmpl" .Page }}

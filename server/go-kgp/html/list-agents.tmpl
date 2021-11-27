@@ -1,26 +1,5 @@
 {{ template "header.tmpl" }}
 
-<table>
-    <thead>
-	<tr>
-	    <td>Name</td>
-	    <td>Score</td>
-	    <td>Description</td>
-	</tr>
-    </thead>
-    <tbody>
-	{{ range . }}
-	<a href="/agent?id={{ .Id }}">
-	    <tr>
-		<td>{{ .Name }}</td>
-		<td>{{ .Score }}</td>
-		<td>{{ .Descr }}</td>
-	    </tr>
-	</a>
-	{{ else }}
-	<tr colspan="">No agents in the database</tr>
-	{{ end }}
-    </tbody>
-</table>
+{{ template "agent-list.tmpl" . }}
 
 {{ template "footer.tmpl" }}

@@ -1,0 +1,26 @@
+<table class="list">
+    <thead>
+	<tr>
+	    <td>Name</td>
+	    <td>Score</td>
+	    <td>Description</td>
+	</tr>
+    </thead>
+    <tbody>
+	{{ range .Agents }}
+	    <tr>
+		<td>
+		<a href="/agent/{{ .Id }}">
+		{{ .Name }}
+		</a>
+		</td>
+		<td>{{ .Score }}</td>
+		<td>{{ .Descr }}</td>
+	    </tr>
+	{{ else }}
+	<tr colspan="3"><td><em>No agents in the database</em></td></tr>
+	{{ end }}
+    </tbody>
+</table>
+
+{{ template "pagination.tmpl" .Page }}

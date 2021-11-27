@@ -3,30 +3,87 @@ package main
 import (
 	"embed"
 	"html/template"
+	"io/fs"
 	"log"
 	"net/http"
+	"path"
+	"strconv"
+	"time"
 )
 
-//go:embed html/static
-var static embed.FS
-
 //go:embed html
-var templates embed.FS
+var html embed.FS
 
 var T *template.Template
+var funcs = template.FuncMap{
+	"inc": func(i int) int {
+		return i + 1
+	},
+	"dec": func(i int) int {
+		return i - 1
+	},
+	"isOver": func(g Game) bool {
+		return g.IsOver()
+	},
+	"timefmt": func(t time.Time) string {
+		since := time.Since(t)
+		if since < time.Hour*24*7 {
+			return since.String()
+		} else {
+			return t.Format(time.RFC822)
+		}
+	},
+	"result": func(out Outcome) string {
+		switch out {
+		case ONGOING:
+			return "Ongoing"
+		case WIN:
+			return "South won"
+		case DRAW:
+			return "Draw"
+		case LOSS:
+			return "North won"
+		case RESIGN:
+			return "Resignation"
+		default:
+			return "???"
+		}
+	},
+}
 
 func init() {
+	staticfs, err := fs.Sub(html, "html/static")
+	if err != nil {
+		log.Fatal(err)
+	}
+	static := http.FileServer(http.FS(staticfs))
+
 	// Install HTTP handlers
-	http.HandleFunc("/", listGames)
 	http.HandleFunc("/games", listGames)
 	http.HandleFunc("/agents", listAgents)
-	http.HandleFunc("/game", showGame)
-	http.HandleFunc("/agent", showAgent)
-	static := http.StripPrefix("/static/", http.FileServer(http.FS(static)))
-	http.Handle("/static/", static)
+	http.HandleFunc("/game/", showGame)
+	http.HandleFunc("/agent/", showAgent)
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/":
+			err := T.ExecuteTemplate(w, "index.tmpl", struct{}{})
+			if err != nil {
+				log.Print(err)
+			}
+
+		case "/about":
+			err := T.ExecuteTemplate(w, "about.tmpl", struct{}{})
+			if err != nil {
+				log.Print(err)
+			}
+		default:
+			static.ServeHTTP(w, r)
+		}
+	})
 
 	// Parse templates
-	T = template.Must(template.ParseFS(templates, "html/*.tmpl"))
+	T = template.Must(template.New("").Funcs(funcs).ParseFS(html, "html/*.tmpl"))
+
 }
 
 func showGame(w http.ResponseWriter, r *http.Request) {
@@ -36,9 +93,9 @@ func showGame(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := T.ExecuteTemplate(w, "show-game.tmpl", <-c)
 	c := make(chan *Game)
 	dbact <- queryGame(id, c)
+	err = T.ExecuteTemplate(w, "show-game.tmpl", <-c)
 	if err != nil {
 		log.Print(err)
 	}
@@ -51,8 +108,6 @@ func showAgent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	dbact <- QueryAgent(0, c)
-	err := T.ExecuteTemplate(w, "show-agent.tmpl", <-c)
 	page, err := strconv.Atoi(r.URL.Query().Get("page"))
 	if err != nil {
 		page = 1
@@ -63,13 +118,17 @@ func showAgent(w http.ResponseWriter, r *http.Request) {
 	games := make(chan *Game)
 	dbact <- queryGames(games, page-1, &id)
 
+	err = T.ExecuteTemplate(w, "show-agent.tmpl", struct {
+		Agent chan *Agent
+		Games chan *Game
+		Page  int
+	}{c, games, page})
 	if err != nil {
 		log.Print(err)
 	}
 }
 
 func listGames(w http.ResponseWriter, r *http.Request) {
-	err := T.ExecuteTemplate(w, "list-games.tmpl", gchan)
 	page, err := strconv.Atoi(r.URL.Query().Get("page"))
 	if err != nil {
 		page = 1
@@ -77,13 +136,16 @@ func listGames(w http.ResponseWriter, r *http.Request) {
 
 	c := make(chan *Game)
 	dbact <- queryGames(c, page-1, nil)
+	err = T.ExecuteTemplate(w, "list-games.tmpl", struct {
+		Games chan *Game
+		Page  int
+	}{c, page})
 	if err != nil {
 		log.Print(err)
 	}
 }
 
 func listAgents(w http.ResponseWriter, r *http.Request) {
-	err := T.ExecuteTemplate(w, "list-agents.tmpl", achan)
 	page, err := strconv.Atoi(r.URL.Query().Get("page"))
 	if err != nil {
 		page = 1
@@ -91,6 +153,10 @@ func listAgents(w http.ResponseWriter, r *http.Request) {
 
 	c := make(chan *Agent)
 	dbact <- queryAgents(c, page-1)
+	err = T.ExecuteTemplate(w, "list-agents.tmpl", struct {
+		Agents chan *Agent
+		Page   int
+	}{c, page})
 	if err != nil {
 		log.Print(err)
 	}

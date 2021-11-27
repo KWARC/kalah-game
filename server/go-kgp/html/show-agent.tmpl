@@ -1,23 +1,38 @@
 {{ template "header.tmpl" }}
 
-<h1>Agent <q>{{ .Name }}</q></h1>
+{{ $top := . }}
 
-<table>
+{{ range .Agent }}
+
+
+<table id="attr">
   <tr>
     <td>Author(s):</td>
-    <td>{{ . }}</td>
+    <td>{{ with .Author }} {{ . }} {{ else }} Anon. {{ end }}</td>
   </tr>
   <tr>
-    <td>Score:</td>
+    <td>Rating:</td>
     <td>{{ .Score }}</td>
   </tr>
 </table>
 
+<h1>Agent <q>{{ .Name }}</q></h1>
+
 <p>
-  Agent description:
+  <strong>Agent description:</strong>
   <blockquote>
-    {{ .Description }}
+    {{ .Descr }}
   </blockquote>
 </p>
+
+<hr />
+
+{{ template "game-list.tmpl" $top }}
+
+{{ else }}
+
+<p><strong>Error:</strong> Invalid agent ID.</p>
+
+{{ end }}
 
 {{ template "footer.tmpl" }}
