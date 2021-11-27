@@ -157,7 +157,6 @@ func (cli *Client) Handle() {
 	if cli.rwc == nil {
 		panic("No ReadWriteCloser")
 	}
-	defer forget(cli)
 	defer cli.rwc.Close()
 
 	context, cancel := context.WithCancel(context.Background())
@@ -214,6 +213,9 @@ func (cli *Client) Handle() {
 	// the input thread
 	<-context.Done()
 
+	// Request for the client to be removed from the queue
+	forget <- cli
+
 	// To avoid concurrency issues, the client lock is reserved
 	// for the rest of the function/goroutine's lifetime
 	cli.lock.Lock()
@@ -237,7 +239,7 @@ func (cli *Client) Handle() {
 	if opp != nil {
 		opp.game = nil
 		if conf.Endless {
-			enqueue(opp)
+			enqueue <- opp
 		} else {
 			opp.killFunc()
 		}

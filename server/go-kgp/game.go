@@ -157,8 +157,8 @@ func (g *Game) Start() {
 			// the game is over.
 			g.North.game = nil
 			g.South.game = nil
-			enqueue(g.North)
-			enqueue(g.South)
+			enqueue <- g.North
+			enqueue <- g.South
 		} else {
 			g.North.killFunc()
 			g.South.killFunc()

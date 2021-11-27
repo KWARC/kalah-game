@@ -142,7 +142,7 @@ func (cli *Client) Interpret(input string) error {
 			cli.simple = true
 			fallthrough
 		case "freeplay":
-			enqueue(cli)
+			enqueue <- cli
 			cli.Respond(id, "ok")
 		default:
 			cli.Error(id, "Unsupported mode %q", mode)
@@ -183,7 +183,7 @@ func (cli *Client) Interpret(input string) error {
 	case "pong":
 		cli.pinged = false
 		if cli.game == nil {
-			promote(cli)
+			promote <- cli
 		}
 	case "set":
 		// Note that VAL doesn't have to be a string per spec,

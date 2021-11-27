@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"os"
+	"os/signal"
 	"sync"
 
 	_ "embed"
@@ -321,6 +323,13 @@ func manageDatabase() {
 		log.Fatal(err)
 	}
 	defer db.Close()
+
+	go func() {
+		intr := make(chan os.Signal)
+		signal.Notify(intr, os.Interrupt)
+		<-intr
+		close(dbact)
+	}()
 
 	// Create tables
 	_, err = db.Exec(sqlCreateAgentSrc)

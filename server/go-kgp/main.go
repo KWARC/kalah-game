@@ -100,9 +100,9 @@ func main() {
 		log.Fatal(http.ListenAndServe(web, nil))
 	}()
 
-	// Start database manager
-	go manageDatabase()
-
 	// Start match scheduler
-	organizer()
+	go queueManager()
+
+	// Start database manager
+	manageDatabase()
 }
