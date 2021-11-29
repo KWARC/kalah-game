@@ -26,12 +26,7 @@ var funcs = template.FuncMap{
 		return g.IsOver()
 	},
 	"timefmt": func(t time.Time) string {
-		since := time.Since(t)
-		if since < time.Hour*24*7 {
-			return since.String()
-		} else {
-			return t.Format(time.RFC822)
-		}
+		return t.Format(time.RFC822)
 	},
 	"result": func(out Outcome) string {
 		switch out {
