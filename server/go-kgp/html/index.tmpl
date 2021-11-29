@@ -3,7 +3,28 @@
 <p>
 This is the web interface of a KGP (<q><a
 href="https://en.wikipedia.org/wiki/Kalah">Kalah</a> Game
-Protocol</q>).
+Protocol</q>) Server.  The server implementation is <code>go-kgp</code>.
+</p>
+
+<p>
+<strong>A KGP client can connect via the websocket route <code>/socket</code>
+to play games.</strong> If you have access via TCP, you can connect to port 2671
+too.
+</p>
+
+<p>
+If a token is set, the agent will be listed in the
+local <a href="/agents">Scoreboard</a>.  Clients without a token will
+be regarded as anonymous.  The <a href="/games">matches</a> are still
+logged, without attribution.
+</p>
+
+<p>
+If you do decide to use a token, also consider giving your agent a
+name and a brief description.  If you wish to be attributed, you may
+also set the authors.  The server only remembers the last value
+associated with your token, so you can update all of these attributes
+whenever you want.
 </p>
 
 {{ template "footer.tmpl" }}
