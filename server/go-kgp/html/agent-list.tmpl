@@ -11,11 +11,15 @@
 	    <tr>
 		<td>
 		<a href="/agent/{{ .Id }}">
-		{{ .Name }}
+		{{ with .Name }}
+		{{ . }}
+		{{ else }}
+		<em>Unnamed</em>
+		{{ end }}
 		</a>
 		</td>
 		<td>{{ .Score }}</td>
-		<td>{{ .Descr }}</td>
+		<td>{{ with .Descr }}{{ . }}{{ else }}<em>N/A</em>{{ end }}</td>
 	    </tr>
 	{{ else }}
 	<tr colspan="3"><td><em>No agents in the database</em></td></tr>

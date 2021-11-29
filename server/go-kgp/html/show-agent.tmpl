@@ -16,7 +16,13 @@
   </tr>
 </table>
 
-<h1>Agent <q>{{ .Name }}</q></h1>
+<h1>
+{{ with .Name }}
+Agent <q>{{ . }}</q>
+{{ else }}
+Unnamed agent
+{{ end }}
+</h1>
 
 <p>
   <strong>Agent description:</strong>

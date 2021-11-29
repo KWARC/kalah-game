@@ -16,7 +16,13 @@
 	<td>
 	{{ with .North }}
 	  {{ if ne .Id 0 }}
-	    <a href="/agent/{{ .Id }}">{{ .Name }}</a>
+	    <a href="/agent/{{ .Id }}">
+	    {{ with .Name }}
+	       {{ . }}
+	    {{ else }}
+	       <em>Unnamed</em>
+	    {{ end }}
+	    </a>
 	  {{ else }}
 	    Anon.
 	  {{ end }}
@@ -25,7 +31,13 @@
 	<td>
 	{{ with .South }}
 	  {{ if ne .Id 0}}
-	    <a href="/agent/{{ .Id }}">{{ .Name }}</a>
+	    <a href="/agent/{{ .Id }}">
+	    {{ with .Name }}
+	       {{ . }}
+	    {{ else }}
+	       <em>Unnamed</em>
+	    {{ end }}
+	    </a>
 	  {{ else }}
 	    Anon.
 	  {{ end }}
@@ -35,10 +47,10 @@
 	  {{ timefmt .Started }}
 	</td>
 	<td>
-	  {{ if isOver . }}
-	     {{ timefmt .Ended }}
+	  {{ with .Ended }}
+	     {{ timefmt . }}
 	  {{ else }}
-	     Active
+	     No
 	  {{ end}}
 	</td>
 	<td>
