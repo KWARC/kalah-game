@@ -9,12 +9,9 @@ import (
 	"os"
 	"os/signal"
 	"path"
+	"strings"
 	"sync"
 	"time"
-
-	_ "embed"
-
-	"strings"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -43,7 +40,8 @@ func (game *Game) updateDatabase(db *sql.DB) (err error) {
 	if game.IsOver() {
 		_, err = queries["update-game"].Exec(game.Board.Outcome(SideSouth), game.Id)
 	} else {
-		res, err := queries["insert-game"].Exec(game.North.Id, game.South.Id)
+		var res sql.Result
+		res, err = queries["insert-game"].Exec(game.North.Id, game.South.Id)
 		if err != nil {
 			return err
 		}
@@ -286,7 +284,7 @@ func manageDatabase() {
 	defer db.Close()
 
 	go func() {
-		intr := make(chan os.Signal)
+		intr := make(chan os.Signal, 1)
 		signal.Notify(intr, os.Interrupt)
 
 		// The first interrupt signals the database managers to stop
@@ -300,6 +298,9 @@ func manageDatabase() {
 	}()
 
 	err = fs.WalkDir(sqlDir, "sql", func(file string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
 		base := path.Base(file)
 		if !d.Type().IsRegular() {
 			return nil
