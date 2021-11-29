@@ -73,8 +73,8 @@ type Game struct {
 	Id      int64
 	Moves   []Move
 	Outcome Outcome // For south
-	Ended   time.Time
-	Started time.Time
+	Ended   *time.Time
+	Started *time.Time
 }
 
 // String generates a KGP board representation for the current player

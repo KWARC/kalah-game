@@ -11,7 +11,6 @@ import (
 	"path"
 	"strings"
 	"sync"
-	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -157,8 +156,6 @@ func scanGame(scan func(dest ...interface{}) error) (*Game, error) {
 	var (
 		game         Game
 		north, south Agent
-		started      string
-		ended        *string
 		outcome      *uint8
 	)
 
@@ -167,15 +164,13 @@ func scanGame(scan func(dest ...interface{}) error) (*Game, error) {
 		&north.Id,
 		&south.Id,
 		&outcome,
-		&started,
-		&ended)
+		&game.Started,
+		&game.Ended)
 	if err != nil {
 		return nil, err
 	}
 
-	game.Started, _ = time.Parse("2006-01-02 15:04:05", started)
-	if ended != nil {
-		game.Ended, _ = time.Parse("2006-01-02 15:04:05", *ended)
+	if game.Ended != nil {
 		game.Outcome = ONGOING
 	} else if outcome == nil {
 		game.Outcome = RESIGN
