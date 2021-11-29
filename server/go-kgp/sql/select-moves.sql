@@ -1,6 +1,6 @@
 -- -*- sql-product: sqlite; -*-
 
-SELECT agent, comment, choice
+SELECT agent, side, comment, choice
 FROM move
 WHERE game = ?
 ORDER BY played

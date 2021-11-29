@@ -49,17 +49,22 @@ func (game *Game) updateDatabase(db *sql.DB) (err error) {
 	return
 }
 
-func (mov *Move) updateDatabase(db *sql.DB) error {
-	// Do not save a move if the game has been invalidated
-	if mov.game == nil {
-		return nil
+func saveMove(in *Game, by *Client, side Side, move int) DBAction {
+	var aid *int64
+
+	if by.token != "" {
+		aid = &by.Id
 	}
-	_, err := queries["insert-move"].Exec(
-		mov.cli.comment,
-		mov.cli.Id,
-		mov.game.Id,
-		mov.pit)
-	return err
+
+	return func(db *sql.DB) error {
+		_, err := queries["insert-move"].Exec(
+			in.Id,
+			aid,
+			side,
+			move,
+			by.comment)
+		return err
+	}
 }
 
 func (cli *Client) updateDatabase(wait *sync.WaitGroup) DBAction {
@@ -118,33 +123,27 @@ func queryGame(gid int, c chan<- *Game) DBAction {
 		for rows.Next() {
 			var (
 				aid  int64
-				move Move
+				comm string
+				move int
 				side Side
 			)
 
-			err = rows.Scan(&aid, &move.comm, &move.pit)
+			err = rows.Scan(&aid, &side, &comm, &move)
 			if err != nil {
 				return
-			}
-
-			move.game = game
-			switch aid {
-			case game.North.Id:
-				move.cli = game.North
-				side = SideNorth
-			case game.South.Id:
-				move.cli = game.South
-				side = SideSouth
-			default:
-				panic("Invalid move in database")
 			}
 
 			// TODO Ensure the next move is on the right
 			// side, by checking the return value in the
 			// next iteration.
-			game.Board.Sow(side, move.pit)
+			game.Board.Sow(side, move)
 
-			game.Moves = append(game.Moves, move)
+			game.Moves = append(game.Moves, &Move{
+				Pit:     move,
+				Client:  game.Player(side),
+				game:    game,
+				Comment: comm,
+			})
 		}
 
 		c <- game

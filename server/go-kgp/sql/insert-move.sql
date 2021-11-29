@@ -1,4 +1,4 @@
 -- -*- sql-product: sqlite; -*-
 
-INSERT INTO move(comment, agent, game, played, choice)
-VALUES (?, ?, ?, DATETIME('now'), ?);
+INSERT INTO move(game, agent, side, choice, comment, played)
+VALUES (?, ?, ?, ?, ?, DATETIME('now'));

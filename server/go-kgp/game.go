@@ -25,19 +25,18 @@ type Action interface {
 
 // Move is an Action to set the next move
 type Move struct {
-	pit  int
-	cli  *Client
-	game *Game
-	comm string
+	Pit     int
+	Client  *Client
+	Comment string
+	game    *Game
 }
 
 // Do ensures a move is valid and then sets it
 func (m Move) Do(game *Game, side Side) bool {
-	if !game.Board.Legal(side, m.pit) {
-		game.Current().Send("error", fmt.Sprintf("Illegal move %d", m.pit+1))
+	if !game.Board.Legal(side, m.Pit) {
+		game.Current().Send("error", fmt.Sprintf("Illegal move %d", m.Pit+1))
 	} else {
-		game.Player(side).choice = m.pit
-		dbact <- m.updateDatabase
+		game.Player(side).choice = m.Pit
 	}
 	return false
 }
@@ -71,7 +70,7 @@ type Game struct {
 	// These fields are usually empty, unless a Game object has
 	// been queried from the database and passed on to a template.
 	Id      int64
-	Moves   []Move
+	Moves   []*Move
 	Outcome Outcome // For south
 	Ended   *time.Time
 	Started *time.Time
@@ -219,6 +218,8 @@ func (g *Game) Start() {
 
 			g.Current().Respond(g.last, "stop")
 			atomic.AddInt64(&g.Current().pending, 1)
+
+			dbact <- saveMove(g, g.Current(), g.side, choice)
 
 			if !again {
 				g.side = !g.side
