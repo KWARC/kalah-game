@@ -124,7 +124,7 @@ retry:
 }
 
 func (cli *Client) Pinger(done <-chan struct{}) {
-	ticker := time.NewTicker(time.Duration(1+conf.Game.Timeout) * time.Second)
+	ticker := time.NewTicker(time.Duration(1+conf.TCP.Timeout) * time.Second)
 	defer ticker.Stop()
 
 	for {

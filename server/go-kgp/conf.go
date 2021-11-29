@@ -8,9 +8,8 @@ import (
 )
 
 type GameConf struct {
-	Timeout uint   `toml:"timeout"`
-	Sizes   []uint `toml:"sizes"`
-	Stones  []uint `toml:"stones"`
+	Sizes  []uint `toml:"sizes"`
+	Stones []uint `toml:"stones"`
 }
 
 type WSConf struct {
@@ -27,6 +26,7 @@ type TCPConf struct {
 	Host    string `toml:"host"`
 	Port    uint   `toml:"port"`
 	Ping    bool   `toml:"ping"`
+	Timeout uint   `time:"timeout"`
 	Retries uint   `toml:"retries"`
 }
 
@@ -55,9 +55,8 @@ var defaultConfig = Conf{
 	},
 	Endless: true,
 	Game: GameConf{
-		Timeout: 5,
-		Sizes:   []uint{4, 5, 6, 7, 8, 9, 10, 11, 12},
-		Stones:  []uint{4, 5, 6, 7, 8, 9, 10, 11, 12},
+		Sizes:  []uint{4, 5, 6, 7, 8, 9, 10, 11, 12},
+		Stones: []uint{4, 5, 6, 7, 8, 9, 10, 11, 12},
 	},
 	Web: WebConf{
 		Host: "0.0.0.0",
@@ -71,6 +70,7 @@ var defaultConfig = Conf{
 		Host:    "0.0.0.0",
 		Port:    2671,
 		Ping:    true,
+		Timeout: 20,
 		Retries: 8,
 	},
 }

@@ -52,8 +52,8 @@ func main() {
 	flag.StringVar(&conf.Database.File, "db",
 		conf.Database.File,
 		"Path to SQLite database")
-	flag.UintVar(&conf.Game.Timeout, "timeout",
-		conf.Game.Timeout,
+	flag.UintVar(&conf.TCP.Timeout, "timeout",
+		conf.TCP.Timeout,
 		"Seconds to wait for a move to be made")
 	flag.BoolVar(&conf.Debug, "debug",
 		conf.Debug,

@@ -158,7 +158,7 @@ func (g *Game) Start() {
 	g.last = g.South.Send("state", g)
 	g.Current().choice = -1
 
-	timer := time.After(time.Duration(conf.Game.Timeout) * time.Second)
+	timer := time.After(time.Duration(conf.TCP.Timeout) * time.Second)
 
 	defer func() {
 		fmt.Println("Game", g, "finished")
@@ -230,7 +230,7 @@ func (g *Game) Start() {
 			g.Current().Send("state", g)
 			g.Current().choice = -1
 
-			timer = time.After(time.Duration(conf.Game.Timeout) * time.Second)
+			timer = time.After(time.Duration(conf.TCP.Timeout) * time.Second)
 		}
 	}
 }
