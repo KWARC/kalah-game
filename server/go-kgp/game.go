@@ -163,8 +163,10 @@ func (g *Game) Start() {
 	defer func() {
 		fmt.Println("Game", g, "finished")
 
-		g.North.updateScore(g.South, g.Board.Outcome(SideNorth))
-		g.South.updateScore(g.North, g.Board.Outcome(SideSouth))
+		if g.North.token != "" && g.South.token != "" {
+			g.North.updateScore(g.South, g.Board.Outcome(SideNorth))
+			g.South.updateScore(g.North, g.Board.Outcome(SideSouth))
+		}
 
 		dbact <- g.updateDatabase
 

@@ -18,6 +18,10 @@ var OutcomeToPoints = map[Outcome]float64{
 }
 
 func (cli *Client) updateScore(opp *Client, outcome Outcome) (err error) {
+	if cli.token == "" {
+		panic("Cannot calculate score for anonymous agent")
+	}
+
 	// Calculate the new ELO rating for the current client
 	// according to
 	// https://de.wikipedia.org/wiki/Elo-Zahl#Erwartungswert
