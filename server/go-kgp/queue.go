@@ -116,8 +116,8 @@ func queueManager() {
 			queue = remove(cli, queue)
 			queue = append(queue, cli)
 		case cli := <-promote:
-			if cli.game == nil {
-				continue
+			if cli.game != nil {
+				panic("Promoting client that is already playing")
 			}
 			queue = remove(cli, queue)
 			queue = append([]*Client{cli}, queue...)
