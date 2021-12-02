@@ -163,6 +163,7 @@ func (cli *Client) Interpret(input string) error {
 		game.ctrl <- Move{
 			Pit:    int(pit) - 1,
 			Client: cli,
+			id:     id,
 		}
 	case "yield":
 		if game == nil ||

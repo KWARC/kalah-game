@@ -29,12 +29,13 @@ type Move struct {
 	Client  *Client
 	Comment string
 	game    *Game
+	id      uint64
 }
 
 // Do ensures a move is valid and then sets it
 func (m Move) Do(game *Game, side Side) bool {
 	if !game.Board.Legal(side, m.Pit) {
-		game.Current().Send("error", fmt.Sprintf("Illegal move %d", m.Pit+1))
+		game.Current().Error(m.id, fmt.Sprintf("Illegal move %d", m.Pit+1))
 	} else {
 		game.Player(side).choice = m.Pit
 	}
