@@ -51,7 +51,7 @@ func (cli *Client) Send(command string, args ...interface{}) uint64 {
 	return cli.Respond(0, command, args...)
 }
 
-func (cli *Client) Error(to uint64, command string, args ...interface{}) {
+func (cli *Client) Error(to uint64, args ...interface{}) {
 	cli.Respond(to, "error", args...)
 }
 
