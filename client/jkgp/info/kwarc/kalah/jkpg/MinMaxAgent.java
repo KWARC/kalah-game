@@ -144,7 +144,7 @@ public class MinMaxAgent extends Agent {
 
         for (int level = 0; level <= 0; level ++) {
             final int finalLevel = level;
-            for (int j=0; j < 2; j++) {
+            for (int j=0; j < 100; j++) {
                 new Thread(() -> {
                     Agent agent = new MinMaxAgent("cip1e1.cip.cs.fau.de", 2671, ProtocolManager.ConnectionType.TCP, finalLevel);
                     try {

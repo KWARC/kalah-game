@@ -601,6 +601,12 @@ public class ProtocolManager {
             throw new IllegalArgumentException("Move cannot be negative");
         }
 
+        if (kalahStateAgent.getHouse(KalahState.Player.SOUTH, move - 1) == 0) {
+            throw new IllegalArgumentException("Agent tried to send illegal move " + move + ":\n" + kalahStateAgent);
+        }
+
+        // TODO REMOVE CHECK
+
         sendToServer("move "+move);
     }
 
