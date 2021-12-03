@@ -84,14 +84,19 @@ func (cli *Client) Respond(to uint64, command string, args ...interface{}) uint6
 			panic("Unsupported type")
 		}
 	}
-	if conf.Debug {
-		log.Print(cli, " > ", buf.String())
-	}
-	fmt.Fprint(buf, "\r\n")
 
 	// attempt to send this message before any other message is sent
 	defer cli.lock.Unlock()
 	cli.lock.Lock()
+
+	if cli.rwc == nil {
+		return 0
+	}
+
+	if conf.Debug {
+		log.Print(cli, " > ", buf.String())
+	}
+	fmt.Fprint(buf, "\r\n")
 
 	i := conf.TCP.Retries // allow 8 unsuccesful retries
 retry:
@@ -232,6 +237,9 @@ func (cli *Client) Handle() {
 	if done != nil {
 		close(done)
 	}
+
+	// Unset the ReadWriteCloser
+	cli.rwc = nil
 
 	// If the client was currently playing a game, we have to
 	// consider what our opponent is doing
