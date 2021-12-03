@@ -280,11 +280,13 @@ def connect(agent, host='localhost', port=2671, token=None, name=None, authors=[
             """
             if state.is_final():
                 return
+            last = None
             for move in agent(state):
                 if not type(move) is int:
                     raise TypeError("Not a move")
-                if move:
+                if move != last:
                     send("move", move+1, ref=cid)
+                    last = move
             else:
                 send("yield", ref=cid)
 
