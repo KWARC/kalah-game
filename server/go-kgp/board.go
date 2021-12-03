@@ -30,6 +30,7 @@ type Board struct {
 	north, south uint
 	northPits    []uint
 	southPits    []uint
+	init         uint
 }
 
 // create a new board with SIZE pits, each with INIT stones
@@ -45,6 +46,7 @@ func makeBoard(size, init uint) Board {
 	for i := range board.southPits {
 		board.southPits[i] = init
 	}
+	board.init = init
 
 	return board
 }

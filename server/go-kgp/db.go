@@ -40,9 +40,13 @@ func (game *Game) updateDatabase(db *sql.DB) (err error) {
 		_, err = queries["update-game"].Exec(game.Board.Outcome(SideSouth), game.Id)
 	} else {
 		var res sql.Result
-		res, err = queries["insert-game"].Exec(game.North.Id, game.South.Id)
 		if err != nil {
 			return err
+		res, err = queries["insert-game"].Exec(
+			len(game.Board.northPits),
+			game.Board.init,
+			game.North.Id,
+			game.South.Id)
 		}
 		game.Id, err = res.LastInsertId()
 	}
@@ -156,10 +160,12 @@ func scanGame(scan func(dest ...interface{}) error) (*Game, error) {
 		game         Game
 		north, south Agent
 		outcome      *uint8
+		size, init   uint
 	)
 
 	err := scan(
 		&game.Id,
+		&size, &init,
 		&north.Id,
 		&south.Id,
 		&outcome,
@@ -168,6 +174,8 @@ func scanGame(scan func(dest ...interface{}) error) (*Game, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	game.Board = makeBoard(size, init)
 
 	if game.Ended != nil {
 		game.Outcome = ONGOING
