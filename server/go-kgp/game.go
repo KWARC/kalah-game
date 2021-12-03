@@ -17,12 +17,6 @@ const (
 	RESIGN
 )
 
-// An Action is sent from a client to game to change the latters state
-type Action interface {
-	// Returns true if the game should proceed to the next round
-	Do(*Game, Side) bool
-}
-
 // Move is an Action to set the next move
 type Move struct {
 	Pit     int
@@ -30,24 +24,6 @@ type Move struct {
 	Comment string
 	game    *Game
 	id      uint64
-}
-
-// Do ensures a move is valid and then sets it
-func (m Move) Do(game *Game, side Side) bool {
-	if !game.Board.Legal(side, m.Pit) {
-		game.Current().Error(m.id, fmt.Sprintf("Illegal move %d", m.Pit+1))
-	} else {
-		game.Player(side).choice = m.Pit
-	}
-	return false
-}
-
-// Yield is an Action to give up the remaining time.
-type Yield struct{}
-
-// Do gives up the remaining time
-func (y Yield) Do(g *Game, side Side) bool {
-	return true
 }
 
 // Game represents a game between two players
@@ -62,10 +38,13 @@ type Game struct {
 	side Side
 	// The control channel that is used to send actions like move
 	// or yield.  These are processed in .Start().
-	ctrl chan<- Action
+	yield chan<- *Client
+	move  chan<- *Move
 	// The two clients
-	North *Client
-	South *Client
+	North   *Client
+	South   *Client
+	nchoice int
+	schoice int
 	// Data for the web interface.
 	//
 	// These fields are usually empty, unless a Game object has
@@ -99,7 +78,6 @@ func (g *Game) Player(side Side) *Client {
 	default:
 		panic("Invalid state")
 	}
-
 }
 
 // Current returns the player who's turn it is
@@ -115,6 +93,17 @@ func (g *Game) IsCurrent(cli *Client) bool {
 	}
 
 	return g.Current() == cli
+}
+
+func (g *Game) choice() *int {
+	switch g.side {
+	case SideNorth:
+		return &g.nchoice
+	case SideSouth:
+		return &g.schoice
+	default:
+		panic("Invalid state")
+	}
 }
 
 // Other returns the opponent of CLI, or nil if CLI is not playing a
@@ -141,23 +130,26 @@ func (g *Game) Other(cli *Client) *Client {
 
 // Start manages a game between the north and south client
 func (g *Game) Start() {
-	ctrl := make(chan Action)
-	g.ctrl = ctrl
+	yield := make(chan *Client)
+	move := make(chan *Move)
+	g.yield = yield
+	g.move = move
 
 	if g.North.game != nil {
 		panic("Already part of game")
 	}
 	g.North.game = g
+	g.nchoice = -1
 	if g.South.game != nil {
 		panic("Already part of game")
 	}
 	g.South.game = g
+	g.schoice = -1
 
 	log.Printf("Start game between %s and %s", g.North, g.South)
 
 	g.side = SideSouth
 	g.last = g.South.Send("state", g)
-	g.Current().choice = -1
 
 	timer := time.NewTimer(time.Duration(conf.Game.Timeout) * time.Second)
 
@@ -187,14 +179,27 @@ func (g *Game) Start() {
 
 	dbact <- g.updateDatabase
 
-	g.Current().choice = -1
 	for {
 		next := false
 		select {
-		case act := <-ctrl:
-			next = act.Do(g, g.side)
-		case <-timer:
-			// the timer is delaying the game
+		case m := <-move:
+			if m.Client != g.Current() {
+				m.Client.Error(m.id, "Not your turn")
+			} else if !g.Board.Legal(g.side, m.Pit) {
+				m.Client.Error(m.id, fmt.Sprintf("Illegal move %d", m.Pit+1))
+			} else {
+				*g.choice() = m.Pit
+			}
+		case cli := <-yield:
+			if cli != g.Current() {
+				break
+			}
+			// The client has indicated it does not intend
+			// to use the remaining time.
+			next = true
+		case <-timer.C:
+			// The time allocated for the current player
+			// is over, and we proceed to the next round.
 			next = true
 		}
 
@@ -203,7 +208,11 @@ func (g *Game) Start() {
 		}
 
 		if next {
-			choice := g.Current().choice
+			g.Current().Respond(g.last, "stop")
+			atomic.AddInt64(&g.Current().pending, 1)
+
+			choice := *g.choice()
+			dbact <- saveMove(g, g.Current(), g.side, choice)
 
 			// We generate a random move to replace
 			// whatever the current choice is, either if
@@ -219,17 +228,12 @@ func (g *Game) Start() {
 				return
 			}
 
-			g.Current().Respond(g.last, "stop")
-			atomic.AddInt64(&g.Current().pending, 1)
-
-			dbact <- saveMove(g, g.Current(), g.side, choice)
-
 			if !again {
 				g.side = !g.side
 			}
 
-			g.Current().Send("state", g)
-			g.Current().choice = -1
+			*g.choice() = -1
+			g.last = g.Current().Send("state", g)
 
 			timer.Reset(time.Duration(conf.Game.Timeout) * time.Second)
 		}

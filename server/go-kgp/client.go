@@ -29,7 +29,6 @@ type Client struct {
 	game     *Game
 	rwc      io.ReadWriteCloser
 	lock     sync.Mutex
-	choice   int
 	rid      uint64
 	killFunc context.CancelFunc
 	pinged   bool

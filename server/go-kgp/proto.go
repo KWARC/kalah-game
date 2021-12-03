@@ -160,7 +160,7 @@ func (cli *Client) Interpret(input string) error {
 			return err
 		}
 
-		game.ctrl <- Move{
+		game.move <- &Move{
 			Pit:    int(pit) - 1,
 			Client: cli,
 			id:     id,
@@ -172,12 +172,12 @@ func (cli *Client) Interpret(input string) error {
 			return nil
 		}
 
-		game.ctrl <- Yield{}
-		if cli.simple && cli.pending < 0 {
+		if cli.simple && cli.pending <= 0 {
 			cli.Error(id, "Preemptive yield")
 			cli.killFunc()
 		}
 		atomic.AddInt64(&cli.pending, -1)
+		game.yield <- cli
 	case "ok", "error":
 		// We do not expect the client to confirm or reject anything,
 		// so we can ignore these response messages.
