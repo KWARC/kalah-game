@@ -83,6 +83,10 @@ func main() {
 
 	if conf.WS.Enabled {
 		http.HandleFunc("/socket", listenUpgrade)
+		if conf.Debug {
+			log.Print("Handling websocket on /socket")
+		}
+
 	}
 
 	if conf.TCP.Enabled {
@@ -91,12 +95,18 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
+		if conf.Debug {
+			log.Printf("Listening on TCP %s", tcp)
+		}
 		go listen(plain)
 	}
 
 	// Start web server
 	go func() {
 		web := fmt.Sprintf("%s:%d", conf.Web.Host, conf.Web.Port)
+		if conf.Debug {
+			log.Printf("Listening via HTTP on %s", web)
+		}
 		log.Fatal(http.ListenAndServe(web, nil))
 	}()
 
