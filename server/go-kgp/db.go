@@ -22,7 +22,7 @@ const limit = 100
 // managers via the channel DBACT, that executes the action and
 // handles possible errors.
 
-type DBAction func(*sql.DB) error
+type DBAction func(*sql.DB)
 
 var dbact = make(chan DBAction, 1)
 
@@ -35,20 +35,24 @@ var sqlDir embed.FS
 
 var queries = make(map[string]*sql.Stmt)
 
-func (game *Game) updateDatabase(db *sql.DB) (err error) {
+func (game *Game) updateDatabase(db *sql.DB) {
+	var err error
 	if game.IsOver() {
+		fmt.Printf("Update (%s): %v\n", game, game.Board.Outcome(SideSouth))
 		_, err = queries["update-game"].Exec(game.Board.Outcome(SideSouth), game.Id)
 	} else {
 		var res sql.Result
-		if err != nil {
-			return err
 		res, err = queries["insert-game"].Exec(
 			len(game.Board.northPits),
 			game.Board.init,
 			game.North.Id,
 			game.South.Id)
+		if err == nil {
+			game.Id, err = res.LastInsertId()
 		}
-		game.Id, err = res.LastInsertId()
+	}
+	if err != nil {
+		log.Println(err)
 	}
 	return
 }
@@ -60,24 +64,28 @@ func saveMove(in *Game, by *Client, side Side, move int) DBAction {
 		aid = &by.Id
 	}
 
-	return func(db *sql.DB) error {
+	return func(db *sql.DB) {
 		_, err := queries["insert-move"].Exec(
 			in.Id,
 			aid,
 			side,
 			move,
 			by.comment)
-		return err
+		if err != nil {
+			log.Println(err)
+		}
+		return
 	}
 }
 
 func (cli *Client) updateDatabase(wait *sync.WaitGroup) DBAction {
-	return func(db *sql.DB) error {
+	return func(db *sql.DB) {
 		_, err := queries["insert-agent"].Exec(
 			cli.token, cli.Name, cli.Descr,
 			cli.Name, cli.Descr)
 		if err != nil {
-			return err
+			log.Println(err)
+			return
 		}
 
 		var name, descr string
@@ -89,12 +97,12 @@ func (cli *Client) updateDatabase(wait *sync.WaitGroup) DBAction {
 		if wait != nil {
 			wait.Done()
 		}
-		return nil
+		return
 	}
 }
 
 func queryAgent(aid int, c chan<- *Agent) DBAction {
-	return func(db *sql.DB) error {
+	return func(db *sql.DB) {
 		var agent Agent
 
 		defer close(c)
@@ -102,25 +110,29 @@ func queryAgent(aid int, c chan<- *Agent) DBAction {
 			&agent.Name,
 			&agent.Descr,
 			&agent.Score)
-		if err == nil {
+		if err != nil {
+			log.Println(err)
+		} else {
 			c <- &agent
 		}
 
-		return err
+		return
 	}
 }
 
 func queryGame(gid int, c chan<- *Game) DBAction {
-	return func(db *sql.DB) (err error) {
+	return func(db *sql.DB) {
 		defer close(c)
 		row := queries["select-game"].QueryRow(gid)
 		game, err := scanGame(row.Scan)
 		if err != nil {
+			log.Println(err)
 			return
 		}
 
 		rows, err := queries["select-moves"].Query(gid)
 		if err != nil {
+			log.Println(err)
 			return
 		}
 
@@ -134,6 +146,7 @@ func queryGame(gid int, c chan<- *Game) DBAction {
 
 			err = rows.Scan(&aid, &side, &comm, &move)
 			if err != nil {
+				log.Println(err)
 				return
 			}
 
@@ -148,6 +161,9 @@ func queryGame(gid int, c chan<- *Game) DBAction {
 				game:    game,
 				Comment: comm,
 			})
+		}
+		if err = rows.Err(); err != nil {
+			log.Println(err)
 		}
 
 		c <- game
@@ -202,12 +218,16 @@ func scanGame(scan func(dest ...interface{}) error) (*Game, error) {
 		return nil, err
 	}
 	game.South = &Client{Agent: south}
+
 	return &game, nil
 }
 
 func queryGames(c chan<- *Game, page int, aid *int) DBAction {
-	return func(db *sql.DB) (err error) {
-		var rows *sql.Rows
+	return func(db *sql.DB) {
+		var (
+			rows *sql.Rows
+			err  error
+		)
 
 		defer close(c)
 		if aid == nil {
@@ -216,6 +236,9 @@ func queryGames(c chan<- *Game, page int, aid *int) DBAction {
 			rows, err = queries["select-games-by"].Query(*aid, page)
 		}
 		if err != nil {
+			if err != sql.ErrNoRows {
+				log.Println(err)
+			}
 			return
 		}
 		defer rows.Close()
@@ -224,20 +247,29 @@ func queryGames(c chan<- *Game, page int, aid *int) DBAction {
 		for rows.Next() {
 			game, err = scanGame(rows.Scan)
 			if err != nil {
-				break
+				if err != sql.ErrNoRows {
+					log.Println(err)
+				}
+				return
 			}
 			c <- game
 		}
+		if err = rows.Err(); err != nil {
+			log.Println(err)
+		}
 
-		return rows.Err()
+		return
 	}
 }
 
 func queryAgents(c chan<- *Agent, page int) DBAction {
-	return func(db *sql.DB) (err error) {
+	return func(db *sql.DB) {
 		defer close(c)
 		rows, err := queries["select-agents"].Query(page, limit)
 		if err != nil {
+			if err != sql.ErrNoRows {
+				log.Println(err)
+			}
 			return
 		}
 		defer rows.Close()
@@ -247,11 +279,16 @@ func queryAgents(c chan<- *Agent, page int) DBAction {
 
 			err = rows.Scan(&agent.Id, &agent.Name, &agent.Score)
 			if err != nil {
+				log.Println(err)
 				return
 			}
 
 			c <- &agent
 		}
+		if err = rows.Err(); err != nil {
+			log.Println(err)
+		}
+
 		return
 	}
 }
@@ -264,14 +301,7 @@ func databaseManager(id uint, db *sql.DB, wg *sync.WaitGroup) {
 			continue
 		}
 
-		err := act(db)
-		if err != nil {
-			if conf.Database.Threads <= 1 {
-				log.Print("[DB] ", err)
-			} else {
-				log.Printf("[DBM %d] %s", id, err)
-			}
-		}
+		act(db)
 	}
 }
 
