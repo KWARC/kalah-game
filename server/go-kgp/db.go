@@ -82,7 +82,7 @@ func (cli *Client) updateDatabase(wait *sync.WaitGroup) DBAction {
 	return func(db *sql.DB) {
 		_, err := queries["insert-agent"].Exec(
 			cli.token, cli.Name, cli.Descr,
-			cli.Name, cli.Descr)
+			cli.Name, cli.Descr, cli.Score)
 		if err != nil {
 			log.Println(err)
 			return
