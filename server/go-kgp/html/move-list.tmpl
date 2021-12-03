@@ -10,7 +10,7 @@
   <tbody>
     {{ range $i, $m := . }}
       <tr>
-	<td>$i</td>
+	<td>{{ $i }}</td>
 	<td>{{ inc $m.Pit }}</td>
 	<td>
 	{{ with $m.Client }}
