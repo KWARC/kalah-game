@@ -5,8 +5,10 @@ The protocol consists of commands sent between client and
 server. Server-to-client and client-to-server commands have the same
 form, consisting of:
 
-* Optional command ID
-* Optional command reference (addressing a previous command ID)
+* Optional, unique command ID.  Client and server MUST ensure that
+  no ID is reused.
+* Optional command reference (addressing a previous command ID).  The
+  client MAY NOT reference a non-existing command ID.
 * A command name
 * A number of arguments
 
