@@ -129,7 +129,10 @@ retry:
 }
 
 func (cli *Client) Pinger(done <-chan struct{}) {
-	ticker := time.NewTicker(time.Duration(1+conf.TCP.Timeout) * time.Second)
+	if conf.TCP.Timeout == 0 {
+		panic("TCP Timeout must be greater than 0")
+	}
+	ticker := time.NewTicker(time.Duration(conf.TCP.Timeout) * time.Second)
 	defer ticker.Stop()
 
 	for {

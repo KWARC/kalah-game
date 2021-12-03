@@ -8,8 +8,9 @@ import (
 )
 
 type GameConf struct {
-	Sizes  []uint `toml:"sizes"`
-	Stones []uint `toml:"stones"`
+	Sizes   []uint `toml:"sizes"`
+	Stones  []uint `toml:"stones"`
+	Timeout uint   `toml:"timeout"`
 }
 
 type WSConf struct {
