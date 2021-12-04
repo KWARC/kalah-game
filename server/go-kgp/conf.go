@@ -2,7 +2,11 @@ package main
 
 import (
 	"io"
+	"log"
 	"os"
+	"os/signal"
+
+	"syscall"
 
 	"github.com/BurntSushi/toml"
 )
@@ -78,17 +82,37 @@ var defaultConfig = Conf{
 	},
 }
 
-func parseConf(r io.Reader) (*Conf, error) {
-	var conf Conf
+func parseConf(r io.Reader, conf *Conf) error {
 	_, err := toml.NewDecoder(r).Decode(conf)
-	return &conf, err
+	return err
 }
 
 func openConf(name string) (*Conf, error) {
+	var conf Conf
+
+	go func() {
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, syscall.SIGUSR1)
+		for range c {
+			file, err := os.Open(name)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+
+			err = parseConf(file, &conf)
+			if err != nil {
+				log.Println(err)
+			}
+			file.Close()
+		}
+	}()
+
 	file, err := os.Open(name)
 	if err != nil {
 		return nil, err
 	}
 	defer file.Close()
-	return parseConf(file)
+
+	return &conf, parseConf(file, &conf)
 }
