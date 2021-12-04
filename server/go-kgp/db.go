@@ -15,8 +15,6 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-const limit = 100
-
 // The database manager accepts "database actions", ie. functions that
 // operate on a database.  These are sent to the database manager or
 // managers via the channel DBACT, that executes the action and
@@ -231,7 +229,7 @@ func queryGames(c chan<- *Game, page int, aid *int) DBAction {
 
 		defer close(c)
 		if aid == nil {
-			rows, err = queries["select-games"].Query(page, limit)
+			rows, err = queries["select-games"].Query(page, conf.Web.Limit)
 		} else {
 			rows, err = queries["select-games-by"].Query(*aid, page)
 		}
@@ -265,7 +263,7 @@ func queryGames(c chan<- *Game, page int, aid *int) DBAction {
 func queryAgents(c chan<- *Agent, page int) DBAction {
 	return func(db *sql.DB) {
 		defer close(c)
-		rows, err := queries["select-agents"].Query(page, limit)
+		rows, err := queries["select-agents"].Query(page, conf.Web.Limit)
 		if err != nil {
 			if err != sql.ErrNoRows {
 				log.Println(err)

@@ -18,8 +18,9 @@ type WSConf struct {
 }
 
 type WebConf struct {
-	Host string `toml:"host"`
-	Port uint   `toml:"port"`
+	Host  string `toml:"host"`
+	Port  uint   `toml:"port"`
+	Limit uint   `tomp:"limit"`
 }
 
 type TCPConf struct {
@@ -60,8 +61,9 @@ var defaultConfig = Conf{
 		Stones: []uint{4, 5, 6, 7, 8, 9, 10, 11, 12},
 	},
 	Web: WebConf{
-		Host: "0.0.0.0",
-		Port: 8080,
+		Host:  "0.0.0.0",
+		Port:  8080,
+		Limit: 50,
 	},
 	WS: WSConf{
 		Enabled: false,
