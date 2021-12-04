@@ -297,6 +297,11 @@ func queryAgents(c chan<- *Agent, page int) DBAction {
 func databaseManager(id uint, db *sql.DB, wg *sync.WaitGroup) {
 	defer wg.Done()
 
+	// The channel is copied so that when the server is requested
+	// to terminate we can continue to process the remaining
+	// actions, without an other thread writing on a closed
+	// channel that would trigger a panic.
+	dbact := dbact
 	for act := range dbact {
 		if act == nil {
 			continue
@@ -323,7 +328,9 @@ func manageDatabase() {
 		// The first interrupt signals the database managers to stop
 		// accepting more requests
 		<-intr
-		close(dbact)
+		old := dbact
+		dbact = make(chan DBAction)
+		close(old)
 
 		// The second interrupt force-exits the process
 		<-intr
