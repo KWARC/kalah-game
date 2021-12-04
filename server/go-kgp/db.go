@@ -194,7 +194,7 @@ func scanGame(scan func(dest ...interface{}) error) (*Game, error) {
 
 	game.Board = makeBoard(size, init)
 
-	if game.Ended != nil {
+	if game.Ended == nil {
 		game.Outcome = ONGOING
 	} else if outcome == nil {
 		game.Outcome = RESIGN
