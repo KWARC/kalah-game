@@ -10,11 +10,14 @@ To compile the server, run
 
 which produces the "go-kgp" binary.
 
-The program requires no external configuration or persistent state.
-All options are configured via command line flags.  Invoking
+The server can be configured when invoked using a number of flags
+(invoke go-kgp with the "-help" flag for a listing) or persistently
+using a TOML configuration file.  By default go-kgp checks the current
+working directory for a file called "server.toml" and tries to load
+it.  The default configuration can be dumped
 
-	$ ./go-kgp -help
+	$ go-kgp -dump-config > server.toml
 
-generates a listing of flags.
+and modified.
 
 [0] https://golang.org/
