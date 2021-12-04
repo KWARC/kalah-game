@@ -14,16 +14,32 @@ html {
     line-height: 1.4;
 }
 
+body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    justify-content: flex-start;
+}
+
 header, footer {
     background: whitesmoke;
-    border-bottom: 1px solid silver;
+    border: 0 solid silver;
     padding: 4px;
+}
+
+header {
+    border-bottom-width: 1px;
+}
+
+footer {
+    border-top-width: 1px;
+    margin-top: auto;
+    text-align: center;
 }
 
 main, nav {
      max-width: 800px;
      margin: 4px auto;
-     padding: 0 8px;
 }
 
 a {
