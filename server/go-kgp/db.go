@@ -277,7 +277,7 @@ func queryAgents(c chan<- *Agent, page int) DBAction {
 		for rows.Next() {
 			var agent Agent
 
-			err = rows.Scan(&agent.Id, &agent.Name, &agent.Score)
+			err = rows.Scan(&agent.Id, &agent.Name, &agent.Score, &agent.Games)
 			if err != nil {
 				log.Println(err)
 				return

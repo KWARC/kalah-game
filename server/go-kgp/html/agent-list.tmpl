@@ -4,6 +4,7 @@
 	    <td>Name</td>
 	    <td>Score</td>
 	    <td>Description</td>
+	    <td>Games</td>
 	</tr>
     </thead>
     <tbody>
@@ -20,6 +21,7 @@
 		</td>
 		<td>{{ .Score }}</td>
 		<td>{{ with .Descr }}{{ . }}{{ else }}<em>N/A</em>{{ end }}</td>
+		<td>{{ .Games }}</td>
 	    </tr>
 	{{ else }}
 	<tr><td colspan="3"><em>No agents in the database</em></td></tr>
