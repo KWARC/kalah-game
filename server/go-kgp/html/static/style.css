@@ -38,7 +38,7 @@ footer {
 }
 
 main, nav {
-     max-width: 800px;
+     width: 800px;
      margin: 4px auto;
 }
 
