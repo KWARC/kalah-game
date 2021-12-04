@@ -33,26 +33,29 @@ var sqlDir embed.FS
 
 var queries = make(map[string]*sql.Stmt)
 
-func (game *Game) updateDatabase(db *sql.DB) {
-	var err error
-	if game.IsOver() {
-		fmt.Printf("Update (%s): %v\n", game, game.Board.Outcome(SideSouth))
-		_, err = queries["update-game"].Exec(game.Board.Outcome(SideSouth), game.Id)
-	} else {
-		var res sql.Result
-		res, err = queries["insert-game"].Exec(
-			len(game.Board.northPits),
-			game.Board.init,
-			game.North.Id,
-			game.South.Id)
-		if err == nil {
-			game.Id, err = res.LastInsertId()
+func (game *Game) updateDatabase(wait *sync.WaitGroup) DBAction {
+	return func(db *sql.DB) {
+		var err error
+		if game.IsOver() {
+			_, err = queries["update-game"].Exec(game.Board.Outcome(SideSouth), game.Id)
+		} else {
+			var res sql.Result
+			res, err = queries["insert-game"].Exec(
+				len(game.Board.northPits),
+				game.Board.init,
+				game.North.Id,
+				game.South.Id)
+			if err == nil {
+				game.Id, err = res.LastInsertId()
+			}
+		}
+		if err != nil {
+			log.Println(err)
+		}
+		if wait != nil {
+			wait.Done()
 		}
 	}
-	if err != nil {
-		log.Println(err)
-	}
-	return
 }
 
 func saveMove(in *Game, by *Client, side Side, move int) DBAction {

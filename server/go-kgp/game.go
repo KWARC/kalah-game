@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -161,7 +162,10 @@ func (g *Game) Start() {
 			g.South.updateScore(g.North, g.Board.Outcome(SideSouth))
 		}
 
-		dbact <- g.updateDatabase
+		var wait sync.WaitGroup
+		wait.Add(1)
+		dbact <- g.updateDatabase(&wait)
+		wait.Wait()
 
 		if conf.Endless {
 			// In the "endless" mode, the client is just
@@ -177,7 +181,7 @@ func (g *Game) Start() {
 		}
 	}()
 
-	dbact <- g.updateDatabase
+	dbact <- g.updateDatabase(nil)
 
 	for {
 		next := false
