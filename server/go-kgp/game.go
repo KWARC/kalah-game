@@ -66,7 +66,7 @@ func (g *Game) String() string {
 }
 
 func (g *Game) IsOver() bool {
-	return g.Outcome != ONGOING
+	return g.Board.Over()
 }
 
 // Player returns the player on SIDE of the board
