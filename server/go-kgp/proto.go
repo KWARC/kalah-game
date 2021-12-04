@@ -83,6 +83,7 @@ func (cli *Client) Set(key, val string) error {
 	case "auth:token":
 		if cli.token == "" {
 			cli.token = val
+			cli.Score = 1000.0
 
 			var wg sync.WaitGroup
 			wg.Add(1)

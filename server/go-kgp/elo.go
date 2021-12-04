@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"math"
+	"sync"
 )
 
 const (
@@ -39,7 +40,10 @@ func (cli *Client) updateScore(opp *Client, outcome Outcome) (err error) {
 	cli.Score = cli.Score + K*(OutcomeToPoints[outcome]-ea)
 
 	// Send database manager a request to update the entry
-	dbact <- cli.updateDatabase(nil)
+	var wait sync.WaitGroup
+	wait.Add(1)
+	dbact <- cli.updateDatabase(&wait)
+	wait.Wait()
 
 	return nil
 }

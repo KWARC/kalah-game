@@ -81,7 +81,28 @@ func saveMove(in *Game, by *Client, side Side, move int) DBAction {
 
 func (cli *Client) updateDatabase(wait *sync.WaitGroup) DBAction {
 	return func(db *sql.DB) {
-		_, err := queries["insert-agent"].Exec(
+		var (
+			name, descr *string
+			score       *float64
+		)
+
+		err := queries["select-agent-token"].QueryRow(cli.token).Scan(
+			&cli.Id, &name, &descr, &score)
+		if err != nil && err != sql.ErrNoRows {
+			log.Println(err)
+		}
+
+		if name != nil {
+			cli.Name = *name
+		}
+		if descr != nil {
+			cli.Descr = *descr
+		}
+		if score != nil && !(*score == 1000.0 || *score == 0.0) {
+			cli.Score = *score
+		}
+
+		_, err = queries["insert-agent"].Exec(
 			cli.token, cli.Name, cli.Descr,
 			cli.Name, cli.Descr, cli.Score)
 		if err != nil {
@@ -89,12 +110,6 @@ func (cli *Client) updateDatabase(wait *sync.WaitGroup) DBAction {
 			return
 		}
 
-		var name, descr string
-		err = queries["select-agent-token"].QueryRow(cli.token).Scan(
-			&cli.Id, &name, &descr, &cli.Score)
-		if err != nil {
-			cli.killFunc()
-		}
 		if wait != nil {
 			wait.Done()
 		}
