@@ -208,10 +208,7 @@ func (b *Board) Over() bool {
 }
 
 func (b *Board) Outcome(side Side) Outcome {
-	var (
-		north = b.north
-		south = b.south
-	)
+	var north, south uint
 
 	for _, pit := range b.northPits {
 		north += pit
@@ -219,6 +216,13 @@ func (b *Board) Outcome(side Side) Outcome {
 	for _, pit := range b.southPits {
 		south += pit
 	}
+
+	if north != 0 && south != 0 {
+		return RESIGN
+	}
+
+	north += b.north
+	south += b.south
 
 	switch {
 	case north > south:
