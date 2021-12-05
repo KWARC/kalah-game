@@ -16,8 +16,8 @@ func match(queue []*Client) []*Client {
 	for i, cli := range queue[1:] {
 		if cli.token != north.token || cli.token == "" {
 			south := cli
-			queue = append(queue[:i], queue[i+1:]...)
-			queue = queue[1:]
+			queue[i] = queue[len(queue)-1]
+			queue = queue[1 : len(queue)-1]
 
 			if rand.Intn(2) == 0 {
 				south, north = north, south
