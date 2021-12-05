@@ -235,7 +235,6 @@ func (g *Game) Start() {
 			atomic.AddInt64(&g.Current().pending, 1)
 
 			choice := *g.choice()
-			dbact <- saveMove(g, g.Current(), g.side, choice)
 
 			// We generate a random move to replace
 			// whatever the current choice is, either if
@@ -246,6 +245,8 @@ func (g *Game) Start() {
 			if choice == -1 || (g.Current().simple && g.Current().pending > 0) {
 				choice = g.Board.Random(g.side)
 			}
+			dbact <- saveMove(g, g.Current(), g.side, choice)
+
 			again := g.Board.Sow(g.side, choice)
 			if g.Board.Over() {
 				return
