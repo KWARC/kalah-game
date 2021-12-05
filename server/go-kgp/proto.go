@@ -184,9 +184,6 @@ func (cli *Client) Interpret(input string) error {
 		// so we can ignore these response messages.
 	case "pong":
 		cli.pinged = false
-		if cli.game == nil {
-			promote <- cli
-		}
 	case "set":
 		// Note that VAL doesn't have to be a string per spec,
 		// but we will parse it as such to keep it in it's

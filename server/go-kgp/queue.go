@@ -7,7 +7,6 @@ import (
 
 var (
 	enqueue = make(chan *Client) // append a client to the queue
-	promote = make(chan *Client) // promote a client to the front of the queue
 	forget  = make(chan *Client) // remove a client from the queue
 )
 
@@ -110,17 +109,7 @@ func queueManager() {
 	for {
 		select {
 		case cli := <-enqueue:
-			if cli.game != nil {
-				panic("Enqueuing client that is already playing")
-			}
-			queue = remove(cli, queue)
 			queue = append(queue, cli)
-		case cli := <-promote:
-			if cli.game != nil {
-				panic("Promoting client that is already playing")
-			}
-			queue = remove(cli, queue)
-			queue = append([]*Client{cli}, queue...)
 		case cli := <-forget:
 			queue = remove(cli, queue)
 		}
