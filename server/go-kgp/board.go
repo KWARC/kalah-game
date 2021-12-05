@@ -58,6 +58,7 @@ func (b *Board) Mirror() *Board {
 		south:     b.north,
 		northPits: b.southPits,
 		southPits: b.northPits,
+		init:      b.init,
 	}
 }
 
@@ -204,6 +205,12 @@ func (b *Board) OverFor(side Side) bool {
 
 // Over returns true if the game is over for either side
 func (b *Board) Over() bool {
+	if conf.Game.EarlyWin {
+		half := (b.init*uint(len(b.northPits)))/2 + 1
+		if b.north >= half || b.south >= half {
+			return true
+		}
+	}
 	return b.OverFor(SideNorth) || b.OverFor(SideSouth)
 }
 

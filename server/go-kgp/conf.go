@@ -12,9 +12,10 @@ import (
 )
 
 type GameConf struct {
-	Sizes   []uint `toml:"sizes"`
-	Stones  []uint `toml:"stones"`
-	Timeout uint   `toml:"timeout"`
+	Sizes    []uint `toml:"sizes"`
+	Stones   []uint `toml:"stones"`
+	Timeout  uint   `toml:"timeout"`
+	EarlyWin bool   `toml:"earlywin"`
 }
 
 type WSConf struct {
@@ -61,8 +62,9 @@ var defaultConfig = Conf{
 	},
 	Endless: true,
 	Game: GameConf{
-		Sizes:  []uint{4, 5, 6, 7, 8, 9, 10, 11, 12},
-		Stones: []uint{4, 5, 6, 7, 8, 9, 10, 11, 12},
+		Sizes:    []uint{4, 5, 6, 7, 8, 9, 10, 11, 12},
+		Stones:   []uint{4, 5, 6, 7, 8, 9, 10, 11, 12},
+		EarlyWin: true,
 	},
 	Web: WebConf{
 		Host:  "0.0.0.0",
