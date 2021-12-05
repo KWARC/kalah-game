@@ -68,10 +68,10 @@ class Board:
     def __str__(self):
         """Return board in KGP board representation."""
         data = [self.size,
-                self.north,
                 self.south,
-                *self.north_pits,
-                *self.south_pits]
+                self.north,
+                *self.south_pits
+                *self.north_pits]
 
         return '<{}>'.format(','.join(map(str, data)))
 
