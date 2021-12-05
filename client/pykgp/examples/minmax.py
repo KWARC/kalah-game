@@ -21,7 +21,7 @@ def evaluate(state):
 # This is the actually interesting part, that you have to improve on.
 
 def search(state, depth, side):
-    def child(state, move):
+    def child(move):
         if depth <= 0:
             return (evaluate(state), move)
 
@@ -34,7 +34,7 @@ def search(state, depth, side):
             return (search(after, depth-1, not side)[0], move)
 
     choose = max if side == kgp.SOUTH else min
-    return choose((child(state, move) for move in state.legal_moves(side)),
+    return choose((child(move) for move in state.legal_moves(side)),
                   key=lambda ent: ent[0])
 
 # The actual agent is just a generator function, that is to say a
