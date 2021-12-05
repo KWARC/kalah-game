@@ -70,8 +70,9 @@ def agent(state):
 #       kgp.connect(agent, host="wss://kalah.kwarc.info/socket")
 #
 # Optionally you may also supply additional information (name,
-# description, identitifaciton token).  For more information on these,
-# refer to the KGP.CONNECT docstring.
+# description, identification token).  For more information on these,
+# refer to the KGP.CONNECT docstring.  In some cases it might make
+# sense to extract these values from the environment using OS.GETENV.
 
 if __name__ == "__main__":
     kgp.connect(agent)
