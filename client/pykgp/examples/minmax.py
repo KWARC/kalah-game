@@ -29,9 +29,9 @@ def search(state, depth, side):
         if after.is_final():
             return (evaluate(after), move)
         if again:
-            return search(after, depth-1, side)
+            return (search(after, depth, side)[0], move)
         else:
-            return search(after, depth-1, not side)
+            return (search(after, depth-1, not side)[0], move)
 
     choose = max if side == kgp.SOUTH else min
     return choose((child(state, move) for move in state.legal_moves(side)),
