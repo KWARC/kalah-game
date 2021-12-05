@@ -41,6 +41,7 @@ type Game struct {
 	// or yield.  These are processed in .Start().
 	yield chan<- *Client
 	move  chan<- *Move
+	death chan<- *Client
 	// The two clients
 	North   *Client
 	South   *Client
@@ -133,8 +134,10 @@ func (g *Game) Other(cli *Client) *Client {
 func (g *Game) Start() {
 	yield := make(chan *Client)
 	move := make(chan *Move)
+	death := make(chan *Client)
 	g.yield = yield
 	g.move = move
+	g.death = death
 
 	if g.North.game != nil {
 		panic("Already part of game")
@@ -201,6 +204,22 @@ func (g *Game) Start() {
 			// The client has indicated it does not intend
 			// to use the remaining time.
 			next = true
+		case cli := <-death:
+			if cli.game != g {
+				panic("Unrelated death")
+			}
+			opp := g.Other(cli)
+
+			if conf.Endless {
+				if g.Current() == opp {
+					opp.Respond(g.last, "stop")
+				}
+				opp.game = nil
+				enqueue <- opp
+			} else {
+				opp.killFunc()
+			}
+			return
 		case <-timer.C:
 			// The time allocated for the current player
 			// is over, and we proceed to the next round.
