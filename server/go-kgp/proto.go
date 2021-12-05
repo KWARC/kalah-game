@@ -173,7 +173,7 @@ func (cli *Client) Interpret(input string) error {
 			return nil
 		}
 
-		if cli.simple && cli.pending <= 0 {
+		if cli.simple && cli.pending < 0 {
 			cli.Error(id, "Preemptive yield")
 			cli.killFunc()
 		}
