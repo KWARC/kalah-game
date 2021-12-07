@@ -70,7 +70,7 @@ class Board:
         data = [self.size,
                 self.south,
                 self.north,
-                *self.south_pits
+                *self.south_pits,
                 *self.north_pits]
 
         return '<{}>'.format(','.join(map(str, data)))
