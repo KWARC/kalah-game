@@ -190,8 +190,9 @@ func (g *Game) Start() {
 		next := false
 		select {
 		case m := <-move:
-			if m.Client != g.Current() {
-				m.Client.Error(m.id, "Not your turn")
+			if m.Client != g.Current() && m.Client.simple && m.Client.pending > 1 {
+				m.Client.Error(m.id, "Overdue yield")
+				m.Client.killFunc()
 			} else if !g.Board.Legal(g.side, m.Pit) {
 				m.Client.Error(m.id, fmt.Sprintf("Illegal move %d", m.Pit+1))
 			} else {
