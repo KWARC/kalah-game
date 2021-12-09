@@ -19,7 +19,7 @@
 		{{ end }}
 		</a>
 		</td>
-		<td>{{ .Score }}</td>
+		<td>{{ printf "%.f" .Score }}</td>
 		<td>{{ with .Descr }}{{ . }}{{ else }}<em>N/A</em>{{ end }}</td>
 		<td>{{ .Games }}</td>
 	    </tr>
