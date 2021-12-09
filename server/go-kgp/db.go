@@ -11,6 +11,7 @@ import (
 	"path"
 	"strings"
 	"sync"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -345,6 +346,7 @@ func manageDatabase() {
 		<-intr
 		old := dbact
 		dbact = make(chan DBAction)
+		time.Sleep(100 * time.Millisecond)
 		close(old)
 
 		// The second interrupt force-exits the process
