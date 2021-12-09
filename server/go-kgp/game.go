@@ -206,8 +206,9 @@ func (g *Game) Start() {
 			// to use the remaining time.
 			next = true
 		case cli := <-death:
-			if cli.game != g {
-				panic("Unrelated death")
+			if g.North != cli && g.South != cli {
+				log.Println("Unrelated death")
+				return
 			}
 			opp := g.Other(cli)
 
