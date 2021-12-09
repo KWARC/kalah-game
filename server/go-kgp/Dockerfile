@@ -13,7 +13,7 @@ FROM docker.io/library/golang:1.16 as builder
 ADD . /app/
 WORKDIR /app/
 RUN go get .
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o go-kgp ./
+RUN CGO_ENABLED=1 GOOS=linux go build -a -ldflags '-linkmode external -extldflags "-static"' -o go-kgp ./
 
 # add it into a new image
 FROM docker.io/library/alpine:3.14
@@ -33,4 +33,4 @@ COPY --from=builder /app/go-kgp /go-kgp
 EXPOSE 8080
 EXPOSE 2671
 USER www-data:www-data
-CMD ["/go-kgp", "-db", "/data/kalah.sql", "-http", "0.0.0.0:8080", "-socket", "0.0.0.0:2671"]
+CMD ["/go-kgp", "-db", "/data/kalah.sql", "-webhost", "0.0.0.0", "-webport", "8080", "-host", "0.0.0.0", "-port", "2671"]
