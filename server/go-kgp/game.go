@@ -174,10 +174,14 @@ func (g *Game) Start() {
 			// In the "endless" mode, the client is just
 			// added back to the waiting queue as soon as
 			// the game is over.
-			g.North.game = nil
-			g.South.game = nil
-			enqueue <- g.North
-			enqueue <- g.South
+			if g.North.game == g {
+				g.North.game = nil
+				enqueue <- g.North
+			}
+			if g.South.game == g {
+				g.South.game = nil
+				enqueue <- g.South
+			}
 		} else {
 			g.North.killFunc()
 			g.South.killFunc()
