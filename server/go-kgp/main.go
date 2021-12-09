@@ -43,9 +43,15 @@ func main() {
 	flag.UintVar(&conf.TCP.Port, "port",
 		conf.TCP.Port,
 		"Port for TCP connections")
+	flag.StringVar(&conf.TCP.Host, "host",
+		conf.TCP.Host,
+		"Host for TCP connections")
 	flag.UintVar(&conf.Web.Port, "webport",
 		conf.Web.Port,
 		"Port for HTTP connections")
+	flag.StringVar(&conf.Web.Host, "webhost",
+		conf.Web.Host,
+		"Host for HTTP connections")
 	flag.BoolVar(&conf.WS.Enabled, "websocket",
 		conf.WS.Enabled,
 		"Listen for websocket upgrades only")
