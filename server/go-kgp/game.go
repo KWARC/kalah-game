@@ -251,7 +251,8 @@ func (g *Game) Start() {
 			if choice == -1 || (g.Current().simple && g.Current().pending > 0) {
 				choice = g.Board.Random(g.side)
 			}
-			dbact <- saveMove(g, g.Current(), g.side, choice)
+
+			dbact <- saveMove(g, g.Current(), g.side, choice, time.Now())
 
 			again := g.Board.Sow(g.side, choice)
 			if g.Board.Over() {
