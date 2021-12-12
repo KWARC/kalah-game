@@ -179,8 +179,6 @@ func (g *Game) Start() {
 	timer := time.NewTimer(time.Duration(conf.Game.Timeout) * time.Second)
 
 	defer func() {
-		fmt.Println("Game", g, "finished")
-
 		if g.North.token != "" && g.South.token != "" {
 			g.North.updateScore(g.South, g.Board.Outcome(SideNorth))
 			g.South.updateScore(g.North, g.Board.Outcome(SideSouth))
