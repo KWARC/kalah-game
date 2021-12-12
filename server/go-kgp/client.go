@@ -176,8 +176,6 @@ func (cli *Client) Pinger(done <-chan struct{}) {
 
 // Handle controls a connection and reads user input
 func (cli *Client) Handle() {
-	log.Printf("%s connected", cli)
-
 	// Ensure that the client has a channel that is being
 	// communicated upon.
 	if cli.rwc == nil {
