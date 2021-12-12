@@ -136,7 +136,7 @@ func (conf *Conf) init() {
 			rc.Close()
 
 		init:
-			conf.init()
+			go conf.Web.init()
 		}
 	}()
 
@@ -146,7 +146,7 @@ func (conf *Conf) init() {
 		debug.SetOutput(io.Discard)
 	}
 
-	conf.Web.init()
+	go conf.Web.init()
 }
 
 func parseConf(r io.Reader, conf *Conf) error {
