@@ -340,3 +340,55 @@ func TestOverFor(t *testing.T) {
 		}
 	}
 }
+
+func TestOutcome(t *testing.T) {
+	for i, test := range []struct {
+		board   *Board
+		outcome Outcome
+	}{
+		{
+			board: &Board{
+				north: 0,
+				south: 1,
+			},
+			outcome: WIN,
+		}, {
+			board: &Board{
+				north: 1,
+				south: 0,
+			},
+			outcome: LOSS,
+		}, {
+			board: &Board{
+				north: 0,
+				south: 0,
+			},
+			outcome: DRAW,
+		}, {
+			board: &Board{
+				north: 1,
+				south: 1,
+			},
+			outcome: DRAW,
+		}, {
+			board: &Board{
+				north:     2,
+				south:     1,
+				southPits: []uint{1, 1, 1},
+			},
+			outcome: WIN,
+		}, {
+			board: &Board{
+				north:     0,
+				south:     2,
+				northPits: []uint{1, 1, 1},
+			},
+			outcome: LOSS,
+		},
+	} {
+		outcome := test.board.Outcome(SideSouth)
+		if outcome != test.outcome {
+			t.Errorf("(%d) Expected %d, got %d", i, test.outcome, outcome)
+		}
+	}
+}
