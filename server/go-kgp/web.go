@@ -63,6 +63,9 @@ var funcs = template.FuncMap{
 			return "???"
 		}
 	},
+	"hasAbout": func() bool {
+		return conf.Web.About != ""
+	},
 }
 
 func init() {
@@ -86,11 +89,11 @@ func init() {
 			}
 
 		case "/about":
-			t := "about.tmpl"
-			if conf.Web.About != "" {
-				t = conf.Web.About
+			if conf.Web.About == "" {
+				http.Error(w, "No about page", http.StatusNoContent)
+				return
 			}
-			err := T.ExecuteTemplate(w, t, struct{}{})
+			err := T.ExecuteTemplate(w, conf.Web.About, struct{}{})
 			if err != nil {
 				log.Print(err)
 			}
