@@ -131,6 +131,7 @@ func main() {
 
 	// Start web server
 	go func() {
+		conf.Web.init()
 		web := fmt.Sprintf("%s:%d", conf.Web.Host, conf.Web.Port)
 		if conf.Debug {
 			log.Printf("Listening via HTTP on %s", web)

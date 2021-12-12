@@ -128,6 +128,8 @@ func openConf(name string) (*Conf, error) {
 				log.Println(err)
 			}
 			file.Close()
+
+			conf.Web.init()
 		}
 	}()
 

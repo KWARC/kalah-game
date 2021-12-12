@@ -21,6 +21,7 @@ package main
 
 import (
 	"embed"
+	"fmt"
 	"html/template"
 	"io/fs"
 	"log"
@@ -68,7 +69,7 @@ var funcs = template.FuncMap{
 	},
 }
 
-func init() {
+func (wc *WebConf) init() {
 	staticfs, err := fs.Sub(html, "html/static")
 	if err != nil {
 		log.Fatal(err)
@@ -93,10 +94,12 @@ func init() {
 				http.Error(w, "No about page", http.StatusNoContent)
 				return
 			}
+			T.ExecuteTemplate(w, "header.tmpl", nil)
 			err := T.ExecuteTemplate(w, conf.Web.About, conf)
 			if err != nil {
-				log.Print(err)
+				fmt.Fprint(w, err)
 			}
+			T.ExecuteTemplate(w, "footer.tmpl", nil)
 		default:
 			static.ServeHTTP(w, r)
 		}
