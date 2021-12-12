@@ -1,4 +1,4 @@
-// Client Waiting Queue 
+// Client Waiting Queue
 //
 // Copyright (c) 2021  Philip Kaludercic
 //
