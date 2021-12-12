@@ -101,10 +101,10 @@ func (cli *Client) Set(key, val string) error {
 	case "info:comment":
 		cli.comment = val
 	case "auth:token":
-		if cli.token == "" {
+		if cli.token == nil {
 			hash := sha256.New()
 			fmt.Fprint(hash, val)
-			cli.token = string(hash.Sum(nil))
+			cli.token = hash.Sum(nil)
 			cli.Score = 1000.0
 
 			var wg sync.WaitGroup

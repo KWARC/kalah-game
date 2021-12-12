@@ -23,6 +23,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"log"
@@ -52,17 +53,18 @@ type Client struct {
 	rid      uint64
 	killFunc context.CancelFunc
 	pinged   bool
-	token    string
+	token    []byte
 	comment  string
 	simple   bool
 	pending  int64
 }
 
 func (cli *Client) String() string {
+	hash := base64.StdEncoding.EncodeToString(cli.token)
 	if conn, ok := cli.rwc.(net.Conn); ok {
-		return fmt.Sprintf("%s (%q)", conn.RemoteAddr(), cli.token)
+		return fmt.Sprintf("%s (%q)", conn.RemoteAddr(), hash)
 	}
-	return fmt.Sprintf("%p (%q)", cli, cli.token)
+	return fmt.Sprintf("%p (%q)", cli, hash)
 }
 
 // Send forwards an unreferenced message to the client

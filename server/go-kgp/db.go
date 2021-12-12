@@ -81,7 +81,7 @@ func (game *Game) updateDatabase(wait *sync.WaitGroup) DBAction {
 func saveMove(in *Game, by *Client, side Side, move int, when time.Time) DBAction {
 	var aid *int64
 
-	if by.token != "" {
+	if by.token != nil {
 		aid = &by.Id
 	}
 

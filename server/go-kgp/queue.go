@@ -20,6 +20,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"math/rand"
 )
@@ -34,7 +35,7 @@ func match(queue []*Client) []*Client {
 	north := queue[0]
 	for i, cli := range queue[1:] {
 		i += 1
-		if cli.token != north.token || cli.token == "" {
+		if !bytes.Equal(cli.token, north.token) || cli.token == nil {
 			south := cli
 			queue[i] = queue[len(queue)-1]
 			queue = queue[1 : len(queue)-1]

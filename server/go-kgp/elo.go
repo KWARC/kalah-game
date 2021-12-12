@@ -38,7 +38,7 @@ var OutcomeToPoints = map[Outcome]float64{
 }
 
 func (cli *Client) updateScore(opp *Client, outcome Outcome) (err error) {
-	if cli.token == "" {
+	if cli.token == nil {
 		panic("Cannot calculate score for anonymous agent")
 	}
 
