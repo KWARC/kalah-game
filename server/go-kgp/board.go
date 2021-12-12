@@ -225,8 +225,18 @@ func (b *Board) OverFor(side Side) bool {
 // Over returns true if the game is over for either side
 func (b *Board) Over() bool {
 	if conf.Game.EarlyWin {
-		half := (b.init*uint(len(b.northPits)))/2 + 1
-		if b.north >= half || b.south >= half {
+		var stones uint
+
+		for _, pit := range b.northPits {
+			stones += pit
+		}
+		for _, pit := range b.southPits {
+			stones += pit
+		}
+		stones += b.north
+		stones += b.south
+
+		if b.north > stones/2 || b.south > stones/2 {
 			return true
 		}
 	}
