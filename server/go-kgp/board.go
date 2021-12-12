@@ -257,7 +257,7 @@ func (b *Board) Outcome(side Side) Outcome {
 		} else {
 			return LOSS
 		}
-	case south < north:
+	case north < south:
 		if side == SideNorth {
 			return LOSS
 		} else {
