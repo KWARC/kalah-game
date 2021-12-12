@@ -57,6 +57,7 @@ func (cli *Client) updateScore(opp *Client, outcome Outcome) (err error) {
 
 	log.Printf("Change %s score by %g", cli, K*(OutcomeToPoints[outcome]-ea))
 	cli.Score = cli.Score + K*(OutcomeToPoints[outcome]-ea)
+	opp.Score = opp.Score + K*(1-OutcomeToPoints[outcome]-eb)
 
 	// Send database manager a request to update the entry
 	var wait sync.WaitGroup

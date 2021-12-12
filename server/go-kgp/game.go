@@ -181,7 +181,6 @@ func (g *Game) Start() {
 	defer func() {
 		if g.North.token != nil && g.South.token != nil {
 			g.North.updateScore(g.South, g.Board.Outcome(SideNorth))
-			g.South.updateScore(g.North, g.Board.Outcome(SideSouth))
 		}
 
 		var wait sync.WaitGroup
