@@ -42,7 +42,7 @@ const (
 var (
 	conf *Conf = &defaultConfig
 
-	debug = log.New(io.Discard, "debug", log.LstdFlags|log.Lshortfile|log.Lmicroseconds)
+	debug = log.New(io.Discard, "[debug] ", log.Ltime|log.Lshortfile|log.Lmicroseconds)
 )
 
 func listen(ln net.Listener) {
