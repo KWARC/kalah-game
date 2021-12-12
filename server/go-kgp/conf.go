@@ -22,9 +22,10 @@ package main
 import (
 	"io"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
-
+	"sync"
 	"syscall"
 
 	"github.com/BurntSushi/toml"
@@ -42,10 +43,13 @@ type WSConf struct {
 }
 
 type WebConf struct {
-	Host  string `toml:"host"`
-	Port  uint   `toml:"port"`
-	Limit uint   `toml:"limit"`
-	About string `toml:"about"`
+	Enabled bool   `toml:"enabled"`
+	Host    string `toml:"host"`
+	Port    uint   `toml:"port"`
+	Limit   uint   `toml:"limit"`
+	About   string `toml:"about"`
+	server  *http.Server
+	mutex   sync.Mutex
 }
 
 type TCPConf struct {
@@ -88,10 +92,11 @@ var defaultConfig = Conf{
 		EarlyWin: true,
 	},
 	Web: WebConf{
-		Host:  "0.0.0.0",
-		Port:  8080,
-		Limit: 50,
-		About: "",
+		Enabled: true,
+		Host:    "0.0.0.0",
+		Port:    8080,
+		Limit:   50,
+		About:   "",
 	},
 	WS: WSConf{
 		Enabled: false,
@@ -108,21 +113,31 @@ var defaultConfig = Conf{
 
 func (conf *Conf) init() {
 	go func() {
+		var (
+			rc  io.ReadCloser
+			err error
+		)
+
 		c := make(chan os.Signal, 1)
 		signal.Notify(c, syscall.SIGUSR1)
+
 		for range c {
-			file, err := os.Open(conf.file)
+			if conf.file == "" {
+				goto init
+			}
+			rc, err = os.Open(conf.file)
 			if err != nil {
 				log.Println(err)
 				continue
 			}
 
-			err = parseConf(file, conf)
+			err = parseConf(rc, conf)
 			if err != nil {
 				log.Println(err)
 			}
-			file.Close()
+			rc.Close()
 
+		init:
 			conf.init()
 		}
 	}()

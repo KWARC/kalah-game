@@ -126,14 +126,6 @@ func main() {
 		go listen(plain)
 	}
 
-	// Start web server
-	go func() {
-		conf.Web.init()
-		web := fmt.Sprintf("%s:%d", conf.Web.Host, conf.Web.Port)
-		debug.Printf("Listening via HTTP on %s", web)
-		log.Fatal(http.ListenAndServe(web, nil))
-	}()
-
 	// Start match scheduler
 	go queueManager()
 

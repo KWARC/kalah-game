@@ -20,6 +20,7 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"fmt"
 	"html/template"
@@ -69,19 +70,35 @@ var funcs = template.FuncMap{
 	},
 }
 
-func (wc *WebConf) init() {
+var static http.Handler
+
+func init() {
 	staticfs, err := fs.Sub(html, "html/static")
 	if err != nil {
 		log.Fatal(err)
 	}
-	static := http.FileServer(http.FS(staticfs))
+	static = http.FileServer(http.FS(staticfs))
+}
+
+func (wc *WebConf) init() {
+	if !wc.Enabled {
+		return
+	}
+
+	if wc.server != nil {
+		wc.server.Shutdown(context.Background())
+	}
+
+	mux := http.NewServeMux()
+	wc.mutex.Lock()
+	defer wc.mutex.Unlock()
 
 	// Install HTTP handlers
-	http.HandleFunc("/games", listGames)
-	http.HandleFunc("/agents", listAgents)
-	http.HandleFunc("/game/", showGame)
-	http.HandleFunc("/agent/", showAgent)
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/games", listGames)
+	mux.HandleFunc("/agents", listAgents)
+	mux.HandleFunc("/game/", showGame)
+	mux.HandleFunc("/agent/", showAgent)
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/":
 			err := T.ExecuteTemplate(w, "index.tmpl", struct{}{})
@@ -106,12 +123,21 @@ func (wc *WebConf) init() {
 	})
 
 	// Parse templates
+	var err error
 	T = template.Must(template.New("").Funcs(funcs).ParseFS(html, "html/*.tmpl"))
 	if conf.Web.About != "" {
 		T, err = T.ParseFiles(conf.Web.About)
 		if err != nil {
 			log.Fatal(err)
 		}
+	}
+
+	addr := fmt.Sprintf("%s:%d", conf.Web.Host, conf.Web.Port)
+	log.Printf("Listening via HTTP on %s", addr)
+	wc.server = &http.Server{Addr: addr, Handler: mux}
+	err = wc.server.ListenAndServe()
+	if err != nil {
+		log.Print(err)
 	}
 }
 
