@@ -29,6 +29,7 @@ import (
 	"net/http"
 	"path"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -70,7 +71,14 @@ var funcs = template.FuncMap{
 	},
 }
 
-var static http.Handler
+var (
+	// The static file system as a HTTP Handler
+	static http.Handler
+
+	// A lock to synchronise the restarting of a web server on
+	// configuration reload
+	weblock sync.Mutex
+)
 
 func init() {
 	staticfs, err := fs.Sub(html, "html/static")
@@ -90,8 +98,8 @@ func (wc *WebConf) init() {
 	}
 
 	mux := http.NewServeMux()
-	wc.mutex.Lock()
-	defer wc.mutex.Unlock()
+	weblock.Lock()
+	defer weblock.Unlock()
 
 	// Install HTTP handlers
 	mux.HandleFunc("/games", listGames)

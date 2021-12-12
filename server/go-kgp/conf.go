@@ -25,7 +25,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 
 	"github.com/BurntSushi/toml"
@@ -49,7 +48,6 @@ type WebConf struct {
 	Limit   uint   `toml:"limit"`
 	About   string `toml:"about"`
 	server  *http.Server
-	mutex   sync.Mutex
 }
 
 type TCPConf struct {
