@@ -83,6 +83,9 @@ func main() {
 	flag.BoolVar(&conf.Debug, "debug",
 		conf.Debug,
 		"Print all network I/O")
+	flag.StringVar(&conf.Web.About, "about",
+		conf.Web.About,
+		"A template for the about page")
 	flag.Parse()
 
 	if *dumpConf {

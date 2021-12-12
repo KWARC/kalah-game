@@ -45,6 +45,7 @@ type WebConf struct {
 	Host  string `toml:"host"`
 	Port  uint   `toml:"port"`
 	Limit uint   `toml:"limit"`
+	About string `toml:"about"`
 }
 
 type TCPConf struct {
@@ -89,6 +90,7 @@ var defaultConfig = Conf{
 		Host:  "0.0.0.0",
 		Port:  8080,
 		Limit: 50,
+		About: "",
 	},
 	WS: WSConf{
 		Enabled: false,

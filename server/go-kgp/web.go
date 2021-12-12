@@ -86,7 +86,11 @@ func init() {
 			}
 
 		case "/about":
-			err := T.ExecuteTemplate(w, "about.tmpl", struct{}{})
+			t := "about.tmpl"
+			if conf.Web.About != "" {
+				t = conf.Web.About
+			}
+			err := T.ExecuteTemplate(w, t, struct{}{})
 			if err != nil {
 				log.Print(err)
 			}
@@ -97,7 +101,12 @@ func init() {
 
 	// Parse templates
 	T = template.Must(template.New("").Funcs(funcs).ParseFS(html, "html/*.tmpl"))
-
+	if conf.Web.About != "" {
+		T, err = T.ParseFiles(conf.Web.About)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
 }
 
 func showGame(w http.ResponseWriter, r *http.Request) {
