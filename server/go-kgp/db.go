@@ -77,7 +77,6 @@ func saveMove(in *Game, by *Client, side Side, move int, when time.Time) DBActio
 		if err != nil {
 			log.Println(err)
 		}
-		return
 	}
 }
 
@@ -115,7 +114,6 @@ func (cli *Client) updateDatabase(wait *sync.WaitGroup) DBAction {
 		if wait != nil {
 			wait.Done()
 		}
-		return
 	}
 }
 
@@ -133,8 +131,6 @@ func queryAgent(aid int, c chan<- *Agent) DBAction {
 		} else {
 			c <- &agent
 		}
-
-		return
 	}
 }
 
@@ -185,7 +181,6 @@ func queryGame(gid int, c chan<- *Game) DBAction {
 		}
 
 		c <- game
-		return
 	}
 }
 
@@ -275,8 +270,6 @@ func queryGames(c chan<- *Game, page int, aid *int) DBAction {
 		if err = rows.Err(); err != nil {
 			log.Println(err)
 		}
-
-		return
 	}
 }
 
@@ -306,8 +299,6 @@ func queryAgents(c chan<- *Agent, page int) DBAction {
 		if err = rows.Err(); err != nil {
 			log.Println(err)
 		}
-
-		return
 	}
 }
 
