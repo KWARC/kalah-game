@@ -44,7 +44,7 @@ type WSConf struct {
 type WebConf struct {
 	Host  string `toml:"host"`
 	Port  uint   `toml:"port"`
-	Limit uint   `tomp:"limit"`
+	Limit uint   `toml:"limit"`
 }
 
 type TCPConf struct {
@@ -52,13 +52,13 @@ type TCPConf struct {
 	Host    string `toml:"host"`
 	Port    uint   `toml:"port"`
 	Ping    bool   `toml:"ping"`
-	Timeout uint   `time:"timeout"`
+	Timeout uint   `toml:"timeout"`
 	Retries uint   `toml:"retries"`
 }
 
 type DBConf struct {
 	File    string `toml:"file"`
-	Threads uint   `toml:""`
+	Threads uint   `toml:"threads"`
 	Mode    string `toml:"mode"`
 }
 
