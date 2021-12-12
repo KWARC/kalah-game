@@ -17,7 +17,6 @@
 // License, version 3, along with go-kgp. If not, see
 // <http://www.gnu.org/licenses/>
 
-
 package main
 
 import (

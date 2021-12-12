@@ -23,7 +23,6 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
-	"log"
 	"regexp"
 	"strconv"
 	"strings"
@@ -122,9 +121,7 @@ func (cli *Client) Set(key, val string) error {
 func (cli *Client) Interpret(input string) error {
 	matches := parser.FindStringSubmatch(input)
 	if matches == nil {
-		if conf.Debug {
-			log.Printf("Malformed input: %v", input)
-		}
+		debug.Printf("Malformed input: %v", input)
 		return nil
 	}
 

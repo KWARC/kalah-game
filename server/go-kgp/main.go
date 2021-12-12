@@ -22,6 +22,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -38,7 +39,11 @@ const (
 	defConfName = "server.toml"
 )
 
-var conf *Conf = &defaultConfig
+var (
+	conf *Conf = &defaultConfig
+
+	debug = log.New(io.Discard, "debug", log.LstdFlags|log.Lshortfile|log.Lmicroseconds)
+)
 
 func listen(ln net.Listener) {
 	for {
@@ -104,17 +109,11 @@ func main() {
 	if newconf != nil {
 		conf = newconf
 	}
-
-	if conf.Debug {
-		log.SetFlags(log.LstdFlags | log.Lshortfile)
-	}
+	conf.init()
 
 	if conf.WS.Enabled {
 		http.HandleFunc("/socket", listenUpgrade)
-		if conf.Debug {
-			log.Print("Handling websocket on /socket")
-		}
-
+		debug.Print("Handling websocket on /socket")
 	}
 
 	if conf.TCP.Enabled {
@@ -123,9 +122,7 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		if conf.Debug {
-			log.Printf("Listening on TCP %s", tcp)
-		}
+		debug.Printf("Listening on TCP %s", tcp)
 		go listen(plain)
 	}
 
@@ -133,9 +130,7 @@ func main() {
 	go func() {
 		conf.Web.init()
 		web := fmt.Sprintf("%s:%d", conf.Web.Host, conf.Web.Port)
-		if conf.Debug {
-			log.Printf("Listening via HTTP on %s", web)
-		}
+		debug.Printf("Listening via HTTP on %s", web)
 		log.Fatal(http.ListenAndServe(web, nil))
 	}()
 

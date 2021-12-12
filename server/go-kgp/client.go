@@ -112,9 +112,7 @@ func (cli *Client) Respond(to uint64, command string, args ...interface{}) uint6
 		return 0
 	}
 
-	if conf.Debug {
-		log.Print(cli, " > ", buf.String())
-	}
+	debug.Print(cli, " > ", buf.String())
 	fmt.Fprint(buf, "\r\n")
 
 	i := conf.TCP.Retries // allow 8 unsuccesful retries
@@ -218,9 +216,7 @@ func (cli *Client) Handle() {
 
 			// Interpret line
 			input := scanner.Text()
-			if conf.Debug {
-				log.Print(cli, " < ", input)
-			}
+			debug.Print(cli, " < ", input)
 			err := cli.Interpret(input)
 			if err != nil {
 				log.Println(err)

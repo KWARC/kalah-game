@@ -71,6 +71,7 @@ type Conf struct {
 	Web      WebConf  `toml:"web"`
 	WS       WSConf   `toml:"websocket"`
 	TCP      TCPConf  `toml:"tcp"`
+	file     string
 }
 
 var defaultConfig = Conf{
@@ -105,6 +106,36 @@ var defaultConfig = Conf{
 	},
 }
 
+func (conf *Conf) init() {
+	go func() {
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, syscall.SIGUSR1)
+		for range c {
+			file, err := os.Open(conf.file)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+
+			err = parseConf(file, conf)
+			if err != nil {
+				log.Println(err)
+			}
+			file.Close()
+
+			conf.init()
+		}
+	}()
+
+	if conf.Debug {
+		debug.SetOutput(os.Stderr)
+	} else {
+		debug.SetOutput(io.Discard)
+	}
+
+	conf.Web.init()
+}
+
 func parseConf(r io.Reader, conf *Conf) error {
 	_, err := toml.NewDecoder(r).Decode(conf)
 	return err
@@ -113,31 +144,12 @@ func parseConf(r io.Reader, conf *Conf) error {
 func openConf(name string) (*Conf, error) {
 	var conf Conf
 
-	go func() {
-		c := make(chan os.Signal, 1)
-		signal.Notify(c, syscall.SIGUSR1)
-		for range c {
-			file, err := os.Open(name)
-			if err != nil {
-				log.Println(err)
-				continue
-			}
-
-			err = parseConf(file, &conf)
-			if err != nil {
-				log.Println(err)
-			}
-			file.Close()
-
-			conf.Web.init()
-		}
-	}()
-
 	file, err := os.Open(name)
 	if err != nil {
 		return nil, err
 	}
 	defer file.Close()
 
+	conf.file = name
 	return &conf, parseConf(file, &conf)
 }
