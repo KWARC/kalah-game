@@ -93,7 +93,7 @@ func init() {
 				http.Error(w, "No about page", http.StatusNoContent)
 				return
 			}
-			err := T.ExecuteTemplate(w, conf.Web.About, struct{}{})
+			err := T.ExecuteTemplate(w, conf.Web.About, conf)
 			if err != nil {
 				log.Print(err)
 			}
