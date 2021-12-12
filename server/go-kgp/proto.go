@@ -20,7 +20,9 @@
 package main
 
 import (
+	"crypto/sha256"
 	"errors"
+	"fmt"
 	"log"
 	"regexp"
 	"strconv"
@@ -101,7 +103,9 @@ func (cli *Client) Set(key, val string) error {
 		cli.comment = val
 	case "auth:token":
 		if cli.token == "" {
-			cli.token = val
+			hash := sha256.New()
+			fmt.Fprint(hash, val)
+			cli.token = string(hash.Sum(nil))
 			cli.Score = 1000.0
 
 			var wg sync.WaitGroup
