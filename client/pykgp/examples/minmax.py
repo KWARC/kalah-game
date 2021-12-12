@@ -53,10 +53,9 @@ def search(state, depth, side):
 # informs the client that the time is over, all following values by
 # the generator are ignored.
 #
-# Note that every agent is called in a separate thread that will be
-# abruptly killed as soon as it's time has come.  Be careful to not
-# reserve any resources that have to be manually deallocated or
-# cleaned up.
+# Note that the agent is invoked in a separate process that will be
+# abruptly killed as soon as it's time has come.  By default you
+# cannot share resources between invocation.
 
 def agent(state):
     for depth in range(1, 16):
