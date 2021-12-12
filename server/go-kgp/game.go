@@ -169,7 +169,9 @@ func (g *Game) Start() {
 	g.South.game = g
 	g.schoice = -1
 
-	log.Printf("Start game between %s and %s", g.North, g.South)
+	log.Printf("Start game (%d, %d) between %s and %s",
+		len(g.Board.northPits), g.Board.init,
+		g.North, g.South)
 
 	g.side = SideSouth
 	g.last = g.South.Send("state", g)
