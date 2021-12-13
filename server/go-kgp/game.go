@@ -179,12 +179,17 @@ func (g *Game) Start() {
 
 	timer := time.NewTimer(time.Duration(conf.Game.Timeout) * time.Second)
 
+	killed := false
 	defer func() {
 		if g.logged {
 			g.updateScore()
 		}
 
 		if conf.Endless {
+			if killed {
+				return
+			}
+
 			// In the "endless" mode, the client is just
 			// added back to the waiting queue as soon as
 			// the game is over.
@@ -233,6 +238,11 @@ func (g *Game) Start() {
 			}
 			opp := g.Other(cli)
 
+			// Leave enough time for the queue to be
+			// updated and all traces of the opponent to
+			// be removed.
+			time.Sleep(time.Second)
+
 			if conf.Endless {
 				if g.Current() == opp {
 					opp.Respond(g.last, "stop")
@@ -242,6 +252,8 @@ func (g *Game) Start() {
 			} else {
 				opp.killFunc()
 			}
+
+			killed = true
 			return
 		case <-timer.C:
 			// The time allocated for the current player
