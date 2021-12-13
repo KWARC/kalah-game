@@ -25,7 +25,6 @@ import (
 	"io"
 	"log"
 	"net"
-	"net/http"
 	"os"
 
 	"github.com/BurntSushi/toml"
@@ -110,11 +109,6 @@ func main() {
 		conf = newconf
 	}
 	conf.init()
-
-	if conf.WS.Enabled {
-		http.HandleFunc("/socket", listenUpgrade)
-		debug.Print("Handling websocket on /socket")
-	}
 
 	if conf.TCP.Enabled {
 		tcp := fmt.Sprintf("%s:%d", conf.TCP.Host, conf.TCP.Port)

@@ -130,6 +130,11 @@ func (wc *WebConf) init() {
 		}
 	})
 
+	if conf.WS.Enabled {
+		mux.HandleFunc("/socket", listenUpgrade)
+		debug.Print("Handling websocket on /socket")
+	}
+
 	// Parse templates
 	var err error
 	T = template.Must(template.New("").Funcs(funcs).ParseFS(html, "html/*.tmpl"))
