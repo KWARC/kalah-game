@@ -57,6 +57,7 @@ type Client struct {
 	comment  string
 	simple   bool
 	pending  int64
+	isWS     bool
 }
 
 func (cli *Client) String() string {
@@ -124,8 +125,7 @@ func (cli *Client) Respond(to uint64, command string, args ...interface{}) uint6
 retry:
 	n, err := io.Copy(cli.rwc, buf)
 	if err != nil {
-		_, isWS := cli.rwc.(*wsrwc)
-		if isWS {
+		if cli.isWS {
 			return id
 		}
 
@@ -197,8 +197,7 @@ func (cli *Client) Handle() {
 	// Optionally start a thread to periodically send ping
 	// requests to the client
 	var done chan struct{}
-	_, isWS := cli.rwc.(*wsrwc)
-	if conf.TCP.Ping && !isWS {
+	if conf.TCP.Ping && !cli.isWS {
 		done = make(chan (struct{}))
 		go cli.Pinger(done)
 	}
