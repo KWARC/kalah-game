@@ -228,7 +228,7 @@ func (g *Game) Start() {
 			next = true
 		case cli := <-death:
 			if g.North != cli && g.South != cli {
-				log.Println("Unrelated death")
+				log.Print("Unrelated death")
 				return
 			}
 			opp := g.Other(cli)

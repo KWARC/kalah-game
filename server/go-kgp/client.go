@@ -142,7 +142,7 @@ retry:
 			i--
 			goto retry
 		} else {
-			log.Println(cli, err)
+			log.Print(cli, err)
 			cli.killFunc()
 		}
 	}
@@ -223,7 +223,7 @@ func (cli *Client) Handle() {
 			debug.Print(cli, " < ", input)
 			err := cli.Interpret(input)
 			if err != nil {
-				log.Println(err)
+				log.Print(err)
 			}
 
 		}

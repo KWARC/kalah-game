@@ -125,13 +125,13 @@ func (conf *Conf) init() {
 			}
 			rc, err = os.Open(conf.file)
 			if err != nil {
-				log.Println(err)
+				log.Print(err)
 				continue
 			}
 
 			err = parseConf(rc, conf)
 			if err != nil {
-				log.Println(err)
+				log.Print(err)
 			}
 			rc.Close()
 
