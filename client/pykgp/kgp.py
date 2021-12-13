@@ -239,7 +239,6 @@ def connect(agent, host='localhost', port=2671, token=None, name=None, authors=[
                 return parsed
 
     def handle(read, write):
-        lock = threading.Lock()
         id = 1
 
         def send(cmd, *args, ref=None):
@@ -250,7 +249,9 @@ def connect(agent, host='localhost', port=2671, token=None, name=None, authors=[
             """
             nonlocal id
 
-            msg = str(id)
+            msg = ""
+            if not id is None:
+                msg = str(id)
             if ref:
                 msg += f'@{ref}'
             msg += " " + cmd
@@ -267,7 +268,7 @@ def connect(agent, host='localhost', port=2671, token=None, name=None, authors=[
                 print(">", msg, file=sys.stderr)
             write(msg + "\r\n")
 
-            with lock:
+            if not id is None:
                 id += 2
 
         def query(state, cid):
@@ -278,6 +279,9 @@ def connect(agent, host='localhost', port=2671, token=None, name=None, authors=[
             state command that issued the request.
 
             """
+            nonlocal id
+            id = None
+
             if state.is_final():
                 return
             last = None
