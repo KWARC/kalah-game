@@ -179,34 +179,6 @@ func (g *Game) Start() {
 
 	timer := time.NewTimer(time.Duration(conf.Game.Timeout) * time.Second)
 
-	killed := false
-	defer func() {
-		if g.logged {
-			g.updateScore()
-		}
-
-		if conf.Endless {
-			if killed {
-				return
-			}
-
-			// In the "endless" mode, the client is just
-			// added back to the waiting queue as soon as
-			// the game is over.
-			if g.North.game == g {
-				g.North.game = nil
-				enqueue <- g.North
-			}
-			if g.South.game == g {
-				g.South.game = nil
-				enqueue <- g.South
-			}
-		} else {
-			g.North.killFunc()
-			g.South.killFunc()
-		}
-	}()
-
 	if g.North.token != nil && g.South.token != nil {
 		g.logged = true
 		dbact <- g.updateDatabase(nil)
@@ -253,7 +225,6 @@ func (g *Game) Start() {
 				opp.killFunc()
 			}
 
-			killed = true
 			return
 		case <-timer.C:
 			// The time allocated for the current player
@@ -285,7 +256,7 @@ func (g *Game) Start() {
 
 			again := g.Board.Sow(g.side, choice)
 			if g.Board.Over() {
-				return
+				break
 			}
 
 			if !again {
@@ -297,5 +268,26 @@ func (g *Game) Start() {
 
 			timer.Reset(time.Duration(conf.Game.Timeout) * time.Second)
 		}
+	}
+
+	if g.logged {
+		g.updateScore()
+	}
+
+	if conf.Endless {
+		// In the "endless" mode, the client is just
+		// added back to the waiting queue as soon as
+		// the game is over.
+		if g.North.game == g {
+			g.North.game = nil
+			enqueue <- g.North
+		}
+		if g.South.game == g {
+			g.South.game = nil
+			enqueue <- g.South
+		}
+	} else {
+		g.North.killFunc()
+		g.South.killFunc()
 	}
 }
