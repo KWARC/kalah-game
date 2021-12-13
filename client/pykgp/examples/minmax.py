@@ -68,6 +68,10 @@ def agent(state):
 #
 #       kgp.connect(agent, host="wss://kalah.kwarc.info/socket")
 #
+# Note that this requires that the "websocket-client" library (not to
+# be confused with "websockets", that ends with an "s") has to be
+# installed for Python 3!
+#
 # Optionally you may also supply additional information (name,
 # description, identification token).  For more information on these,
 # refer to the KGP.CONNECT docstring.  In some cases it might make
