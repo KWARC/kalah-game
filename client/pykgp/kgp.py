@@ -313,13 +313,13 @@ def connect(agent, host='localhost', port=2671, token=None, name=None, authors=[
                     if major != 1:
                         send("error", "protocol not supported", ref=cid)
                         raise ValueError()
-                    send("mode", "freeplay")
                     if name:
                         send("set", "info:name", name)
                     if authors:
                         send("set", "info:authors", ",".join(authors))
                     if token:
                         send("set", "auth:token", token)
+                    send("mode", "freeplay")
                 elif cmd == "state":
                     board = args[0]
 
