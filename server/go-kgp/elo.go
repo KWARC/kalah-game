@@ -37,15 +37,11 @@ var OutcomeToPoints = map[Outcome]float64{
 	LOSS: 0.0,
 }
 
-func (cli *Client) updateScore(opp *Client, outcome Outcome) (err error) {
-	if cli.token == nil {
-		panic("Cannot calculate score for anonymous agent")
-	}
-
+func (g *Game) updateScore() (err error) {
 	// Calculate the new ELO rating for the current client
 	// according to
 	// https://de.wikipedia.org/wiki/Elo-Zahl#Erwartungswert
-	diff := math.Max(-400, math.Min(opp.Score-cli.Score, 400))
+	diff := math.Max(-400, math.Min(g.South.Score-g.North.Score, 400))
 
 	ea := 1 / (1 + math.Pow(10, diff/MAX_DIFF))
 	eb := 1 / (1 + math.Pow(10, -diff/MAX_DIFF))
@@ -55,14 +51,16 @@ func (cli *Client) updateScore(opp *Client, outcome Outcome) (err error) {
 		return nil
 	}
 
-	log.Printf("Change %s score by %g", cli, K*(OutcomeToPoints[outcome]-ea))
-	cli.Score = cli.Score + K*(OutcomeToPoints[outcome]-ea)
-	opp.Score = opp.Score + K*(1-OutcomeToPoints[outcome]-eb)
+	outcome := g.Board.Outcome(SideSouth)
+	g.South.Score += K * (OutcomeToPoints[outcome] - ea)
+	g.North.Score += K * (1 - OutcomeToPoints[outcome] - eb)
 
 	// Send database manager a request to update the entry
 	var wait sync.WaitGroup
-	wait.Add(1)
-	dbact <- cli.updateDatabase(&wait)
+	wait.Add(3)
+	dbact <- g.South.updateDatabase(&wait)
+	dbact <- g.North.updateDatabase(&wait)
+	dbact <- g.updateDatabase(&wait)
 	wait.Wait()
 
 	return nil

@@ -22,7 +22,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -180,13 +179,8 @@ func (g *Game) Start() {
 
 	defer func() {
 		if g.North.token != nil && g.South.token != nil {
-			g.North.updateScore(g.South, g.Board.Outcome(SideNorth))
+			g.updateScore()
 		}
-
-		var wait sync.WaitGroup
-		wait.Add(1)
-		dbact <- g.updateDatabase(&wait)
-		wait.Wait()
 
 		if conf.Endless {
 			// In the "endless" mode, the client is just
