@@ -1,0 +1,13 @@
+Kalah Game Protocol Java library
+
+Maintainer: Tobias Völk <tobias.voelk@t-online.de>
+
+To use this library, copy the code in info.kwarc.kalah.jkgp, if
+necessary adapting packages and imports at the top of the files.  The
+library itself can be modified however you like, as long as it still
+communicates as intended.
+
+The files ExampleAgent.java and MinMaxAgent.java give you a template
+on how your client should look like.
+
+Happy coding!
