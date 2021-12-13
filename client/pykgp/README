@@ -2,10 +2,19 @@ This is a client-side library implementation of the Kalah Game Protocl
 (KGP), written in Python 3[0].  It implements the base protocol, without
 any extensions.  Currently, it assumes the "freeplay" mode.
 
-This library only depends on core Python 3 packages, and thus requires
-no external dependencies.  To use, just make sure that kgp.py is in
-PYTHONPATH, and import the "kgp" module.
+This core functionality depends only on core Python 3 packages, and
+thus requires no external dependencies.  To use, just make sure that
+kgp.py is in PYTHONPATH, and import the "kgp" module.
+
+If you need to use websocket, you will have to install the
+websocket-client[1] library.  You should be able to install this using
+your local system package manager[2].
 
 Client examples can be found in the examples/ subdirectory.
 
 [0] https://www.python.org/
+[1] https://pypi.org/project/websocket-client/
+[2] https://repology.org/project/python:websocket-client/packages,
+    https://repology.org/project/websocket-client/packages
+
+Maintainer: Philip Kaludercic <philip.kaludercic@fau.de>
