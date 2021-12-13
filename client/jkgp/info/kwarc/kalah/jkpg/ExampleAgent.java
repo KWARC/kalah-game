@@ -22,12 +22,12 @@ public class ExampleAgent extends Agent {
                 host,
                 port,
                 conType,
-                "ExampleAgentName",
-                "Philip Kaludercic, Tobias Völk",
+                "ExampleAgent",
+                "Tobias Völk [Former Tutor]",
                 "Totally sophisticated Kalah agent developed by Philip Kaludercic und Tobias Völk in 2021.\n\n" +
                         "Chooses among the legal moves uniform at random, pretends to be thinking.\n" +
                         "Very friendly to the environment.",
-                null // TODO CHANGE BACK TO TOKEN
+                TOKEN
         );
 
         // Initialize your agent, load databases, neural networks, ...
@@ -37,17 +37,14 @@ public class ExampleAgent extends Agent {
     @Override
     public void search(KalahState ks) throws IOException {
 
-        // Immediately send some legal move in case time runs out early
-        // so the server doesn't punish us
-        submitMove(ks.lowestLegalMove());
-
         // The actual "search". ShouldStop is checked in a loop but if you're doing a recursive search you might want
         // to check it every N nodes or every N milliseconds, just so it's called a few times per second,
         // as a good server punishes slow reactions to the stop command by subtracting the delay from the amount of
         // time for the next move
 
-        long timeToWait = 50;
-        while (!shouldStop())
+        int naps = 3;
+        long timeToWait = 5; // 5 milliseconds
+        while (!shouldStop() && naps > 0)
         {
             // Randomly decide whether to stop the search early
             // In practice you might stop when you know that your position is won - it speeds up the tournament!
@@ -68,12 +65,11 @@ public class ExampleAgent extends Agent {
             sendComment("Currently best move: " + (chosenMove + 1) + "\n" +
                     "Evaluation: -3\n" +
                     "Computation steps: 5\n" +
-                    "Agent is very \"happy\"");
+                    "Emotion: \"happy\"");
 
-            // Artificially sleeping with increasing length, makes no sense in a real agent of course,
-            // just to simulate sending multiple moves spread out over a timespan
+            // Artificially sleeping, makes no sense in a real agent of course,
             sleep(timeToWait);
-            timeToWait *= 2.0; // increase search time
+            naps --;
         }
 
         // This implementation doesn't return from search() until the server says so via shouldStop(),
@@ -83,14 +79,10 @@ public class ExampleAgent extends Agent {
     // You can also implement your own methods of course
     private static void sleep(long millis)
     {
-        long start = System.currentTimeMillis();
-        while(System.currentTimeMillis() < start + millis) {
-            try {
-                long remainingTime = (start + millis) - System.currentTimeMillis();
-                Thread.sleep(remainingTime);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
     }
 
@@ -102,13 +94,13 @@ public class ExampleAgent extends Agent {
         // Note that tournament programs will start your client in a process and punish it
         // if it doesn't connect to the server within a specified amount of time
 
-        // Use WebSocketSecure to connect to the training server, port doesn't matter
-        // cip1e0.cip.cs.fau.de is some CIP-Pool computer, you need to enter the training servers address of course
-        //Agent agent = new ExampleAgent("cip1e0.cip.cs.fau.de", null, ProtocolManager.ConnectionType.WebSocketSecure);
+        // Use WebSocketSecure to connect to the training server
+        // For WebSocket and WebSocketSecure you can enter a different port
+        Agent agent = new ExampleAgent("kalah.kwarc.info/socket", null, ProtocolManager.ConnectionType.WebSocketSecure);
 
-        // For local tests on the same PC use TCP, the Kalah Game Protocol default port is 2671
-        // Official server: cip1e1.cip.cs.fau.de:8080/socket
-        Agent agent = new ExampleAgent("wssecho.kwarc.info/socket", null, ProtocolManager.ConnectionType.WebSocketSecure);
+        // For local tests (the server code is publicly available) on the same PC use TCP,
+        // the Kalah Game Protocol default port is 2671
+        // Agent agent = new ExampleAgent("localhost", 2671, ProtocolManager.ConnectionType.TCP);
 
         // If necessary, do some other stuff here before connecting.
         // The game might start immediately after connecting!
@@ -122,7 +114,7 @@ public class ExampleAgent extends Agent {
                 e.printStackTrace();
             }
             // Wait 10 seconds before trying again
-            sleep(10_000);
+            //sleep(10_000);
         }
     }
 

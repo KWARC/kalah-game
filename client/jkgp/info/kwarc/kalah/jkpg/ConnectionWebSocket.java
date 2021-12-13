@@ -18,6 +18,8 @@ public class ConnectionWebSocket implements Connection {
     private WebSocket webSocket;
     private LinkedBlockingQueue<String> input = new LinkedBlockingQueue<>();
 
+    private String acc = ""; // for accumulating WebSocket messages if they arrive in parts
+
     public ConnectionWebSocket(String host) throws IOException {
 
         this.host = host;
@@ -25,37 +27,30 @@ public class ConnectionWebSocket implements Connection {
         WebSocket.Listener listener = new WebSocket.Listener() {
 
             @Override
-            public void onError(WebSocket webSocket, Throwable error) {
-                error.printStackTrace();
-                System.err.println(error.getMessage());
-            }
-
-            @Override
             public CompletionStage<?> onText(WebSocket webSocket, CharSequence data, boolean last) {
 
-                if (!last) {
-                    throw new IllegalArgumentException("last was false, message incomplete");
+                acc = acc + data;
+
+                if (last) {
+                    if (acc.charAt(data.length()-1) == '\n') {
+                        acc = (String) acc.subSequence(0, acc.length()-1);
+                    }
+
+                    try {
+                        input.add(acc);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        System.exit(1);
+                    }
+                    acc = "";
                 }
 
-                if (data.charAt(data.length()-1) == '\n') {
-                    data = data.subSequence(0, data.length()-1);
-                }
-
-                try {
-                    System.out.println("FROM WEBSOCKET: " + data);
-                    input.add(data.toString());
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    System.exit(1);
-                }
-
+                webSocket.request(1);
                 return null;
             }
 
             @Override
             public CompletionStage<?> onClose(WebSocket webSocket, int statusCode, String reason) {
-                System.out.println("Code: "+statusCode);
-                System.out.println("Reason: "+reason);
                 input.add(POISON_PILL);
                 return null;
             }
@@ -69,14 +64,11 @@ public class ConnectionWebSocket implements Connection {
         } catch(InterruptedException ie) {
             throw new IOException("InterruptedException: " + ie.getMessage());
         }
-
-        send("ok");
     }
 
     @Override
     public void send(String msg) {
         webSocket.sendText(msg + "\n", true);
-        //System.out.println("TO WEBSOCKET: " + msg);
     }
 
     @Override

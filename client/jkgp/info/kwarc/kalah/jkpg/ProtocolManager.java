@@ -143,11 +143,11 @@ public class ProtocolManager {
     // Creates new instance of communication to given server for the given agent
     public ProtocolManager(String host, Integer port, ConnectionType conType, Agent agent) {
 
-        if (port != null && conType != ConnectionType.TCP) {
-            throw new IllegalArgumentException("Setting the port is useless when using WebSocket or WebSocketSecure");
+        if (port == null) {
+            this.host = host;
+        } else {
+            this.host = host + ":" + port;
         }
-
-        this.host = host;
         this.port = port;
         this.conType = conType;
         this.agent = agent;
@@ -357,9 +357,7 @@ public class ProtocolManager {
                             }
                         } else if ("stop".equals(cmd.name)) {
 
-                            if (!isCorrectStopCommand(cmd)) {
-                                throw new ProtocolException("Not a correct stop command: " + cmd.original);
-                            }
+                            // Don't care whether stop has any arguments (it's not supposed to have any)
 
                             if (state == ProtocolState.SEARCHING) {
 
@@ -769,13 +767,6 @@ public class ProtocolManager {
     private boolean isCorrectSetCommand(Command msg)
     {
         return msg.name.equals("set") && msg.args.size() == 2;
-
-        // TODO so what is a correct set command?
     }
 
-    // checks whether the given command is a correct stop command
-    private boolean isCorrectStopCommand(Command msg)
-    {
-        return msg.original.equals("stop");
-    }
 }

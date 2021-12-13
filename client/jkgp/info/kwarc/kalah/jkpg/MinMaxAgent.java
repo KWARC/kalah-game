@@ -1,7 +1,6 @@
 package kgp.info.kwarc.kalah.jkpg;
 
 import java.io.IOException;
-import java.util.Random;
 import kgp.info.kwarc.kalah.jkpg.KalahState.*;
 
 
@@ -17,10 +16,10 @@ public class MinMaxAgent extends Agent {
                 port,
                 conType,
                 "MinMax " + level,
-                "Tobias Völk [Tutor]",
+                "Tobias Völk [Former Tutor]",
                 "MinMax, Iterative deepening until server tells it to stop or depth " + level + " is reached.\n" +
-                        "Doesn't care by how many seeds it wins/looses",
-                "JavaTest"
+                "For depth = 0, the move is chosen uniform at random",
+                null//"SuperSecretAndComplexMinMaxExampleAgentToken"
         );
 
         this.level = level;
@@ -30,7 +29,7 @@ public class MinMaxAgent extends Agent {
     public void search(KalahState ks) throws IOException {
 
         // submit some move so there is one in case we're running out of time
-        submitMove(ks.lowestLegalMove());
+        submitMove(ks.randomLegalMove());
 
         // iterative deepening
         for(int max_depth = 1; max_depth <= level; max_depth++) {
@@ -121,7 +120,7 @@ public class MinMaxAgent extends Agent {
                             "Depth: " + max_depth;
 
                     // optional
-                    //sendComment(comment);
+                    sendComment(comment);
                 }
 
                 return best_eval;
@@ -131,27 +130,16 @@ public class MinMaxAgent extends Agent {
 
     // Example of a main function
     public static void main(String[] args) {
-
-        // Prepare agent for playing on a server on, for example, the same machine
-        // Agent initialization happens before we connect to the server
-        // Not that tournament programs might start your client in a process and punish it
-        // if it doesn't connect to the server within a specified amount of time
-        // 2671 is the Kalah Game Protocol default port
-
-        // Starting MinMax agents of levels (=max. search depths) 0 to 5, 10 instances each
-        // Do not start more instances than you've threads unless your agent yield early ^^
-
-        for (int level = 0; level <= 0; level ++) {
-            final int finalLevel = level;
-            for (int j=0; j < 1; j++) {
-                new Thread(() -> {
-                    Agent agent = new MinMaxAgent("cip1e1.cip.cs.fau.de:8080/socket", null, ProtocolManager.ConnectionType.WebSocket, finalLevel);
-                    try {
-                        agent.run();
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                }).start();
+        while (true) {
+            Agent agent = new MinMaxAgent(
+                    "kalah.kwarc.info/socket",
+                    null,
+                    ProtocolManager.ConnectionType.WebSocketSecure,
+                    0);
+            try {
+                agent.run();
+            } catch (IOException e) {
+                e.printStackTrace();
             }
         }
     }

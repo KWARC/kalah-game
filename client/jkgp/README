@@ -1,0 +1,10 @@
+Kalah Game Protocol Java library
+
+Noob guide:
+Copy the code in info.kwarc.kalah.jkgp to some directory, adapt packages and imports at the top of the files if necessary.
+Read the comments of the ExampleAgent, use it as template, should explain everything.
+Look at MinMaxAgent for a more sophisticated example.
+
+Otherwise here's my mail: tobias.voelk@t-online.de
+
+Happy coding!

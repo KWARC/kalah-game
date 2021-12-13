@@ -161,7 +161,7 @@ public class KalahState {
     public boolean isDoubleMove(int move)
     {
         boolean wasFlipped = flipIfNorthToMove();
-        int endsUp = (move + housesSouth[move])%(2* getBoardSize()+1);
+        int endsUp = (move + housesSouth[move]) % (2* getBoardSize()+1);
         flipIfWasFlipped(wasFlipped);
         return endsUp == getBoardSize();
     }
@@ -171,19 +171,40 @@ public class KalahState {
     {
         boolean wasFlipped = flipIfNorthToMove();
 
-        int endsUp = (move + housesSouth[move])%(2* getBoardSize()+1);
+        int m = move;
+        int s = getBoardSize();
 
-        // must walk less than cycle-length+1 (last seed could end up in starting house)
-        // end up in last houses
-        boolean b = move + housesSouth[move] <= 2* getBoardSize() + 1
-                && endsUp < getBoardSize()
-                && (endsUp == move || housesSouth[endsUp] == 0)
-                && housesNorth[getBoardSize()-1-endsUp] != 0;
+        // index of pit the last seed will end up in
+        // (imagining that the indices would continue in sowing direction after the last southern house)
+        int endsUp = (m + housesSouth[move]) % (2* s + 1);
 
-        // in order to be a capture
-        // -empty square is still empty after sowing (except for the last seed)
-        // -has to end in field on own side which is empty
-        // -corresponding opponents field has to contain seeds
+        // capture move must drop last seed in southern pit
+        if (endsUp >= s) {
+            return false;
+        }
+
+        // how many stones in the pit opposite to where the last seed is dropped?
+        int op = housesNorth[s - 1 -endsUp];
+
+        // did we add a seed to that pit before capturing it?
+        if (m + housesSouth[m] >= s) {
+            op++;
+        }
+
+        boolean b;
+
+        // Played one around the board? Then there's no empty pit to capture with
+        if (m + housesSouth[m] > 2 * s + 1 ||
+
+                // Either the pit where the last seeds drops was empty at the start
+                // or it's the starting pit (which we emptied at the start of our move)
+            (endsUp != m && housesSouth[endsUp] != 0) ||
+                // The opposite pit has to contain at least one seed
+            op == 0) {
+            b = false;
+        } else {
+            b = true;
+        }
 
         flipIfWasFlipped(wasFlipped);
 
