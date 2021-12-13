@@ -92,6 +92,10 @@ func main() {
 		"A template for the about page")
 	flag.Parse()
 
+	if flag.NArg() != 0 {
+		log.Fatal("Too many arguments")
+	}
+
 	if *dumpConf {
 		enc := toml.NewEncoder(os.Stdout)
 		err := enc.Encode(defaultConfig)
