@@ -253,7 +253,7 @@ func (b *Board) Outcome(side Side) Outcome {
 		south += pit
 	}
 
-	if north != 0 && south != 0 {
+	if !b.Over() {
 		return RESIGN
 	}
 
