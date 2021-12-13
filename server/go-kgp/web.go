@@ -90,8 +90,6 @@ func init() {
 }
 
 func (wc *WebConf) init() {
-	var about []byte
-
 	if !wc.Enabled {
 		return
 	}
@@ -118,12 +116,12 @@ func (wc *WebConf) init() {
 			}
 
 		case "/about":
-			if about == nil {
+			if conf.Web.About == "" {
 				http.Error(w, "No about page", http.StatusNoContent)
 				return
 			}
 			T.ExecuteTemplate(w, "header.tmpl", nil)
-			w.Write(about)
+			T.ExecuteTemplate(w, "about.tmpl", struct{}{})
 			T.ExecuteTemplate(w, "footer.tmpl", nil)
 		default:
 			static.ServeHTTP(w, r)
@@ -139,7 +137,11 @@ func (wc *WebConf) init() {
 	var err error
 	T = template.Must(template.New("").Funcs(funcs).ParseFS(html, "html/*.tmpl"))
 	if conf.Web.About != "" {
-		about, err = os.ReadFile(conf.Web.About)
+		about, err := os.ReadFile(conf.Web.About)
+		if err != nil {
+			log.Fatal(err)
+		}
+		_, err = T.New("about.tmpl").Parse(string(about))
 		if err != nil {
 			log.Fatal(err)
 		}
