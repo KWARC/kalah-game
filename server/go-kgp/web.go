@@ -27,6 +27,7 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"os"
 	"path"
 	"strconv"
 	"sync"
@@ -89,6 +90,8 @@ func init() {
 }
 
 func (wc *WebConf) init() {
+	var about []byte
+
 	if !wc.Enabled {
 		return
 	}
@@ -115,15 +118,12 @@ func (wc *WebConf) init() {
 			}
 
 		case "/about":
-			if conf.Web.About == "" {
+			if about == nil {
 				http.Error(w, "No about page", http.StatusNoContent)
 				return
 			}
 			T.ExecuteTemplate(w, "header.tmpl", nil)
-			err := T.ExecuteTemplate(w, conf.Web.About, conf)
-			if err != nil {
-				fmt.Fprint(w, err)
-			}
+			w.Write(about)
 			T.ExecuteTemplate(w, "footer.tmpl", nil)
 		default:
 			static.ServeHTTP(w, r)
@@ -139,7 +139,7 @@ func (wc *WebConf) init() {
 	var err error
 	T = template.Must(template.New("").Funcs(funcs).ParseFS(html, "html/*.tmpl"))
 	if conf.Web.About != "" {
-		T, err = T.ParseFiles(conf.Web.About)
+		about, err = os.ReadFile(conf.Web.About)
 		if err != nil {
 			log.Fatal(err)
 		}
