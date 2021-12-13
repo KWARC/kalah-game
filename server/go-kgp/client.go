@@ -269,4 +269,6 @@ func (cli *Client) Handle() {
 	if cli.game != nil {
 		cli.game.death <- cli
 	}
+
+	debug.Print("Closed connection to", cli)
 }
