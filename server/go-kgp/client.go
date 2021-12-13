@@ -64,6 +64,9 @@ func (cli *Client) String() string {
 	if conn, ok := cli.rwc.(net.Conn); ok {
 		return fmt.Sprintf("%s (%q)", conn.RemoteAddr(), hash)
 	}
+	if conn, ok := cli.rwc.(*wsrwc); ok {
+		return fmt.Sprintf("%s (%q)", conn.RemoteAddr(), hash)
+	}
 	return fmt.Sprintf("%p (%q)", cli, hash)
 }
 
