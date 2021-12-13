@@ -9,7 +9,7 @@ RUN set -x ; \
   adduser -u 82 -D -S -G www-data www-data && exit 0 ; exit 1
 
 # build the backend
-FROM docker.io/library/golang:1.16 as builder
+FROM docker.io/library/golang:1.17 as builder
 ADD . /app/
 WORKDIR /app/
 RUN go get .
