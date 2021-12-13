@@ -11,41 +11,10 @@ import java.util.Arrays;
 
 public class KalahState {
 
-    public enum GameResult
-    {
-        UNDECIDED, // game could still go either way
-
-        LOSS, // game over, player to move has less in his store
-        DRAW, // game over, both stores have the same number of seeds
-        WIN,  // game over, player to move has more seeds in his store
-
-        KNOWN_LOSS, // not game over, but result will be a LOSS no matter what happens
-        KNOWN_WIN, // not game over, but result will be a WIN no matter what happens
-    }
-
-    public enum Player
-    {
-        NORTH,
-        SOUTH;
-
-        public Player other()
-        {
-            if (this == NORTH)
-            {
-                return SOUTH;
-            }
-            else
-            {
-                return NORTH;
-            }
-        }
-    }
-
     // arrays are sowed in the direction of increasing indices
     private int[] housesSouth, housesNorth;
     private int storeSouth, storeNorth;
     private Player playerToMove;
-
     // create a new board of size h with seeds seeds everywhere and south to move
     public KalahState(int board_size, int seeds) {
         storeSouth = 0;
@@ -56,7 +25,6 @@ public class KalahState {
         Arrays.fill(housesNorth, seeds);
         playerToMove = Player.SOUTH;
     }
-
     // creates a copy of an existing KalahState
     public KalahState(KalahState state) {
         storeSouth = state.storeSouth;
@@ -120,7 +88,7 @@ public class KalahState {
         boolean wasFlipped = flipIfNorthToMove();
 
         ArrayList<Integer> moves = getMoves();
-        int randomIndex = (int) (Math.random()*moves.size());
+        int randomIndex = (int) (Math.random() * moves.size());
         int chosenMove = moves.get(randomIndex);
 
         flipIfWasFlipped(wasFlipped);
@@ -158,17 +126,15 @@ public class KalahState {
     }
 
     // returns true if the player is allowed to move again after the given move
-    public boolean isDoubleMove(int move)
-    {
+    public boolean isDoubleMove(int move) {
         boolean wasFlipped = flipIfNorthToMove();
-        int endsUp = (move + housesSouth[move]) % (2* getBoardSize()+1);
+        int endsUp = (move + housesSouth[move]) % (2 * getBoardSize() + 1);
         flipIfWasFlipped(wasFlipped);
         return endsUp == getBoardSize();
     }
 
     // returns true if the given move is a capture move
-    public boolean isCaptureMove(int move)
-    {
+    public boolean isCaptureMove(int move) {
         boolean wasFlipped = flipIfNorthToMove();
 
         int m = move;
@@ -176,7 +142,7 @@ public class KalahState {
 
         // index of pit the last seed will end up in
         // (imagining that the indices would continue in sowing direction after the last southern house)
-        int endsUp = (m + housesSouth[move]) % (2* s + 1);
+        int endsUp = (m + housesSouth[move]) % (2 * s + 1);
 
         // capture move must drop last seed in southern pit
         if (endsUp >= s) {
@@ -184,7 +150,7 @@ public class KalahState {
         }
 
         // how many stones in the pit opposite to where the last seed is dropped?
-        int op = housesNorth[s - 1 -endsUp];
+        int op = housesNorth[s - 1 - endsUp];
 
         // did we add a seed to that pit before capturing it?
         if (m + housesSouth[m] >= s) {
@@ -198,9 +164,9 @@ public class KalahState {
 
                 // Either the pit where the last seeds drops was empty at the start
                 // or it's the starting pit (which we emptied at the start of our move)
-            (endsUp != m && housesSouth[endsUp] != 0) ||
+                (endsUp != m && housesSouth[endsUp] != 0) ||
                 // The opposite pit has to contain at least one seed
-            op == 0) {
+                op == 0) {
             b = false;
         } else {
             b = true;
@@ -224,8 +190,7 @@ public class KalahState {
         boolean sowSouth = true;
 
         // sow until done
-        while(hand != 0)
-        {
+        while (hand != 0) {
             // pos < ... --> houses
             // pos = ... --> store
             // pos > ... --> switch to other side
@@ -234,38 +199,29 @@ public class KalahState {
             hand--;
 
             // skip northern store
-            if(sowSouth && pos > getBoardSize())
-            {
+            if (sowSouth && pos > getBoardSize()) {
                 pos = 0;
                 sowSouth = false;
-            }
-            else if(!sowSouth && pos > getBoardSize()-1)
-            {
+            } else if (!sowSouth && pos > getBoardSize() - 1) {
                 pos = 0;
                 sowSouth = true;
             }
 
-            if(sowSouth)
-            {
-                if(pos < getBoardSize())
-                {
+            if (sowSouth) {
+                if (pos < getBoardSize()) {
                     housesSouth[pos]++;
-                }
-                else if(pos == getBoardSize()){
+                } else if (pos == getBoardSize()) {
                     storeSouth++;
                 }
-            }
-            else
-            {
-                if(pos < getBoardSize())
-                {
+            } else {
+                if (pos < getBoardSize()) {
                     housesNorth[pos]++;
                 }
             }
         }
 
         // handle turn
-        if(pos != getBoardSize()) // last seed in store?
+        if (pos != getBoardSize()) // last seed in store?
         {
             playerToMove = Player.NORTH;
         }
@@ -273,11 +229,10 @@ public class KalahState {
         // handle captures
 
         // get corresponding northern house
-        int cnh = getBoardSize()-1-pos;
+        int cnh = getBoardSize() - 1 - pos;
         // last seed in southern house and seeds in opponents house
 
-        if(sowSouth && pos < getBoardSize() && housesSouth[pos] == 1 && housesNorth[cnh] != 0)
-        {
+        if (sowSouth && pos < getBoardSize() && housesSouth[pos] == 1 && housesNorth[cnh] != 0) {
             storeSouth += housesSouth[pos];
             housesSouth[pos] = 0;
             storeSouth += housesNorth[cnh];
@@ -291,14 +246,12 @@ public class KalahState {
     }
 
     // returns all seeds, both houses and both stores
-    public int totalSeeds()
-    {
+    public int totalSeeds() {
         return storeSouth + storeNorth + getHouseSumSouth() + getHouseSumSouth();
     }
 
     // result from the player to move's perspective
-    public GameResult result()
-    {
+    public GameResult result() {
         boolean wasFlipped = flipIfNorthToMove();
 
         GameResult r;
@@ -311,12 +264,11 @@ public class KalahState {
                 r = GameResult.DRAW;
             else
                 r = GameResult.LOSS;
-        }
-        else // not game over
+        } else // not game over
         {
-            if (storeSouth > totalSeeds()/2) // south is going to win no matter what
+            if (storeSouth > totalSeeds() / 2) // south is going to win no matter what
                 r = GameResult.KNOWN_WIN;
-            else if (storeNorth > totalSeeds()/2) // north is going to win no matter what
+            else if (storeNorth > totalSeeds() / 2) // north is going to win no matter what
                 r = GameResult.KNOWN_LOSS;
             else
                 r = GameResult.UNDECIDED;
@@ -328,18 +280,13 @@ public class KalahState {
 
     // Move seeds of a players houses to that players store if opponent has no seeds on his side
     public void cleanUpOneSidedHouses() {
-        if(getHouseSumSouth() == 0)
-        {
-            for(int i = 0; i < getBoardSize(); i++)
-            {
+        if (getHouseSumSouth() == 0) {
+            for (int i = 0; i < getBoardSize(); i++) {
                 storeNorth += housesNorth[i];
                 housesNorth[i] = 0;
             }
-        }
-        else if(getHouseSumNorth() == 0)
-        {
-            for(int i = 0; i < getBoardSize(); i++)
-            {
+        } else if (getHouseSumNorth() == 0) {
+            for (int i = 0; i < getBoardSize(); i++) {
                 storeSouth += housesSouth[i];
                 housesSouth[i] = 0;
             }
@@ -348,36 +295,21 @@ public class KalahState {
 
     // returns store diff from player to move's point of view
     public int getStoreLead() {
-        if(playerToMove == Player.SOUTH)
-        {
-            return storeSouth-storeNorth;
-        }
-        else
-        {
-            return storeNorth-storeSouth;
+        if (playerToMove == Player.SOUTH) {
+            return storeSouth - storeNorth;
+        } else {
+            return storeNorth - storeSouth;
         }
     }
 
     // returns the number of houses on one side
-    public int getBoardSize()
-    {
+    public int getBoardSize() {
         return housesSouth.length;
     }
 
     // returns the side to move
-    public Player getSideToMove()
-    {
+    public Player getSideToMove() {
         return playerToMove;
-    }
-
-    // set the number of seeds in south's store
-    public void setStoreSouth(int seeds){
-        storeSouth = seeds;
-    }
-
-    // set the number of seeds in north's store
-    public void setStoreNorth(int seeds){
-        storeNorth = seeds;
     }
 
     // get the number of seeds in south's store
@@ -385,64 +317,61 @@ public class KalahState {
         return storeSouth;
     }
 
+    // set the number of seeds in south's store
+    public void setStoreSouth(int seeds) {
+        storeSouth = seeds;
+    }
+
     // get the number of seeds in north's store
     public int getStoreNorth() {
         return storeNorth;
     }
 
+    // set the number of seeds in north's store
+    public void setStoreNorth(int seeds) {
+        storeNorth = seeds;
+    }
+
     // set the number of seeds of the given house
     // indices start at 0 and increase in the direction of sowing
-    public void setHouse(Player player, int index, int seeds)
-    {
-        if(player == Player.SOUTH)
-        {
+    public void setHouse(Player player, int index, int seeds) {
+        if (player == Player.SOUTH) {
             housesSouth[index] = seeds;
-        }
-        else
-        {
+        } else {
             housesNorth[index] = seeds;
         }
     }
 
     // get the number of seeds of the given house
     // indices start at 0 and increase in the direction of sowing
-    public int getHouse(Player player, int index)
-    {
-        if(player == Player.SOUTH)
-        {
+    public int getHouse(Player player, int index) {
+        if (player == Player.SOUTH) {
             return housesSouth[index];
-        }
-        else
-        {
+        } else {
             return housesNorth[index];
         }
     }
 
     // returns the sum of all southern houses
-    public int getHouseSumSouth()
-    {
+    public int getHouseSumSouth() {
         int sum = 0;
-        for(int p:housesSouth)
-        {
+        for (int p : housesSouth) {
             sum += p;
         }
         return sum;
     }
 
     // returns the sum of all northern houses
-    public int getHouseSumNorth()
-    {
+    public int getHouseSumNorth() {
         int sum = 0;
-        for(int p:housesNorth)
-        {
+        for (int p : housesNorth) {
             sum += p;
         }
         return sum;
     }
 
     // returns the sum of all north's and south's houses
-    public int getHouseSum()
-    {
+    public int getHouseSum() {
         return getHouseSumSouth() + getHouseSumNorth();
     }
 
@@ -450,7 +379,7 @@ public class KalahState {
     // (if two states are equal THEN the hash code must be equal, not the other way around)
     @Override
     public int hashCode() {
-        int ah = Arrays.hashCode(housesSouth) ^	Arrays.hashCode(housesNorth);
+        int ah = Arrays.hashCode(housesSouth) ^ Arrays.hashCode(housesNorth);
         int sh = Integer.hashCode(storeSouth ^ Integer.hashCode(storeNorth));
         return ah ^ sh;
     }
@@ -459,8 +388,7 @@ public class KalahState {
     @Override
     public boolean equals(Object o) {
 
-        if(!(o instanceof KalahState))
-        {
+        if (!(o instanceof KalahState)) {
             return false;
         }
 
@@ -479,17 +407,40 @@ public class KalahState {
         StringBuilder hn = new StringBuilder("\t");
         StringBuilder hs = new StringBuilder("\t");
         StringBuilder ss = new StringBuilder(storeNorth + "\t");
-        for(int i = 0; i< getBoardSize(); i++)
-        {
-            hn.append(housesNorth[getBoardSize()-1-i]).append("\t");
+        for (int i = 0; i < getBoardSize(); i++) {
+            hn.append(housesNorth[getBoardSize() - 1 - i]).append("\t");
             hs.append(housesSouth[i]).append("\t");
             ss.append('\t');
         }
         ss.append(storeSouth);
         ss.append("\t");
-        ss.append(playerToMove == Player.SOUTH?"South":"North");
+        ss.append(playerToMove == Player.SOUTH ? "South" : "North");
 
 
         return hn.toString() + '\n' + ss + '\n' + hs;
+    }
+
+    public enum GameResult {
+        UNDECIDED, // game could still go either way
+
+        LOSS, // game over, player to move has less in his store
+        DRAW, // game over, both stores have the same number of seeds
+        WIN,  // game over, player to move has more seeds in his store
+
+        KNOWN_LOSS, // not game over, but result will be a LOSS no matter what happens
+        KNOWN_WIN, // not game over, but result will be a WIN no matter what happens
+    }
+
+    public enum Player {
+        NORTH,
+        SOUTH;
+
+        public Player other() {
+            if (this == NORTH) {
+                return SOUTH;
+            } else {
+                return NORTH;
+            }
+        }
     }
 }

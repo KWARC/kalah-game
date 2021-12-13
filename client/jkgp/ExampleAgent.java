@@ -34,51 +34,8 @@ public class ExampleAgent extends Agent {
         rng = new Random();
     }
 
-    @Override
-    public void search(KalahState ks) throws IOException {
-
-        // The actual "search". ShouldStop is checked in a loop but if you're doing a recursive search you might want
-        // to check it every N nodes or every N milliseconds, just so it's called a few times per second,
-        // as a good server punishes slow reactions to the stop command by subtracting the delay from the amount of
-        // time for the next move
-
-        int naps = 3;
-        long timeToWait = 5; // 5 milliseconds
-        while (!shouldStop() && naps > 0)
-        {
-            // Randomly decide whether to stop the search early
-            // In practice you might stop when you know that your position is won - it speeds up the tournament!
-            if (rng.nextDouble() < 0.1)
-            {
-                return;
-            }
-
-            // Pick a random move
-            ArrayList<Integer> moves = ks.getMoves();
-            int randomIndex = rng.nextInt(moves.size());
-            int chosenMove = moves.get(randomIndex);
-
-            // Send that move to the server
-            this.submitMove(chosenMove);
-
-            // Commenting on the current position and/or move choice
-            sendComment("Currently best move: " + (chosenMove + 1) + "\n" +
-                    "Evaluation: -3\n" +
-                    "Computation steps: 5\n" +
-                    "Emotion: \"happy\"");
-
-            // Artificially sleeping, makes no sense in a real agent of course,
-            sleep(timeToWait);
-            naps --;
-        }
-
-        // This implementation doesn't return from search() until the server says so via shouldStop(),
-        // but that would be perfectly fine, for example if your agent found a proven win
-    }
-
     // You can also implement your own methods of course
-    private static void sleep(long millis)
-    {
+    private static void sleep(long millis) {
         try {
             Thread.sleep(millis);
         } catch (InterruptedException e) {
@@ -110,12 +67,52 @@ public class ExampleAgent extends Agent {
                 // Connects to the server,
                 // plays the tournament / game(s) until there's a fatal error or the server ends the connection
                 agent.run();
-            } catch(Exception e) {
+            } catch (Exception e) {
                 e.printStackTrace();
             }
             // Wait 10 seconds before trying again
             //sleep(10_000);
         }
+    }
+
+    @Override
+    public void search(KalahState ks) throws IOException {
+
+        // The actual "search". ShouldStop is checked in a loop but if you're doing a recursive search you might want
+        // to check it every N nodes or every N milliseconds, just so it's called a few times per second,
+        // as a good server punishes slow reactions to the stop command by subtracting the delay from the amount of
+        // time for the next move
+
+        int naps = 3;
+        long timeToWait = 5; // 5 milliseconds
+        while (!shouldStop() && naps > 0) {
+            // Randomly decide whether to stop the search early
+            // In practice you might stop when you know that your position is won - it speeds up the tournament!
+            if (rng.nextDouble() < 0.1) {
+                return;
+            }
+
+            // Pick a random move
+            ArrayList<Integer> moves = ks.getMoves();
+            int randomIndex = rng.nextInt(moves.size());
+            int chosenMove = moves.get(randomIndex);
+
+            // Send that move to the server
+            this.submitMove(chosenMove);
+
+            // Commenting on the current position and/or move choice
+            sendComment("Currently best move: " + (chosenMove + 1) + "\n" +
+                    "Evaluation: -3\n" +
+                    "Computation steps: 5\n" +
+                    "Emotion: \"happy\"");
+
+            // Artificially sleeping, makes no sense in a real agent of course,
+            sleep(timeToWait);
+            naps--;
+        }
+
+        // This implementation doesn't return from search() until the server says so via shouldStop(),
+        // but that would be perfectly fine, for example if your agent found a proven win
     }
 
 }

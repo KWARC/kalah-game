@@ -1,7 +1,8 @@
 package kgp.info.kwarc.kalah.jkpg;
 
-import java.io.IOException;
 import kgp.info.kwarc.kalah.jkpg.KalahState.*;
+
+import java.io.IOException;
 
 
 // agent using min max search
@@ -18,11 +19,27 @@ public class MinMaxAgent extends Agent {
                 "MinMax " + level,
                 "Tobias Völk [Former Tutor]",
                 "MinMax, Iterative deepening until server tells it to stop or depth " + level + " is reached.\n" +
-                "For depth = 0, the move is chosen uniform at random",
+                        "For depth = 0, the move is chosen uniform at random",
                 null//"SuperSecretAndComplexMinMaxExampleAgentToken"
         );
 
         this.level = level;
+    }
+
+    // Example of a main function
+    public static void main(String[] args) {
+        while (true) {
+            Agent agent = new MinMaxAgent(
+                    "kalah.kwarc.info/socket",
+                    null,
+                    ProtocolManager.ConnectionType.WebSocketSecure,
+                    0);
+            try {
+                agent.run();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     @Override
@@ -32,16 +49,13 @@ public class MinMaxAgent extends Agent {
         submitMove(ks.randomLegalMove());
 
         // iterative deepening
-        for(int max_depth = 1; max_depth <= level; max_depth++) {
+        for (int max_depth = 1; max_depth <= level; max_depth++) {
 
             Integer eval = searchHelper(0, max_depth, ks);
 
-            if (eval == null)
-            {
+            if (eval == null) {
                 break; // search has been aborted
-            }
-            else if (eval == Integer.MAX_VALUE || eval == Integer.MIN_VALUE + 1)
-            {
+            } else if (eval == Integer.MAX_VALUE || eval == Integer.MIN_VALUE + 1) {
                 break; // successive searches would get the same result -> yield
             }
         }
@@ -124,22 +138,6 @@ public class MinMaxAgent extends Agent {
                 }
 
                 return best_eval;
-            }
-        }
-    }
-
-    // Example of a main function
-    public static void main(String[] args) {
-        while (true) {
-            Agent agent = new MinMaxAgent(
-                    "kalah.kwarc.info/socket",
-                    null,
-                    ProtocolManager.ConnectionType.WebSocketSecure,
-                    0);
-            try {
-                agent.run();
-            } catch (IOException e) {
-                e.printStackTrace();
             }
         }
     }

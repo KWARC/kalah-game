@@ -18,56 +18,6 @@ import java.util.regex.Pattern;
 
 public class ProtocolManager {
 
-    private static class GoodbyeEvent extends IOException {}
-
-    enum TimeMode {
-        None,
-        Absolute,
-        Relative,
-    }
-
-    private static class Event {}
-
-    private static class Command extends Event {
-
-        String original, name;
-        List<String> args;
-
-        Command(String original, String name, List<String> args) {
-            super();
-            this.original = original;
-            this.name = name;
-            this.args = args;
-        }
-
-        @Override
-        public String toString() {
-            return this.original;
-        }
-    }
-
-    private static class AgentFinished extends Event {
-
-        Exception exception; // the exception agent through during search or null if there was none
-
-        AgentFinished(Exception exception)
-        {
-            super();
-            this.exception = exception;
-        }
-    }
-
-    private static class NetworkThreadException extends Event {
-
-        IOException exception; // the exception that happened in the network thread
-
-        NetworkThreadException(IOException exception)
-        {
-            super();
-            this.exception = exception;
-        }
-    }
-
     private static final Pattern commandPattern = Pattern.compile(
             "^\\s*(?:(\\d+)?(?:@(\\d+))?\\s+)?" + // id and reference
                     "([a-z0-9]+)\\s*" + // command name
@@ -79,7 +29,6 @@ public class ProtocolManager {
                     "<\\d+(,\\d+)*>" + // board
                     "))*\\s*)$",
             Pattern.CASE_INSENSITIVE);
-
     private static final Pattern argumentPattern = Pattern.compile(
             "[-+]?\\d+|" + // integer values
                     "[-+]?\\d*\\.\\d+?|" + // real values
@@ -87,59 +36,28 @@ public class ProtocolManager {
                     "\"(?:\\\\.|[^\"])*\"|" + // strings
                     "<\\d+(,\\d+)*>",
             Pattern.CASE_INSENSITIVE);
-
     private static PrintStream debugStream = System.out;
-
-    public static void setDebugStream(OutputStream o) {
-        debugStream = new PrintStream(o);
-    }
-
     private final String host;
     private final Integer port;
-
     private final Agent agent;
-
+    // Cyclic barrier to synchronize to start/stop agent search without busy-waiting
+    private final CyclicBarrier bar = new CyclicBarrier(2);
+    // To only run one session at a time
+    private final Object lockSession = new Object();
     private TimeMode timeMode = null;
     private Integer clock = null, opClock = null;
     private String serverName = null;
-
     private Connection connection;
-
     private KalahState kalahStateManager = null;
     private KalahState kalahStateAgent = null;
-
     private ProtocolState state = null;
-
     // Set to true by network thread upon receiving stop command
     // Set to false by network thread after having sent yield/ok
     // basically what the server thinks
     private volatile boolean shouldStop;
-
     // tell other two threads when to die
     private volatile boolean running;
-
-    // Cyclic barrier to synchronize to start/stop agent search without busy-waiting
-    private final CyclicBarrier bar = new CyclicBarrier(2);
-
-    // To only run one session at a time
-    private final Object lockSession = new Object();
-
-    private enum ProtocolState {
-        WAITING_FOR_VERSION, // awaiting initial communication, server sends version, both exchange some set-options
-
-        WAITING_FOR_STATE, // agent is stopped, waiting for next state
-        SEARCHING, // told agent to start computation, might receive AgentFinished in this state if agent yields
-        WAITING_FOR_AGENT_TO_STOP, // told agent to stop (because server told us to stop), waiting for AgentFinished event
-    }
-
-    public enum ConnectionType {
-        TCP,
-        WebSocket,
-        WebSocketSecure,
-    }
-
     private ConnectionType conType;
-
     // Creates new instance of communication to given server for the given agent
     public ProtocolManager(String host, Integer port, ConnectionType conType, Agent agent) {
 
@@ -151,6 +69,10 @@ public class ProtocolManager {
         this.port = port;
         this.conType = conType;
         this.agent = agent;
+    }
+
+    public static void setDebugStream(OutputStream o) {
+        debugStream = new PrintStream(o);
     }
 
     // Connects to the server, handles the tournament/game/..., then ends the connection
@@ -344,7 +266,7 @@ public class ProtocolManager {
 
                                 if (state == ProtocolState.WAITING_FOR_STATE) {
                                     startGame();
-                                } else if (state == ProtocolState.WAITING_FOR_AGENT_TO_STOP){
+                                } else if (state == ProtocolState.WAITING_FOR_AGENT_TO_STOP) {
                                     // waiting for agent to stop
                                 } else {
                                     throw new RuntimeException("Wrong internal state");
@@ -476,9 +398,13 @@ public class ProtocolManager {
         }
     }
 
+    // Get time mode if server sent it, otherwise returns null
+    TimeMode getTimeMode() {
+        return timeMode;
+    }
+
     // Sets time mode according to the given protocol String, throws exception if malformed
-    private void setTimeMode(String mode) throws ProtocolException
-    {
+    private void setTimeMode(String mode) throws ProtocolException {
         switch (fromProtocolString(mode)) {
             case "none":
                 timeMode = TimeMode.None;
@@ -494,59 +420,47 @@ public class ProtocolManager {
         }
     }
 
-    // Get time mode if server sent it, otherwise returns null
-    TimeMode getTimeMode() {
-        return timeMode;
+    // Get number of seconds on agent's clock if server sent it, otherwise returns null
+    Integer getTimeClock() {
+        return clock;
     }
 
     // Sets number of seconds on agents clock, throws exception if malformed
     private void setTimeClock(String value) throws ProtocolException {
-        try
-        {
+        try {
             clock = Integer.parseInt(value);
-        } catch(NumberFormatException e)
-        {
+        } catch (NumberFormatException e) {
             throw new ProtocolException("Number of seconds on agent's clock malformed: " + value);
         }
     }
 
-    // Get number of seconds on agent's clock if server sent it, otherwise returns null
-    Integer getTimeClock(){
-        return clock;
-    }
-
     // Sets number of seconds on opponent's clock, throws exception if malformed
     private void setTimeOpClock(String value) throws ProtocolException {
-        try
-        {
+        try {
             opClock = Integer.parseInt(value);
-        } catch(NumberFormatException e)
-        {
+        } catch (NumberFormatException e) {
             throw new ProtocolException("Number of seconds on opponent's clock malformed: " + value);
         }
     }
 
     // Get number of seconds on opponent's clock if server sent it, otherwise returns null
-    Integer getTimeOppClock(){
+    Integer getTimeOppClock() {
         return opClock;
     }
 
-    // Set name of server according to the given protocol String, throws exception if malformed
-    private void setServerName(String s) throws ProtocolException
-    {
-        serverName = fromProtocolString(s);
+    // Get name of server if server sent it, otherwise returns null
+    String getServerName() {
+        return serverName;
     }
 
-    // Get name of server if server sent it, otherwise returns null
-    String getServerName()
-    {
-        return serverName;
+    // Set name of server according to the given protocol String, throws exception if malformed
+    private void setServerName(String s) throws ProtocolException {
+        serverName = fromProtocolString(s);
     }
 
     // sends a set command to the server ("set option value")
     // the server might ignore it silently if it doesn't support it
-    private void sendOption(String option, String value) throws IOException
-    {
+    private void sendOption(String option, String value) throws IOException {
         // no need to check, only library is using this function
         // so option and value have to be correct
         sendToServer("set " + option + " " + value);
@@ -560,35 +474,29 @@ public class ProtocolManager {
 
     // converts java string to protocol string by replacing backslash, newline and quotation marks
     // with their backslash-lead counterparts
-    private String toProtocolString(String s)
-    {
+    private String toProtocolString(String s) {
         String s2 = s.replace("\\", "\\\\");
         String s3 = s2.replace("\n", "\\n");
         String s4 = s3.replace("\"", "\\\"");
-        return "\"" + s4  + "\"";
+        return "\"" + s4 + "\"";
     }
 
     // converts protocol string back to java string by removing one backslash
     // in front of every newline, quotation mark or backslash
-    private String fromProtocolString(String s) throws ProtocolException
-    {
+    private String fromProtocolString(String s) throws ProtocolException {
         if (s.length() < 2 ||
                 s.charAt(0) != '\"' ||
-                s.charAt(s.length()-1) != '\"')
-        {
+                s.charAt(s.length() - 1) != '\"') {
             throw new ProtocolException("Protocol string malformed: " + s);
-        }
-        else
-        {
-            String s2 = s.substring(1, s.length()-1).replace("\\\\", "\\");
+        } else {
+            String s2 = s.substring(1, s.length() - 1).replace("\\\\", "\\");
             String s3 = s2.replace("\\n", "\n");
             return s3.replace("\\\"", "\"");
         }
     }
 
     // see documentation of onState(...)
-    boolean shouldStop()
-    {
+    boolean shouldStop() {
         return shouldStop;
     }
 
@@ -597,8 +505,7 @@ public class ProtocolManager {
     // but the Kalah implementation uses 0, 1, 2, ..., board_size - 1
     // because of array indexing, so you have to add +1 to your move
     // before calling this function
-    void sendMove(int move) throws IOException
-    {
+    void sendMove(int move) throws IOException {
         if (move <= 0) {
             throw new IllegalArgumentException("Move cannot be negative");
         }
@@ -609,30 +516,26 @@ public class ProtocolManager {
 
         // TODO REMOVE CHECK
 
-        sendToServer("move "+move);
+        sendToServer("move " + move);
     }
 
-    private void sendGoodbyeAndCloseConnection() throws IOException
-    {
+    private void sendGoodbyeAndCloseConnection() throws IOException {
         try {
             sendToServer("goodbye");
-        } catch(SocketException se)
-        {
+        } catch (SocketException se) {
             // socket already closed, but we don't care since we wanted to close the connection anyway
         }
 
         closeConnection();
     }
 
-    private void closeConnection() throws IOException
-    {
+    private void closeConnection() throws IOException {
         connection.close();
     }
 
     // sends command to server, adds \r\n, flushes
     // also acts as callback for logging etc.
-    private void sendToServer(String msg) throws IOException
-    {
+    private void sendToServer(String msg) throws IOException {
         connection.send(msg);
 
         // logging
@@ -641,8 +544,7 @@ public class ProtocolManager {
         }
     }
 
-    private Command receiveFromServer() throws IOException
-    {
+    private Command receiveFromServer() throws IOException {
         String line;
         try {
             line = connection.receive();
@@ -650,8 +552,7 @@ public class ProtocolManager {
             throw new IOException("Interrupted Exception: " + ie.getMessage());
         }
 
-        if (line == null)
-        {
+        if (line == null) {
             throw new IOException("Server closed connection without saying goodbye, client sad :(");
         }
 
@@ -683,48 +584,39 @@ public class ProtocolManager {
     }
 
     // sends error command to server
-    private void sendError(String msg) throws IOException
-    {
+    private void sendError(String msg) throws IOException {
         sendToServer("error " + toProtocolString(msg));
     }
 
     // checks whether a command is a correct ping command
-    private boolean isCorrectPingCommand(Command command)
-    {
+    private boolean isCorrectPingCommand(Command command) {
         return command.original.equals("ping");
     }
 
     // checks whether a command is a correct goodbye command
-    private boolean isCorrectGoodbyeCommand(Command command)
-    {
+    private boolean isCorrectGoodbyeCommand(Command command) {
         return command.original.equals("goodbye");
     }
 
     // checks whether a command is a correct error command
-    private boolean isCorrectErrorCommand(Command command)
-    {
+    private boolean isCorrectErrorCommand(Command command) {
         return command.name.equals("error") &&
                 command.args.size() == 1;
     }
 
     // Checks whether a command is a correct version command
-    private boolean isCorrectVersionCommand(Command msg)
-    {
+    private boolean isCorrectVersionCommand(Command msg) {
         if (!msg.name.equals("kgp") || msg.args.size() != 3) {
             return false;
         }
 
-        try
-        {
-            for(String s:msg.args)
-            {
-                if (Integer.parseInt(s) < 0)
-                {
+        try {
+            for (String s : msg.args) {
+                if (Integer.parseInt(s) < 0) {
                     return false;
                 }
             }
-        } catch (NumberFormatException e)
-        {
+        } catch (NumberFormatException e) {
             return false;
         }
 
@@ -751,12 +643,10 @@ public class ProtocolManager {
 
             int boardSize = integers[0];
 
-            if (boardSize * 2 + 3 != integers.length)
-            {
+            if (boardSize * 2 + 3 != integers.length) {
                 return false;
             }
-        } catch (Exception e)
-        {
+        } catch (Exception e) {
             return false;
         }
 
@@ -764,9 +654,72 @@ public class ProtocolManager {
     }
 
     // checks whether the given command is a correct set command
-    private boolean isCorrectSetCommand(Command msg)
-    {
+    private boolean isCorrectSetCommand(Command msg) {
         return msg.name.equals("set") && msg.args.size() == 2;
+    }
+
+    enum TimeMode {
+        None,
+        Absolute,
+        Relative,
+    }
+
+    private enum ProtocolState {
+        WAITING_FOR_VERSION, // awaiting initial communication, server sends version, both exchange some set-options
+
+        WAITING_FOR_STATE, // agent is stopped, waiting for next state
+        SEARCHING, // told agent to start computation, might receive AgentFinished in this state if agent yields
+        WAITING_FOR_AGENT_TO_STOP, // told agent to stop (because server told us to stop), waiting for AgentFinished event
+    }
+
+    public enum ConnectionType {
+        TCP,
+        WebSocket,
+        WebSocketSecure,
+    }
+
+    private static class GoodbyeEvent extends IOException {
+    }
+
+    private static class Event {
+    }
+
+    private static class Command extends Event {
+
+        String original, name;
+        List<String> args;
+
+        Command(String original, String name, List<String> args) {
+            super();
+            this.original = original;
+            this.name = name;
+            this.args = args;
+        }
+
+        @Override
+        public String toString() {
+            return this.original;
+        }
+    }
+
+    private static class AgentFinished extends Event {
+
+        Exception exception; // the exception agent through during search or null if there was none
+
+        AgentFinished(Exception exception) {
+            super();
+            this.exception = exception;
+        }
+    }
+
+    private static class NetworkThreadException extends Event {
+
+        IOException exception; // the exception that happened in the network thread
+
+        NetworkThreadException(IOException exception) {
+            super();
+            this.exception = exception;
+        }
     }
 
 }

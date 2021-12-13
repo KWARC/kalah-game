@@ -32,8 +32,8 @@ public class ConnectionWebSocket implements Connection {
                 acc = acc + data;
 
                 if (last) {
-                    if (acc.charAt(data.length()-1) == '\n') {
-                        acc = (String) acc.subSequence(0, acc.length()-1);
+                    if (acc.charAt(data.length() - 1) == '\n') {
+                        acc = (String) acc.subSequence(0, acc.length() - 1);
                     }
 
                     try {
@@ -59,9 +59,9 @@ public class ConnectionWebSocket implements Connection {
 
         try {
             webSocket = HttpClient.newHttpClient().newWebSocketBuilder().buildAsync(URI.create(host), listener).get();
-        } catch(ExecutionException ee) {
+        } catch (ExecutionException ee) {
             throw new IOException("ExecutionException: " + ee.getMessage());
-        } catch(InterruptedException ie) {
+        } catch (InterruptedException ie) {
             throw new IOException("InterruptedException: " + ie.getMessage());
         }
     }

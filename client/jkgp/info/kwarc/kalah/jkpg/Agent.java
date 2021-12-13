@@ -12,17 +12,11 @@ import java.io.IOException;
 // So don't worry about scheduling issues if your tournament restricts the agent to one CPU core
 public abstract class Agent {
 
+    // the communication instance the agent uses to communicate with the server
+    private final ProtocolManager com;
     // can be null
     private String name, authors, description, token;
     private ProtocolManager.ConnectionType conType;
-
-    // MANDATORY: Read the documentation of submitMove() and shouldStop()
-    // Find the best move for the given state here
-    // It's always south's turn to move
-    public abstract void search(KalahState ks) throws IOException;
-
-    // the communication instance the agent uses to communicate with the server
-    private final ProtocolManager com;
 
     // Creates an agent
     // If host and port are non-null and the connection is TCP, the agent will connect to that server.
@@ -42,27 +36,28 @@ public abstract class Agent {
         this.conType = conType;
     }
 
+    // MANDATORY: Read the documentation of submitMove() and shouldStop()
+    // Find the best move for the given state here
+    // It's always south's turn to move
+    public abstract void search(KalahState ks) throws IOException;
+
     // Returns the name of the agent or null if not specified
-    public String getName()
-    {
+    public String getName() {
         return name;
     }
 
     // Returns the authors of the agent or null if not specified
-    public String getAuthors()
-    {
+    public String getAuthors() {
         return authors;
     }
 
     // Returns the description of the agent or null if not specified
-    public String getDescription()
-    {
+    public String getDescription() {
         return description;
     }
 
     // Returns the token of the agent or null if not specified
-    public String getToken()
-    {
+    public String getToken() {
         return token;
     }
 
@@ -98,22 +93,22 @@ public abstract class Agent {
     }
 
     // Get time mode if available, otherwise returns null
-    protected final ProtocolManager.TimeMode getTimeMode(){
+    protected final ProtocolManager.TimeMode getTimeMode() {
         return com.getTimeMode();
     }
 
     // Get number of seconds on agent's clock if available, otherwise returns null
-    protected final Integer getTimeClock(){
+    protected final Integer getTimeClock() {
         return com.getTimeClock();
     }
 
     // Get number of seconds on opponent's clock if available, otherwise returns null
-    protected final Integer getTimeOppClock(){
+    protected final Integer getTimeOppClock() {
         return com.getTimeOppClock();
     }
 
     // Get name of server if available, otherwise returns null
-    protected final String getServerName(){
+    protected final String getServerName() {
         return com.getServerName();
     }
 }
