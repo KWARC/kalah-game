@@ -54,6 +54,10 @@ var sqlDir embed.FS
 var queries = make(map[string]*sql.Stmt)
 
 func (game *Game) updateDatabase(wait *sync.WaitGroup) DBAction {
+	if game.South.token != nil && game.North.token != nil {
+		return nil
+	}
+
 	return func(db *sql.DB) {
 		var err error
 		if game.IsOver() {
@@ -80,6 +84,10 @@ func (game *Game) updateDatabase(wait *sync.WaitGroup) DBAction {
 
 func saveMove(in *Game, by *Client, side Side, move int, when time.Time) DBAction {
 	var aid *int64
+
+	if in.logged {
+		return nil
+	}
 
 	if by.token != nil {
 		aid = &by.Id

@@ -65,6 +65,8 @@ type Game struct {
 	South   *Client
 	nchoice int
 	schoice int
+	// Is this game logged in the database?
+	logged bool
 	// Data for the web interface.
 	//
 	// These fields are usually empty, unless a Game object has
@@ -178,7 +180,7 @@ func (g *Game) Start() {
 	timer := time.NewTimer(time.Duration(conf.Game.Timeout) * time.Second)
 
 	defer func() {
-		if g.North.token != nil && g.South.token != nil {
+		if g.logged {
 			g.updateScore()
 		}
 
@@ -200,7 +202,10 @@ func (g *Game) Start() {
 		}
 	}()
 
-	dbact <- g.updateDatabase(nil)
+	if g.North.token != nil && g.South.token != nil {
+		g.logged = true
+		dbact <- g.updateDatabase(nil)
+	}
 
 	for {
 		next := false
