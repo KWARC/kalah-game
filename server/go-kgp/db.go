@@ -112,6 +112,13 @@ func saveMove(in *Game, by *Client, side Side, move int, when time.Time) DBActio
 }
 
 func (cli *Client) updateDatabase(wait *sync.WaitGroup) DBAction {
+	if cli.token == nil {
+		if wait != nil {
+			wait.Done()
+		}
+		return nil
+	}
+
 	return func(db *sql.DB) {
 		var (
 			name, descr *string
