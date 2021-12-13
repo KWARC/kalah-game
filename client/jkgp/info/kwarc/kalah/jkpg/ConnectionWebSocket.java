@@ -1,4 +1,4 @@
-package info.kwarc.kalah.jkpg;
+package kgp.info.kwarc.kalah.jkpg;
 
 import java.io.*;
 import java.net.URI;
@@ -25,13 +25,30 @@ public class ConnectionWebSocket implements Connection {
         WebSocket.Listener listener = new WebSocket.Listener() {
 
             @Override
+            public void onError(WebSocket webSocket, Throwable error) {
+                error.printStackTrace();
+                System.err.println(error.getMessage());
+            }
+
+            @Override
             public CompletionStage<?> onText(WebSocket webSocket, CharSequence data, boolean last) {
+
+                if (!last) {
+                    throw new IllegalArgumentException("last was false, message incomplete");
+                }
+
+                if (data.charAt(data.length()-1) == '\n') {
+                    data = data.subSequence(0, data.length()-1);
+                }
+
                 try {
-                    input.add(data.toString().substring(0, data.length()-1));
+                    System.out.println("FROM WEBSOCKET: " + data);
+                    input.add(data.toString());
                 } catch (Exception e) {
                     e.printStackTrace();
                     System.exit(1);
                 }
+
                 return null;
             }
 
@@ -53,11 +70,13 @@ public class ConnectionWebSocket implements Connection {
             throw new IOException("InterruptedException: " + ie.getMessage());
         }
 
+        send("ok");
     }
 
     @Override
     public void send(String msg) {
-        webSocket.sendText(msg, true);
+        webSocket.sendText(msg + "\n", true);
+        //System.out.println("TO WEBSOCKET: " + msg);
     }
 
     @Override

@@ -1,9 +1,8 @@
-package info.kwarc.kalah.jkpg;
+package kgp.info.kwarc.kalah.jkpg;
 
 import java.io.IOException;
 import java.util.Random;
-
-import info.kwarc.kalah.jkpg.KalahState.*;
+import kgp.info.kwarc.kalah.jkpg.KalahState.*;
 
 
 // agent using min max search
@@ -21,7 +20,7 @@ public class MinMaxAgent extends Agent {
                 "Tobias Völk [Tutor]",
                 "MinMax, Iterative deepening until server tells it to stop or depth " + level + " is reached.\n" +
                         "Doesn't care by how many seeds it wins/looses",
-                "" + Math.abs(new Random().nextLong())
+                "JavaTest"
         );
 
         this.level = level;
@@ -144,9 +143,9 @@ public class MinMaxAgent extends Agent {
 
         for (int level = 0; level <= 0; level ++) {
             final int finalLevel = level;
-            for (int j=0; j < 100; j++) {
+            for (int j=0; j < 1; j++) {
                 new Thread(() -> {
-                    Agent agent = new MinMaxAgent("cip1e1.cip.cs.fau.de", 2671, ProtocolManager.ConnectionType.TCP, finalLevel);
+                    Agent agent = new MinMaxAgent("cip1e1.cip.cs.fau.de:8080/socket", null, ProtocolManager.ConnectionType.WebSocket, finalLevel);
                     try {
                         agent.run();
                     } catch (IOException e) {

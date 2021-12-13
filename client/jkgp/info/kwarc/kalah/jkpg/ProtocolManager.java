@@ -1,4 +1,4 @@
-package info.kwarc.kalah.jkpg;
+package kgp.info.kwarc.kalah.jkpg;
 
 import java.io.*;
 import java.net.ProtocolException;
@@ -134,14 +134,19 @@ public class ProtocolManager {
 
     public enum ConnectionType {
         TCP,
-        WS,
-        WSS,
+        WebSocket,
+        WebSocketSecure,
     }
 
     private ConnectionType conType;
 
     // Creates new instance of communication to given server for the given agent
-    public ProtocolManager(String host, int port, ConnectionType conType, Agent agent) {
+    public ProtocolManager(String host, Integer port, ConnectionType conType, Agent agent) {
+
+        if (port != null && conType != ConnectionType.TCP) {
+            throw new IllegalArgumentException("Setting the port is useless when using WebSocket or WebSocketSecure");
+        }
+
         this.host = host;
         this.port = port;
         this.conType = conType;
@@ -170,7 +175,7 @@ public class ProtocolManager {
             // create a connection
             if (conType == ConnectionType.TCP) {
                 connection = new ConnectionTCP(host, port);
-            } else if (conType == ConnectionType.WS) {
+            } else if (conType == ConnectionType.WebSocket) {
                 connection = new ConnectionWebSocket("ws://" + host);
             } else {
                 connection = new ConnectionWebSocket("wss://" + host);
@@ -435,8 +440,7 @@ public class ProtocolManager {
             throw new ProtocolException("Not a correct error command: " + msg.original);
         }
 
-        System.err.println("Received and ignored error command from server: " + msg.original + "\n" +
-                kalahStateAgent + "\n");
+        System.err.println("Received and ignored error command from server: " + msg.original);
         // throw new ProtocolException("Received error command from server: " + msg.original);
     }
 
