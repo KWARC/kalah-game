@@ -9,14 +9,14 @@ RUN set -x ; \
   adduser -u 82 -D -S -G www-data www-data && exit 0 ; exit 1
 
 # build the backend
-FROM docker.io/library/golang:1.17 as builder
+FROM docker.io/library/golang:1.17-bullseye as builder
 ADD . /app/
 WORKDIR /app/
 RUN go get .
 RUN CGO_ENABLED=1 GOOS=linux go build -a -ldflags '-linkmode external -extldflags "-static"' -o go-kgp ./
 
 # add it into a new image
-FROM docker.io/library/alpine:3.14
+FROM docker.io/library/debian:bullseye-slim
 
 # add the user
 COPY --from=os /etc/passwd /etc/passwd
