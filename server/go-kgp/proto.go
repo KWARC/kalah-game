@@ -33,7 +33,7 @@ import (
 
 var (
 	parser = regexp.MustCompile(`^[[:space:]]*` +
-		`(?:([[:digit:]]+)(?:@([[:digit:]]+))?[[:space:]]+)?` +
+		`(?:([[:digit:]]*)(?:@([[:digit:]]+))?[[:space:]]+)?` +
 		`([[:alnum:]]+)(?:[[:space:]]+(.*))?` +
 		`[[:space:]]*$`)
 	errArgumentMismatch = errors.New("argument mismatch")
