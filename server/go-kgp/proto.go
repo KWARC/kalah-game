@@ -94,7 +94,7 @@ func (cli *Client) Set(key, val string) error {
 	switch key {
 	case "info:name":
 		cli.Name = val
-	case "info:authors":
+	case "info:authors", "info:author":
 		cli.Author = val
 	case "info:description":
 		cli.Descr = val
