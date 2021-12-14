@@ -5,5 +5,6 @@ CREATE TABLE IF NOT EXISTS agent (
 	token TEXT UNIQUE,
 	name TEXT,
 	descr TEXT,
+	author TEXT,
 	score REAL
 );

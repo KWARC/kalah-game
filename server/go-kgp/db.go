@@ -139,8 +139,11 @@ func (cli *Client) updateDatabase(wait *sync.WaitGroup, query bool) DBAction {
 		}
 
 		_, err = queries["insert-agent"].Exec(
-			cli.token, cli.Name, cli.Descr,
-			cli.Name, cli.Descr, cli.Score)
+			cli.token,
+			cli.Name,
+			cli.Descr,
+			cli.Author,
+			cli.Score)
 		if err != nil {
 			log.Print(err)
 			return
@@ -160,6 +163,7 @@ func queryAgent(aid int, c chan<- *Agent) DBAction {
 		err := queries["select-agent-id"].QueryRow(aid).Scan(
 			&agent.Name,
 			&agent.Descr,
+			&agent.Author,
 			&agent.Score)
 		if err != nil {
 			log.Print(err)
@@ -252,6 +256,7 @@ func scanGame(scan func(dest ...interface{}) error) (*Game, error) {
 	err = queries["select-agent-id"].QueryRow(north.Id).Scan(
 		&north.Name,
 		&north.Descr,
+		&north.Author,
 		&north.Score)
 	if err != nil {
 		return nil, err
@@ -261,6 +266,7 @@ func scanGame(scan func(dest ...interface{}) error) (*Game, error) {
 	err = queries["select-agent-id"].QueryRow(south.Id).Scan(
 		&south.Name,
 		&south.Descr,
+		&south.Author,
 		&south.Score)
 	if err != nil {
 		return nil, err
