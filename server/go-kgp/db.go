@@ -194,7 +194,8 @@ func queryGame(gid int, c chan<- *Game) DBAction {
 				aid  int64
 				comm string
 				move int
-				side Side
+
+				side = SideSouth
 			)
 
 			err = rows.Scan(&aid, &side, &comm, &move)
