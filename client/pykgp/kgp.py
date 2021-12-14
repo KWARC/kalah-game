@@ -166,7 +166,7 @@ class Board:
         return b, False
 
 
-def connect(agent, host='localhost', port=2671, token=None, name=None, authors=[], debug=False):
+def connect(agent, host='wss://kalah.kwarc.info/socket', port=2671, token=None, name=None, authors=[], debug=False):
     """
     Connect to KGP server at host:port as agent.
 
