@@ -110,16 +110,17 @@ func (wc *WebConf) init() {
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/":
+			w.Header().Add("Content-Type", "text/html")
 			err := T.ExecuteTemplate(w, "index.tmpl", struct{}{})
 			if err != nil {
 				log.Print(err)
 			}
-
 		case "/about":
 			if conf.Web.About == "" {
 				http.Error(w, "No about page", http.StatusNoContent)
 				return
 			}
+			w.Header().Add("Content-Type", "text/html")
 			T.ExecuteTemplate(w, "header.tmpl", nil)
 			T.ExecuteTemplate(w, "about.tmpl", struct{}{})
 			T.ExecuteTemplate(w, "footer.tmpl", nil)
@@ -165,6 +166,7 @@ func showGame(w http.ResponseWriter, r *http.Request) {
 
 	c := make(chan *Game)
 	dbact <- queryGame(id, c)
+	w.Header().Add("Content-Type", "text/html")
 	err = T.ExecuteTemplate(w, "show-game.tmpl", <-c)
 	if err != nil {
 		log.Print(err)
@@ -188,6 +190,7 @@ func showAgent(w http.ResponseWriter, r *http.Request) {
 	games := make(chan *Game)
 	dbact <- queryGames(games, page-1, &id)
 
+	w.Header().Add("Content-Type", "text/html")
 	err = T.ExecuteTemplate(w, "show-agent.tmpl", struct {
 		Agent chan *Agent
 		Games chan *Game
@@ -206,6 +209,7 @@ func listGames(w http.ResponseWriter, r *http.Request) {
 
 	c := make(chan *Game)
 	dbact <- queryGames(c, page-1, nil)
+	w.Header().Add("Content-Type", "text/html")
 	err = T.ExecuteTemplate(w, "list-games.tmpl", struct {
 		Games chan *Game
 		Page  int
@@ -223,6 +227,8 @@ func listAgents(w http.ResponseWriter, r *http.Request) {
 
 	c := make(chan *Agent)
 	dbact <- queryAgents(c, page-1)
+
+	w.Header().Add("Content-Type", "text/html")
 	err = T.ExecuteTemplate(w, "list-agents.tmpl", struct {
 		Agents chan *Agent
 		Page   int
