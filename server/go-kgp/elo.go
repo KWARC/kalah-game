@@ -56,7 +56,9 @@ func (g *Game) updateScore() (err error) {
 
 	outcome := g.Board.Outcome(SideSouth)
 	g.South.Score += K * (OutcomeToPoints[outcome] - ea)
+	g.South.Score = math.Max(0, g.South.Score)
 	g.North.Score += K * (1 - OutcomeToPoints[outcome] - eb)
+	g.North.Score = math.Max(0, g.North.Score)
 
 	// Send database manager a request to update the entry
 	var wait sync.WaitGroup
