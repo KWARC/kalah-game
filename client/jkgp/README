@@ -1,6 +1,6 @@
 Kalah Game Protocol Java library
 
-Maintainer: Tobias Völk <tobias.voelk@t-online.de>
+Maintainer: Tobias Völk <tobias.voelk@fau.de>
 
 To use this library, copy the code in info.kwarc.kalah.jkgp, if
 necessary adapting packages and imports at the top of the files.  The
