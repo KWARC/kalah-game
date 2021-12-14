@@ -364,9 +364,6 @@ public class ProtocolManager {
 
     // react to goodbye
     private void reactToGoodbye(Command cmd) throws GoodbyeEvent, ProtocolException {
-        if (!isCorrectGoodbyeCommand(cmd)) {
-            throw new ProtocolException("Not a correct goodbye command: " + cmd.original);
-        }
         throw new GoodbyeEvent();
     }
 
@@ -584,11 +581,6 @@ public class ProtocolManager {
     // sends error command to server
     private void sendError(String msg) throws IOException {
         sendToServer("error " + toProtocolString(msg));
-    }
-
-    // checks whether a command is a correct goodbye command
-    private boolean isCorrectGoodbyeCommand(Command command) {
-        return command.original.equals("goodbye");
     }
 
     // checks whether a command is a correct error command
