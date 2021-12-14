@@ -38,11 +38,14 @@ var OutcomeToPoints = map[Outcome]float64{
 }
 
 func (g *Game) updateScore() (err error) {
+	diff := g.North.Score - g.South.Score
+	if math.Abs(diff) > MAX_DIFF {
+		return nil
+	}
+
 	// Calculate the new ELO rating for the current client
 	// according to
 	// https://de.wikipedia.org/wiki/Elo-Zahl#Erwartungswert
-	diff := math.Max(-400, math.Min(g.South.Score-g.North.Score, 400))
-
 	ea := 1 / (1 + math.Pow(10, diff/MAX_DIFF))
 	eb := 1 / (1 + math.Pow(10, -diff/MAX_DIFF))
 
