@@ -87,20 +87,14 @@ func (game *Game) updateDatabase(wait *sync.WaitGroup) DBAction {
 }
 
 func saveMove(in *Game, by *Client, side Side, move int, when time.Time) DBAction {
-	var aid *int64
-
 	if !in.logged {
 		return nil
-	}
-
-	if by.token != nil {
-		aid = &by.Id
 	}
 
 	return func(db *sql.DB) {
 		_, err := queries["insert-move"].Exec(
 			in.Id,
-			aid,
+			by.Id,
 			side,
 			move,
 			by.comment,
