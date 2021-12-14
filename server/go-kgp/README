@@ -21,3 +21,5 @@ it.  The default configuration can be dumped
 and modified.
 
 [0] https://golang.org/
+
+Maintainer: Philip Kaludercic <philip.kaludercic@fau.de>
