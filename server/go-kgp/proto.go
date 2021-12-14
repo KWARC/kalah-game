@@ -187,17 +187,18 @@ func (cli *Client) Interpret(input string) error {
 			id:     id,
 		}
 	case "yield":
+		new := atomic.AddInt64(&cli.pending, -1)
+		if cli.simple && new < -1 {
+			cli.Error(id, "Preemptive yield")
+			cli.killFunc()
+		}
+
 		if game == nil ||
 			!game.IsCurrent(cli) ||
 			(ref != game.last && ref != 0) {
 			return nil
 		}
 
-		if cli.simple && cli.pending < 0 {
-			cli.Error(id, "Preemptive yield")
-			cli.killFunc()
-		}
-		atomic.AddInt64(&cli.pending, -1)
 		game.yield <- cli
 	case "ok", "error":
 		// We do not expect the client to confirm or reject anything,
