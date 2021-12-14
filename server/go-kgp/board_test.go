@@ -246,6 +246,21 @@ func TestSow(t *testing.T) {
 			},
 			move: 0,
 			side: SideNorth,
+		}, {
+			start: &Board{
+				north:     0,
+				northPits: []uint{1, 0, 1},
+				south:     0,
+				southPits: []uint{0, 0, 1},
+			},
+			end: &Board{
+				north:     0,
+				northPits: []uint{0, 1, 1},
+				south:     0,
+				southPits: []uint{0, 0, 1},
+			},
+			move: 0,
+			side: SideNorth,
 		},
 	} {
 		again := test.start.Sow(test.side, test.move)

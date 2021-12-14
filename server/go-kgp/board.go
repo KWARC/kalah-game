@@ -184,11 +184,11 @@ func (b *Board) Sow(self Side, pit int) bool {
 		return true
 	} else if side == self && pos > 0 {
 		last := int(pos - 1)
-		if side == SideNorth && b.northPits[last] == 1 {
+		if side == SideNorth && b.northPits[last] == 1 && b.southPits[size-1-last] > 0 {
 			b.north += b.southPits[size-1-last] + 1
 			b.southPits[size-1-last] = 0
 			b.northPits[last] = 0
-		} else if side == SideSouth && b.southPits[last] == 1 {
+		} else if side == SideSouth && b.southPits[last] == 1 && b.northPits[size-1-last] > 0 {
 			b.south += b.northPits[size-1-last] + 1
 			b.northPits[size-1-last] = 0
 			b.southPits[last] = 0
