@@ -348,9 +348,6 @@ public class ProtocolManager {
 
     // react to ping
     private void reactToPing(Command cmd) throws IOException {
-        if (!isCorrectPingCommand(cmd)) {
-            throw new ProtocolException("Not a correct ping command: " + cmd.original);
-        }
         sendToServer("pong");
     }
 
@@ -586,11 +583,6 @@ public class ProtocolManager {
     // sends error command to server
     private void sendError(String msg) throws IOException {
         sendToServer("error " + toProtocolString(msg));
-    }
-
-    // checks whether a command is a correct ping command
-    private boolean isCorrectPingCommand(Command command) {
-        return command.original.equals("ping");
     }
 
     // checks whether a command is a correct goodbye command
