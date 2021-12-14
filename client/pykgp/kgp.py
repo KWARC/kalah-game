@@ -22,7 +22,7 @@ import os
 import sys
 import socket
 import threading
-import multiprocessing
+import multiprocessing as mp
 import copy
 
 try:
@@ -202,6 +202,9 @@ def connect(agent, host='wss://kalah.kwarc.info/socket', port=2671, token=None, 
     FLOAT_PATTERN = re.compile(r'^(\d+(?:\.\d+)?)\s*')
     BOARD_PATTERN = _BOARD_PATTERN
 
+    main = os.getppid()
+    queue = mp.Queue()
+
     def split(args):
         """
         Parse ARGS as far as possible.
@@ -248,9 +251,11 @@ def connect(agent, host='wss://kalah.kwarc.info/socket', port=2671, token=None, 
             If ref is not None, add a reference.
             """
             nonlocal id
+            child = main == os.getppid()
 
-            msg = ""
-            if not id is None:
+            if child:
+                msg = ""
+            else:
                 msg = str(id)
             if ref:
                 msg += f'@{ref}'
@@ -266,10 +271,10 @@ def connect(agent, host='wss://kalah.kwarc.info/socket', port=2671, token=None, 
 
             if debug:
                 print(">", msg, file=sys.stderr)
-            write(msg + "\r\n")
+            msg += "\r\n"
+            queue.put(msg)
 
-            if not id is None:
-                id += 2
+            id += 2
 
         def query(state, cid):
             """
@@ -277,10 +282,7 @@ def connect(agent, host='wss://kalah.kwarc.info/socket', port=2671, token=None, 
 
             State is the current board state and cid the ID of the
             state command that issued the request.
-
             """
-            nonlocal id
-            id = None
 
             if state.is_final():
                 return
@@ -295,6 +297,11 @@ def connect(agent, host='wss://kalah.kwarc.info/socket', port=2671, token=None, 
                 send("yield", ref=cid)
 
         threads = {}
+
+        def sender():
+            while True:
+                write(queue.get())
+        threading.Thread(target=sender).start()
 
         for line in read():
             if debug:
@@ -331,7 +338,7 @@ def connect(agent, host='wss://kalah.kwarc.info/socket', port=2671, token=None, 
                         # Duplicate IDs by the server are ignored
                         continue
 
-                    threads[cid] = multiprocessing.Process(
+                    threads[cid] = mp.Process(
                         name=f'query-{cid}',
                         args=(board, cid),
                         target=query,
@@ -361,7 +368,7 @@ def connect(agent, host='wss://kalah.kwarc.info/socket', port=2671, token=None, 
         assert 'websocket' in sys.modules,\
             "websocket library couldn't be loaded"
 
-        ws = websocket.WebSocket()
+        ws = websocket.WebSocket(enable_multithread=True)
         ws.connect(host)
         def lines():
             try:
