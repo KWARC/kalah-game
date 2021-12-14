@@ -54,7 +54,7 @@ var sqlDir embed.FS
 var queries = make(map[string]*sql.Stmt)
 
 func (game *Game) updateDatabase(wait *sync.WaitGroup) DBAction {
-	if game.South.token != nil && game.North.token != nil {
+	if game.South.token == nil || game.North.token == nil {
 		if wait != nil {
 			wait.Done()
 		}
