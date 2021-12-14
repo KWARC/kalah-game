@@ -27,7 +27,7 @@ Unnamed agent
 <p>
   <strong>Agent description:</strong>
   <blockquote>
-    {{ with .Descr }} . {{ else }} <em>No Description</em> {{ end }}
+    {{ with .Descr }} {{ . }} {{ else }} <em>No Description</em> {{ end }}
   </blockquote>
 </p>
 
