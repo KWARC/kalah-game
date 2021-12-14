@@ -188,9 +188,20 @@ func (g *Game) Start() {
 		next := false
 		select {
 		case m := <-move:
-			if m.Client != g.Current() && m.Client.simple && m.Client.pending > 1 {
-				m.Client.Error(m.id, "Overdue yield")
-				m.Client.killFunc()
+			// If the client has sent us a move even
+			// though he has not responded to a previous
+			// "stop" command via "yield" we must conclude
+			// that the client has misunderstood the
+			// communication or is too slow.
+			if m.Client.simple && m.Client.pending >= 1 {
+				// We tolerate a single overdue yield,
+				// assuming that we have sent a stop
+				// and state command while the client
+				// attempted to send us a move.
+				if m.Client.pending >= 2 {
+					m.Client.Error(m.id, "Overdue yield")
+					m.Client.killFunc()
+				}
 			} else if !g.Board.Legal(g.side, m.Pit) {
 				m.Client.Error(m.id, fmt.Sprintf("Illegal move %d", m.Pit+1))
 			} else {
