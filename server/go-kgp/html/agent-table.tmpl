@@ -3,7 +3,7 @@
 	<tr>
 	    <td>Name</td>
 	    <td>Rating (<a href="https://en.wikipedia.org/wiki/Elo_rating_system">ELO</a>)</td>
-	    <td>Description</td>
+	    <td>Author</td>
 	    <td>Games</td>
 	</tr>
     </thead>
@@ -20,7 +20,7 @@
 		</a>
 		</td>
 		<td>{{ printf "%.f" .Score }}</td>
-		<td>{{ with .Descr }}{{ . }}{{ else }}<em>N/A</em>{{ end }}</td>
+		<td>{{ with .Author }}{{ . }}{{ else }}<em>anonymous</em>{{ end }}</td>
 		<td>{{ .Games }}</td>
 	    </tr>
 	{{ else }}
