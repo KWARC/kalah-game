@@ -49,7 +49,7 @@ var funcs = template.FuncMap{
 		return g.IsOver()
 	},
 	"timefmt": func(t time.Time) string {
-		return t.Format(time.RFC822)
+		return t.Format(time.Stamp)
 	},
 	"result": func(out Outcome) string {
 		switch out {
