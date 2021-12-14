@@ -99,12 +99,6 @@ func (b *Board) String() string {
 
 // Legal returns true if SIDE may play move PIT
 func (b *Board) Legal(side Side, pit int) bool {
-	size := len(b.northPits)
-
-	if pit >= size || pit < 0 {
-		return false
-	}
-
 	if side == SideNorth {
 		return b.northPits[pit] > 0
 	}
