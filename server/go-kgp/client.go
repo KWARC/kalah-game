@@ -197,8 +197,7 @@ func (cli *Client) Handle() {
 	// Optionally start a thread to periodically send ping
 	// requests to the client
 	var done chan struct{}
-	_, isWS := cli.rwc.(*wsrwc)
-	if conf.TCP.Ping && !isWS {
+	if conf.TCP.Ping {
 		done = make(chan (struct{}))
 		go cli.Pinger(done)
 	}
