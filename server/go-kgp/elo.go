@@ -58,8 +58,8 @@ func (g *Game) updateScore() (err error) {
 	// Send database manager a request to update the entry
 	var wait sync.WaitGroup
 	wait.Add(3)
-	dbact <- g.South.updateDatabase(&wait)
-	dbact <- g.North.updateDatabase(&wait)
+	dbact <- g.South.updateDatabase(&wait, false)
+	dbact <- g.North.updateDatabase(&wait, false)
 	dbact <- g.updateDatabase(&wait)
 	wait.Wait()
 

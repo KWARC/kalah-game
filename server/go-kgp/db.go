@@ -105,7 +105,7 @@ func saveMove(in *Game, by *Client, side Side, move int, when time.Time) DBActio
 	}
 }
 
-func (cli *Client) updateDatabase(wait *sync.WaitGroup) DBAction {
+func (cli *Client) updateDatabase(wait *sync.WaitGroup, query bool) DBAction {
 	if cli.token == nil {
 		if wait != nil {
 			wait.Done()
@@ -117,22 +117,25 @@ func (cli *Client) updateDatabase(wait *sync.WaitGroup) DBAction {
 		var (
 			name, descr *string
 			score       *float64
+			err         error
 		)
 
-		err := queries["select-agent-token"].QueryRow(cli.token).Scan(
-			&cli.Id, &name, &descr, &score)
-		if err != nil && err != sql.ErrNoRows {
-			log.Print(err)
-		}
+		if query {
+			err = queries["select-agent-token"].QueryRow(cli.token).Scan(
+				&cli.Id, &name, &descr, &score)
+			if err != nil && err != sql.ErrNoRows {
+				log.Print(err)
+			}
 
-		if name != nil {
-			cli.Name = *name
-		}
-		if descr != nil {
-			cli.Descr = *descr
-		}
-		if score != nil && !(*score == 1000.0 || *score == 0.0) {
-			cli.Score = *score
+			if name != nil {
+				cli.Name = *name
+			}
+			if descr != nil {
+				cli.Descr = *descr
+			}
+			if score != nil {
+				cli.Score = *score
+			}
 		}
 
 		_, err = queries["insert-agent"].Exec(
