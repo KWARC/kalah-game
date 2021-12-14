@@ -1,0 +1,15 @@
+This is a convenience client to request a server forgets an agent
+associated with a client.
+
+The client should be built using the Go compiler
+
+    $ go build
+
+and then executed as follows
+
+    $ ./kgp-forget some-server.net "my secret token" SomeOtherToken
+
+If successful, no response should have been generated.
+
+Maintainer: Philip Kaludercic <philip.kaludercic@fau.de>
+Status:	    Experimental
