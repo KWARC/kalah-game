@@ -61,11 +61,12 @@ public class ProtocolManager {
     // Creates new instance of communication to given server for the given agent
     public ProtocolManager(String host, Integer port, ConnectionType conType, Agent agent) {
 
-        if (port == null) {
-            this.host = host;
-        } else {
-            this.host = host + ":" + port;
+        if (port == null && conType != ConnectionType.TCP) {
+            throw new IllegalArgumentException(
+                    "Don't set port when using WebSocket or WebSocketSecure. Set port=null for the official server," +
+                            " otherwise add port into hostname");
         }
+        this.host = host;
         this.port = port;
         this.conType = conType;
         this.agent = agent;
