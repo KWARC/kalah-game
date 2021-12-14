@@ -70,6 +70,7 @@ table#attr {
 	   float: right;
 	   background: #fec;
 	   border: 1px solid #da9;
+	   margin-top: 12px;
 }
 
 table#attr tr td:nth-child(1) {
