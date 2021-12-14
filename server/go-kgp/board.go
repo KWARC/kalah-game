@@ -177,6 +177,10 @@ func (b *Board) Sow(self Side, pit int) bool {
 
 	// check for repeat- or collect-move
 	if pos == 0 && side == !self {
+		if b.Over() {
+			b.Collect()
+		}
+
 		return true
 	} else if side == self && pos > 0 {
 		last := int(pos - 1)
