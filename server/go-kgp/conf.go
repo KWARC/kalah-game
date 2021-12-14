@@ -88,6 +88,7 @@ var defaultConfig = Conf{
 		Sizes:    []uint{4, 5, 6, 7, 8, 9, 10, 11, 12},
 		Stones:   []uint{4, 5, 6, 7, 8, 9, 10, 11, 12},
 		EarlyWin: true,
+		Timeout:  5,
 	},
 	Web: WebConf{
 		Enabled: true,
