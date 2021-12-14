@@ -71,6 +71,7 @@ table#attr {
 	   background: #fec;
 	   border: 1px solid #da9;
 	   margin-top: 12px;
+	   max-width: 300px;
 }
 
 table#attr tr td:nth-child(1) {
