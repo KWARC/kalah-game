@@ -1,0 +1,48 @@
+This KGP client takes care of the protocol, and invokes a seperate
+process for every request:
+
+	$ kgpc kalah.kwarc.info ./some-client --with args
+
+In this example, the program "some-client --with args" will now be
+invoked every time a move is requested.  The board state will be
+transfered via the standard input as sequence of non-negative
+integers:
+
+	3
+	0 1
+	2 4 5
+	6 7 8
+
+This should be parsed as "A board with three pits on every side (south
+has 2 stones in it's first pit, 4 in it's second, 5 in the third,
+north has 6 in it's first pit, etc.).  The southern store has 0 stones
+and the northern store has 1".  The agent now has to decide what move
+the south side should make.  The decision should be written onto the
+standard output as a 0-indexed number designating the pit to sow.
+
+You can then terminate your process, yielding your time, or continue
+to improve your previous decision by outputting (hopefully) better
+moves.
+
+Kgpc will run as long as the connection persists.  You can connect
+both via TCP and Websocket.  For websocket connections, you need to
+add a "ws://" or "wss://" to the server address:
+
+	$ kgpc wss://kalah.kwarc.info/socket ./other-client
+
+You can set a token, author and agent name by setting the
+environmental variables TOKEN, AUTHOR and NAME respectivly.
+
+---
+
+To build kgpc, you need a Go toolchain[0], and then to run
+
+	$ go build
+
+This should result in a kgpc binary.  The executable is statically
+bound and can be moved around anywhere on the file system.
+
+[0]: https://go.dev/
+
+Maintainer: Philip Kaludercic <philip.kaludercic@fau.de>
+Status:	    Experimental
