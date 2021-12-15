@@ -202,7 +202,6 @@ def connect(agent, host='wss://kalah.kwarc.info/socket', port=2671, token=None, 
     FLOAT_PATTERN = re.compile(r'^(\d+(?:\.\d+)?)\s*')
     BOARD_PATTERN = _BOARD_PATTERN
 
-    main = os.getppid()
     queue = mp.Queue()
 
     def split(args):
@@ -242,7 +241,7 @@ def connect(agent, host='wss://kalah.kwarc.info/socket', port=2671, token=None, 
                 return parsed
 
     def handle(read, write):
-        id = 1
+        id = mp.Value('d', 1)
 
         def send(cmd, *args, ref=None):
             """
@@ -250,13 +249,8 @@ def connect(agent, host='wss://kalah.kwarc.info/socket', port=2671, token=None, 
 
             If ref is not None, add a reference.
             """
-            nonlocal id
-            child = main == os.getppid()
 
-            if child:
-                msg = ""
-            else:
-                msg = str(id)
+            msg = str(int(id.value))
             if ref:
                 msg += f'@{ref}'
             msg += " " + cmd
@@ -274,7 +268,8 @@ def connect(agent, host='wss://kalah.kwarc.info/socket', port=2671, token=None, 
             msg += "\r\n"
             queue.put(msg)
 
-            id += 2
+            with id.get_lock():
+                id.value += 2
 
         def query(state, cid):
             """
