@@ -1,11 +1,11 @@
 * {
-      box-sizing: border-box;
+    box-sizing: border-box;
 }
 
 html, body {
-      height: 100%;
-      width: 100%;
-      margin: 0;
+    height: 100%;
+    width: 100%;
+    margin: 0;
 }
 
 html {
@@ -39,13 +39,13 @@ footer {
 }
 
 main, nav {
-     width: 800px;
-     margin: 4px auto;
+    width: 800px;
+    margin: 4px auto;
 }
 
 a {
-  color: #058;
-  text-decoration: none
+    color: #058;
+    text-decoration: none
 }
 
 table, td {
@@ -54,40 +54,40 @@ table, td {
 }
 
 table.list td {
-   border-bottom: 1px solid grey; 
+    border-bottom: 1px solid grey; 
 }
 
 thead {
-   font-weight: bold;
-   font-size: 0.9em;
+    font-weight: bold;
+    font-size: 0.9em;
 }
 
 td {
-   padding: 8px;
+    padding: 8px;
 }
 
 table#attr {
-	   float: right;
-	   background: #fec;
-	   border: 1px solid #da9;
-	   margin-top: 12px;
-	   max-width: 300px;
+    float: right;
+    background: #fec;
+    border: 1px solid #da9;
+    margin-top: 12px;
+    max-width: 300px;
 }
 
 table#attr tr td:nth-child(1) {
-	   font-weight: bold;
+    font-weight: bold;
 }
 
 hr {
-   border-width: 0;
-   border-bottom: 1px solid #9ad;
+    border-width: 0;
+    border-bottom: 1px solid #9ad;
 }
 
 blockquote {
-	  margin: 
+    margin: 
 }
 
 #tcenter, nav#pageination {
-	text-align: center;
-	padding: 4px;
+    text-align: center;
+    padding: 4px;
 }
