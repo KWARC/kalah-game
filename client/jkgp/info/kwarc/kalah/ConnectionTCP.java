@@ -1,4 +1,4 @@
-package kgp.info.kwarc.kalah.jkpg;
+package info.kwarc.kalah;
 
 import java.io.BufferedReader;
 import java.io.IOException;

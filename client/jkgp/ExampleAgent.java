@@ -1,4 +1,6 @@
-package kgp.info.kwarc.kalah.jkpg;
+import info.kwarc.kalah.Agent;
+import info.kwarc.kalah.KalahState;
+import info.kwarc.kalah.ProtocolManager;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -43,38 +45,6 @@ public class ExampleAgent extends Agent {
         }
     }
 
-    // Example of a main function
-    public static void main(String[] args) throws IOException {
-
-        // Prepare agent for playing on a server on, for example, the same machine
-        // Agent initialization happens before we connect to the server
-        // Note that tournament programs will start your client in a process and punish it
-        // if it doesn't connect to the server within a specified amount of time
-
-        // Use WebSocketSecure to connect to the training server
-        // For WebSocket and WebSocketSecure you can enter a different port
-        Agent agent = new ExampleAgent("kalah.kwarc.info/socket", null, ProtocolManager.ConnectionType.WebSocketSecure);
-
-        // For local tests (the server code is publicly available) on the same PC use TCP,
-        // the Kalah Game Protocol default port is 2671
-        // Agent agent = new ExampleAgent("localhost", 2671, ProtocolManager.ConnectionType.TCP);
-
-        // If necessary, do some other stuff here before connecting.
-        // The game might start immediately after connecting!
-
-        while (true) {
-            try {
-                // Connects to the server,
-                // plays the tournament / game(s) until there's a fatal error or the server ends the connection
-                agent.run();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            // Wait 10 seconds before trying again
-            //sleep(10_000);
-        }
-    }
-
     @Override
     public void search(KalahState ks) throws IOException {
 
@@ -113,6 +83,38 @@ public class ExampleAgent extends Agent {
 
         // This implementation doesn't return from search() until the server says so via shouldStop(),
         // but that would be perfectly fine, for example if your agent found a proven win
+    }
+
+    // Example of a main function
+    public static void main(String[] args) throws IOException {
+
+        // Prepare agent for playing on a server on, for example, the same machine
+        // Agent initialization happens before we connect to the server
+        // Note that tournament programs will start your client in a process and punish it
+        // if it doesn't connect to the server within a specified amount of time
+
+        // Use WebSocketSecure to connect to the training server
+        // For WebSocket and WebSocketSecure you can enter a different port
+        Agent agent = new ExampleAgent("kalah.kwarc.info/socket", null, ProtocolManager.ConnectionType.WebSocketSecure);
+
+        // For local tests (the server code is publicly available) on the same PC use TCP,
+        // the Kalah Game Protocol default port is 2671
+        // Agent agent = new ExampleAgent("localhost", 2671, ProtocolManager.ConnectionType.TCP);
+
+        // If necessary, do some other stuff here before connecting.
+        // The game might start immediately after connecting!
+
+        while (true) {
+            try {
+                // Connects to the server,
+                // plays the tournament / game(s) until there's a fatal error or the server ends the connection
+                agent.run();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            // Wait 10 seconds before trying again
+            //sleep(10_000);
+        }
     }
 
 }

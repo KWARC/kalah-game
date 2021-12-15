@@ -1,6 +1,8 @@
-package kgp.info.kwarc.kalah.jkpg;
+package info.kwarc.kalah;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.PrintStream;
 import java.net.ProtocolException;
 import java.net.SocketException;
 import java.util.LinkedList;
@@ -707,4 +709,6 @@ public class ProtocolManager {
         }
     }
 
+    // Pointless main method so "Intelli"J manages to build a jar automatically
+    public static void main(String[] args) {}
 }

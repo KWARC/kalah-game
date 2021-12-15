@@ -1,6 +1,8 @@
-package kgp.info.kwarc.kalah.jkpg;
-
-import kgp.info.kwarc.kalah.jkpg.KalahState.*;
+import info.kwarc.kalah.Agent;
+import info.kwarc.kalah.KalahState;
+import info.kwarc.kalah.KalahState.GameResult;
+import info.kwarc.kalah.KalahState.Player;
+import info.kwarc.kalah.ProtocolManager;
 
 import java.io.IOException;
 
@@ -24,22 +26,6 @@ public class MinMaxAgent extends Agent {
         );
 
         this.level = level;
-    }
-
-    // Example of a main function
-    public static void main(String[] args) {
-        while (true) {
-            Agent agent = new MinMaxAgent(
-                    "kalah.kwarc.info/socket",
-                    null,
-                    ProtocolManager.ConnectionType.WebSocketSecure,
-                    0);
-            try {
-                agent.run();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
     }
 
     @Override
@@ -138,6 +124,22 @@ public class MinMaxAgent extends Agent {
                 }
 
                 return best_eval;
+            }
+        }
+    }
+
+    // Example of a main function
+    public static void main(String[] args) {
+        while (true) {
+            Agent agent = new MinMaxAgent(
+                    "kalah.kwarc.info/socket",
+                    null,
+                    ProtocolManager.ConnectionType.WebSocketSecure,
+                    0);
+            try {
+                agent.run();
+            } catch (IOException e) {
+                e.printStackTrace();
             }
         }
     }
