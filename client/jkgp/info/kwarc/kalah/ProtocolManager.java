@@ -1,7 +1,6 @@
 package info.kwarc.kalah;
 
 import java.io.IOException;
-import java.io.OutputStream;
 import java.io.PrintStream;
 import java.net.ProtocolException;
 import java.net.SocketException;
@@ -61,7 +60,7 @@ public class ProtocolManager {
     private volatile boolean running;
     private ConnectionType conType;
     // Creates new instance of communication to given server for the given agent
-    public ProtocolManager(String host, Integer port, ConnectionType conType, Agent agent, boolean printNetwork) {
+    ProtocolManager(String host, Integer port, ConnectionType conType, Agent agent, boolean printNetwork) {
 
         if (printNetwork) {
             debugStream = System.out;
@@ -83,7 +82,7 @@ public class ProtocolManager {
     // Connects to the server, handles the tournament/game/..., then ends the connection
     // Don't use run in parallel, create more ProtocolManager instances instead
     // This method will block successive calls until the previous session is over
-    public void run() throws IOException {
+    void run() throws IOException {
 
         synchronized (lockSession) {
             // reset data for this session
@@ -661,9 +660,24 @@ public class ProtocolManager {
         WAITING_FOR_AGENT_TO_STOP, // told agent to stop (because server told us to stop), waiting for AgentFinished event
     }
 
+
+    /**
+     * Enum for the three possible connection types.
+     */
     public enum ConnectionType {
+        /**
+         * TCP
+         */
         TCP,
+
+        /**
+         * Websocket
+         */
         WebSocket,
+
+        /**
+         * WebSocketSecure
+         */
         WebSocketSecure,
     }
 

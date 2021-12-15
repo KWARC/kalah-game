@@ -2,27 +2,25 @@ package info.kwarc.kalah;
 
 import java.io.IOException;
 
-// though that would mean that every server would have to develop it's own library
-
-// Implement the constructor and search() for your agent according to the comments, and you're done
-// Not knowing the board size upon creation of the agent is on purpose
-// Note that servers might punish agents whose constructor needs too much time
-// Prints the client-server communication to the error stream
-// Btw. this is a single threaded implementation, the agent and the protocol manager are calling each other
-// So don't worry about scheduling issues if your tournament restricts the agent to one CPU core
 public abstract class Agent {
 
-    // the communication instance the agent uses to communicate with the server
     private final ProtocolManager com;
-    // can be null
     private String name, authors, description, token;
     private ProtocolManager.ConnectionType conType;
 
-    // Creates an agent
-    // If host and port are non-null and the connection is TCP, the agent will connect to that server.
-    // If host is non-null and the connection is WS or WSS, the agent will connect to that server.
-    // If name/authors/description is non-null, the server is told the value of name/authors/description
-    // If token is non-null, the client will authenticate itself to the server using that token
+    /**
+     * For TCP the port has to be non-null, for WebSocket(Secure) it'll use the default ports
+     * If name, authors, description, token are null, then that value will not be sent to the server upon connecting
+     *
+     * @param host Server to connect to
+     * @param port Port to connect via, can be null
+     * @param conType Type of connection TCP, WebSocket, WebSocketSecure
+     * @param name Name of the agent, can be null
+     * @param authors Authors of the agent, can be null
+     * @param description Description of the agent, can be null
+     * @param token Token of the agent, can be null
+     * @param printNetwork Whether to print client-server-communication to stdout
+     */
     public Agent(String host, Integer port, ProtocolManager.ConnectionType conType, String name, String authors, String description, String token, boolean printNetwork) {
 
         com = new ProtocolManager(host, port, conType, this, printNetwork);
@@ -36,78 +34,106 @@ public abstract class Agent {
         this.conType = conType;
     }
 
-    // MANDATORY: Read the documentation of submitMove() and shouldStop()
-    // Find the best move for the given state here
-    // It's always south's turn to move
+
+    /**
+     * Called when the server sends a state to the client e.g. asks it to start computing moves for that state.
+     * Important: Also see should_stop()
+     * @param ks A board with south to move
+     * @throws IOException If something goes wrong during the computation of the move
+     */
     public abstract void search(KalahState ks) throws IOException;
 
-    // Returns the name of the agent or null if not specified
+
+    /**
+     * @return Agent's name, null if not specified.
+     */
     public String getName() {
         return name;
     }
 
-    // Returns the authors of the agent or null if not specified
+    /**
+     * @return Agent's authors, null if not specified.
+     */
     public String getAuthors() {
         return authors;
     }
 
-    // Returns the description of the agent or null if not specified
+    /**
+     * @return Agent's description, null if not specified.
+     */
     public String getDescription() {
         return description;
     }
 
-    // Returns the token of the agent or null if not specified
+    /**
+     * @return Agent's token or null if not specified.
+     */
     public String getToken() {
         return token;
     }
 
-    // connects to the server, plays the tournament/game/whatever, closes the connection
-    // passes on IOExceptions
-    // if there is a mistake in the implementation and the client crashes, it will notify the server and end
-    // the connection before crashing the program
+    /**
+     * Connects to the server, plays games until the server closes the connection or an error occurs.
+     * Exits the connection in a clean way upon error and passes the Exception to the caller as an IOException.
+     */
     public final void run() throws IOException {
         com.run();
     }
 
-    // Tell the server the currently "best" move (according to your agent)
-    // Call at least one time or the server might punish you!
-    // A move is a number in [0 ..., board_size-1] (in the direction of sowing)
+    /**
+     * Tells the server the move the agent currently wants to play.
+     * Use during search() only.
+     */
     protected final void submitMove(int move) throws IOException {
         com.sendMove(move + 1);
     }
 
-    // Call this function a few times per second in search()
-    // Calling this function regularly is necessary to handle the protocol communication!
-    // Returns true after the server told the client to stop searching.
-    // End search as fast as possible if it returns true! A good server implementation
-    // subtracts overtime from the next move to prevent cheating!
-    // Note: You can return from search() anytime, for example if you don't need more time
-    protected final boolean shouldStop() throws IOException {
+    /**
+     * Call this function at least 10 times per second in search()
+     * and end the search as fast as possible when true is returned.
+     * There is nothing to be gained from a delayed reaction, in fact
+     * this behaviour is usually punished.
+     * Note that you can still return from search() at any time, even
+     * when should_stop() doesn't return true yet.
+     * @return True after the server told the client to stop searching
+     */
+    protected final boolean shouldStop() {
         return com.shouldStop();
     }
 
-    // Tells the server to comment on the current position, call it during search() for example
-    // Pass your string, can include linebreaks and newlines
+    /**
+     * Sends a comment about the current position to the server,
+     * Use during search() only.
+     * Comment may include linebreaks and newlines
+     */
     protected final void sendComment(String comment) throws IOException {
         com.sendComment(comment);
     }
 
-    // Get time mode if available, otherwise returns null
+    /**
+     * @return Time mode if set, otherwise null
+     */
     protected final ProtocolManager.TimeMode getTimeMode() {
         return com.getTimeMode();
     }
 
-    // Get number of seconds on agent's clock if available, otherwise returns null
+    /**
+     * @return Number of seconds on agent's clock, otherwise null
+     */
     protected final Integer getTimeClock() {
         return com.getTimeClock();
     }
 
-    // Get number of seconds on opponent's clock if available, otherwise returns null
+    /**
+     * @return Number of seconds on opponent's clock, otherwise null
+     */
     protected final Integer getTimeOppClock() {
         return com.getTimeOppClock();
     }
 
-    // Get name of server if available, otherwise returns null
+    /**
+     * @return Server name if available, otherwise null
+     */
     protected final String getServerName() {
         return com.getServerName();
     }

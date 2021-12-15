@@ -6,7 +6,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.Socket;
 
-public class ConnectionTCP implements Connection {
+class ConnectionTCP implements Connection {
 
     private String host;
     private int port;
@@ -15,7 +15,7 @@ public class ConnectionTCP implements Connection {
     private BufferedReader input;
     private OutputStream output;
 
-    public ConnectionTCP(String host, int port) throws IOException {
+    ConnectionTCP(String host, int port) throws IOException {
         this.host = host;
         this.port = port;
 

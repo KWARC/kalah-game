@@ -9,7 +9,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
 
 
-public class ConnectionWebSocket implements Connection {
+class ConnectionWebSocket implements Connection {
 
     private static final String POISON_PILL = "Poison pill, compared by memory address";
 
@@ -20,7 +20,7 @@ public class ConnectionWebSocket implements Connection {
 
     private String acc = ""; // for accumulating WebSocket messages if they arrive in parts
 
-    public ConnectionWebSocket(String host) throws IOException {
+    ConnectionWebSocket(String host) throws IOException {
 
         this.host = host;
 
