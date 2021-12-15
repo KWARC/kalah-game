@@ -22,7 +22,8 @@ public class MinMaxAgent extends Agent {
                 "Tobias Völk [Former Tutor]",
                 "MinMax, Iterative deepening until server tells it to stop or depth " + level + " is reached.\n" +
                         "For depth = 0, the move is chosen uniform at random",
-                null//"SuperSecretAndComplexMinMaxExampleAgentToken"
+                "SuperSecretAndComplexMinMaxExampleAgentToken",
+                true
         );
 
         this.level = level;
@@ -135,10 +136,16 @@ public class MinMaxAgent extends Agent {
                     "kalah.kwarc.info/socket",
                     null,
                     ProtocolManager.ConnectionType.WebSocketSecure,
-                    0);
+                    5);
             try {
                 agent.run();
             } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            try {
+                Thread.sleep(10000);
+            } catch (InterruptedException e) {
                 e.printStackTrace();
             }
         }

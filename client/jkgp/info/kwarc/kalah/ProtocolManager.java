@@ -38,7 +38,7 @@ public class ProtocolManager {
                     "\"(?:\\\\.|[^\"])*\"|" + // strings
                     "<\\d+(,\\d+)*>",
             Pattern.CASE_INSENSITIVE);
-    private static PrintStream debugStream = System.out;
+    private PrintStream debugStream = System.out;
     private final String host;
     private final Integer port;
     private final Agent agent;
@@ -61,7 +61,13 @@ public class ProtocolManager {
     private volatile boolean running;
     private ConnectionType conType;
     // Creates new instance of communication to given server for the given agent
-    public ProtocolManager(String host, Integer port, ConnectionType conType, Agent agent) {
+    public ProtocolManager(String host, Integer port, ConnectionType conType, Agent agent, boolean printNetwork) {
+
+        if (printNetwork) {
+            debugStream = System.out;
+        } else {
+            debugStream = null;
+        }
 
         if (port != null && conType != ConnectionType.TCP) {
             throw new IllegalArgumentException(
@@ -72,10 +78,6 @@ public class ProtocolManager {
         this.port = port;
         this.conType = conType;
         this.agent = agent;
-    }
-
-    public static void setDebugStream(OutputStream o) {
-        debugStream = new PrintStream(o);
     }
 
     // Connects to the server, handles the tournament/game/..., then ends the connection

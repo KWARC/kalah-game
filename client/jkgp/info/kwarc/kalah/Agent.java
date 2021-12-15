@@ -23,9 +23,9 @@ public abstract class Agent {
     // If host is non-null and the connection is WS or WSS, the agent will connect to that server.
     // If name/authors/description is non-null, the server is told the value of name/authors/description
     // If token is non-null, the client will authenticate itself to the server using that token
-    public Agent(String host, Integer port, ProtocolManager.ConnectionType conType, String name, String authors, String description, String token) {
+    public Agent(String host, Integer port, ProtocolManager.ConnectionType conType, String name, String authors, String description, String token, boolean printNetwork) {
 
-        com = new ProtocolManager(host, port, conType, this);
+        com = new ProtocolManager(host, port, conType, this, printNetwork);
 
         this.name = name;
         this.authors = authors;

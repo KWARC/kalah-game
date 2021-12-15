@@ -3,18 +3,22 @@ package info.kwarc.kalah;
 import java.util.ArrayList;
 import java.util.Arrays;
 
-// A Kalah implementation with a sideToMove variable
-// I am aware that you could do a recursive search by flipping the board accordingly
-// but there is little performance gain, and it's a bit weird to be honest
-// Ready to be used with a HashMap
-// In a game over state, all seeds are in the stores, there's no seed in any house
-
+/**
+ * A Kalah implementation with a sideToMove variable.
+ * We are aware that one could also flip the board accordingly but went for former since it's easier to use
+ * Note that this implementation is also ready for use with HashMaps
+ */
 public class KalahState {
 
     // arrays are sowed in the direction of increasing indices
     private int[] housesSouth, housesNorth;
     private int storeSouth, storeNorth;
     private Player playerToMove;
+
+    /**
+     * @param board_size Number of southern pits
+     * @param seeds Number of initial seeds in one pit
+     */
     // create a new board of size h with seeds seeds everywhere and south to move
     public KalahState(int board_size, int seeds) {
         storeSouth = 0;
