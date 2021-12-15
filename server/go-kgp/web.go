@@ -70,6 +70,12 @@ var funcs = template.FuncMap{
 	"hasAbout": func() bool {
 		return conf.Web.About != ""
 	},
+	"version": func() string {
+		if version == "" {
+			return "unknown"
+		}
+		return version
+	},
 }
 
 var (

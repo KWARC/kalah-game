@@ -42,6 +42,8 @@ var (
 	conf *Conf = &defaultConfig
 
 	debug = log.New(io.Discard, "[debug] ", log.Ltime|log.Lshortfile|log.Lmicroseconds)
+
+	version string
 )
 
 func listen(ln net.Listener) {

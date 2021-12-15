@@ -13,7 +13,7 @@ FROM docker.io/library/golang:1.17-bullseye as builder
 ADD . /app/
 WORKDIR /app/
 RUN go get .
-RUN CGO_ENABLED=1 GOOS=linux go build -a -ldflags '-linkmode external -extldflags "-static"' -o go-kgp ./
+RUN CGO_ENABLED=1 GOOS=linux go build -a -ldflags "-linkmode external -extldflags '-static' -X main.version=$(git rev-list -1 HEAD)" -o go-kgp ./
 
 # add it into a new image
 FROM docker.io/library/debian:bullseye-slim
