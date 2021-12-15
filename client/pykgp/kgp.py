@@ -158,7 +158,7 @@ class Board:
         elif side == me and pos > 0:
             last = pos - 1
             other = self.size - 1 - last
-            if b[side, last] == 1:
+            if b[side, last] == 1 and b[not side, other] > 0:
                 b[side] += b[not side, other] + 1
                 b[not side, other] = 0
                 b[side] = 0
