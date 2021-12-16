@@ -42,7 +42,10 @@ import (
 
 type DBAction func(*sql.DB)
 
-var dbact = make(chan DBAction, 1)
+var (
+	dbact = make(chan DBAction, 1)
+	db    *sql.DB
+)
 
 // The SQL queries are stored under ./sql/, and they are loaded by the
 // database manager.  These are prepared and stored in QUERIES, that
@@ -362,10 +365,12 @@ func databaseManager(id uint, db *sql.DB, wg *sync.WaitGroup) {
 }
 
 func manageDatabase() {
+	var err error
+
 	uri := fmt.Sprintf("%s?mode=%s&_journal=wal",
 		conf.Database.File,
 		conf.Database.Mode)
-	db, err := sql.Open("sqlite3", uri)
+	db, err = sql.Open("sqlite3", uri)
 	if err != nil {
 		log.Fatal(err)
 	}

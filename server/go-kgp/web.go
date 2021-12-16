@@ -171,7 +171,7 @@ func showGame(w http.ResponseWriter, r *http.Request) {
 	}
 
 	c := make(chan *Game)
-	dbact <- queryGame(id, c)
+	queryGame(id, c)(db)
 	w.Header().Add("Content-Type", "text/html")
 	err = T.ExecuteTemplate(w, "show-game.tmpl", <-c)
 	if err != nil {
@@ -192,9 +192,9 @@ func showAgent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	c := make(chan *Agent)
-	dbact <- queryAgent(id, c)
+	queryAgent(id, c)(db)
 	games := make(chan *Game)
-	dbact <- queryGames(games, page-1, &id)
+	queryGames(games, page-1, &id)(db)
 
 	w.Header().Add("Content-Type", "text/html")
 	err = T.ExecuteTemplate(w, "show-agent.tmpl", struct {
@@ -214,7 +214,7 @@ func listGames(w http.ResponseWriter, r *http.Request) {
 	}
 
 	c := make(chan *Game)
-	dbact <- queryGames(c, page-1, nil)
+	queryGames(c, page-1, nil)(db)
 	w.Header().Add("Content-Type", "text/html")
 	err = T.ExecuteTemplate(w, "list-games.tmpl", struct {
 		Games chan *Game
@@ -232,7 +232,7 @@ func listAgents(w http.ResponseWriter, r *http.Request) {
 	}
 
 	c := make(chan *Agent)
-	dbact <- queryAgents(c, page-1)
+	queryAgents(c, page-1)(db)
 
 	w.Header().Add("Content-Type", "text/html")
 	err = T.ExecuteTemplate(w, "list-agents.tmpl", struct {
