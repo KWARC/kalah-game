@@ -20,9 +20,12 @@
 package main
 
 import (
+	"context"
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"log"
+	"net"
 	"regexp"
 	"strconv"
 	"strings"
@@ -109,7 +112,7 @@ func (cli *Client) Set(key, val string) error {
 
 			var wg sync.WaitGroup
 			wg.Add(1)
-			dbact <- cli.updateDatabase(&wg, true)
+			cli.dbact <- cli.updateDatabase(&wg, true)
 			wg.Wait()
 		}
 	}
@@ -222,4 +225,62 @@ func (cli *Client) Interpret(input string) error {
 	}
 
 	return nil
+}
+
+func (tc *TCPConf) deinit() {
+	if tc.cancel != nil {
+		tc.cancel()
+	}
+}
+
+func (tc *TCPConf) init() {
+	debug.Print("Starting TCP listener")
+
+	if !tc.Enabled {
+		return
+	}
+
+	var (
+		conns chan net.Conn
+		ctx   context.Context
+		dead  bool
+	)
+
+	ctx, tc.cancel = context.WithCancel(context.Background())
+	tcp := fmt.Sprintf("%s:%d", tc.Host, tc.Port)
+	ln, err := net.Listen("tcp", tcp)
+	if err != nil {
+		log.Fatal(err)
+	}
+	debug.Printf("Listening on TCP %s", tcp)
+
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				if dead {
+					return
+				}
+				log.Print(err)
+				continue
+			}
+
+			conns <- conn
+		}
+	}()
+
+	for {
+		select {
+		case conn := <-conns:
+			log.Printf("New connection from %s", conn.RemoteAddr())
+			go (&Client{rwc: conn, conf: tc}).Handle()
+		case <-ctx.Done():
+			dead = true
+			err = ln.Close()
+			if err != nil {
+				log.Println(err)
+			}
+			return
+		}
+	}
 }

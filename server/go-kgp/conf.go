@@ -20,6 +20,8 @@
 package main
 
 import (
+	"context"
+	"database/sql"
 	"io"
 	"log"
 	"net/http"
@@ -31,10 +33,9 @@ import (
 )
 
 type GameConf struct {
-	Sizes    []uint `toml:"sizes"`
-	Stones   []uint `toml:"stones"`
-	Timeout  uint   `toml:"timeout"`
-	EarlyWin bool   `toml:"earlywin"`
+	Sizes   []uint `toml:"sizes"`
+	Stones  []uint `toml:"stones"`
+	Timeout uint   `toml:"timeout"`
 }
 
 type WSConf struct {
@@ -48,6 +49,9 @@ type WebConf struct {
 	Limit   uint   `toml:"limit"`
 	About   string `toml:"about"`
 	server  *http.Server
+	WS      WSConf `toml:"websocket"`
+
+	dbact chan<- DBAction
 }
 
 type TCPConf struct {
@@ -57,38 +61,38 @@ type TCPConf struct {
 	Ping    bool   `toml:"ping"`
 	Timeout uint   `toml:"timeout"`
 	Retries uint   `toml:"retries"`
+	Endless bool   `toml:"endless"`
+
+	cancel context.CancelFunc
 }
 
 type DBConf struct {
 	File    string `toml:"file"`
 	Threads uint   `toml:"threads"`
 	Mode    string `toml:"mode"`
+
+	act chan DBAction
+	db  *sql.DB
 }
 
 type Conf struct {
 	Debug    bool     `toml:"debug"`
-	Endless  bool     `toml:"endless"`
 	Database DBConf   `toml:"database"`
 	Game     GameConf `toml:"game"`
 	Web      WebConf  `toml:"web"`
-	WS       WSConf   `toml:"websocket"`
 	TCP      TCPConf  `toml:"tcp"`
-	file     string
+	EarlyWin bool     `toml:"earlywin"`
+
+	file string
 }
 
 var defaultConfig = Conf{
-	Debug: false,
-	Database: DBConf{
-		File:    "kalah.sql",
-		Threads: 1,
-		Mode:    "rwc",
-	},
-	Endless: true,
+	Debug:    false,
+	EarlyWin: true,
 	Game: GameConf{
-		Sizes:    []uint{4, 5, 6, 7, 8, 9, 10, 11, 12},
-		Stones:   []uint{4, 5, 6, 7, 8, 9, 10, 11, 12},
-		EarlyWin: true,
-		Timeout:  5,
+		Sizes:   []uint{4, 5, 6, 7, 8, 9, 10, 11, 12},
+		Stones:  []uint{4, 5, 6, 7, 8, 9, 10, 11, 12},
+		Timeout: 5,
 	},
 	Web: WebConf{
 		Enabled: true,
@@ -96,9 +100,14 @@ var defaultConfig = Conf{
 		Port:    8080,
 		Limit:   50,
 		About:   "",
+		WS: WSConf{
+			Enabled: false,
+		},
 	},
-	WS: WSConf{
-		Enabled: false,
+	Database: DBConf{
+		File:    "kalah.sql",
+		Threads: 1,
+		Mode:    "rwc",
 	},
 	TCP: TCPConf{
 		Enabled: true,
@@ -107,63 +116,85 @@ var defaultConfig = Conf{
 		Ping:    true,
 		Timeout: 20,
 		Retries: 8,
+		Endless: true,
 	},
 }
 
-func (conf *Conf) init() {
-	go func() {
-		var (
-			rc  io.ReadCloser
-			err error
-		)
+func readConf(name string, conf *Conf) error {
+	debug.Print("Loading configuration")
 
-		c := make(chan os.Signal, 1)
-		signal.Notify(c, syscall.SIGUSR1)
-
-		for range c {
-			if conf.file == "" {
-				goto init
-			}
-			rc, err = os.Open(conf.file)
-			if err != nil {
-				log.Print(err)
-				continue
-			}
-
-			err = parseConf(rc, conf)
-			if err != nil {
-				log.Print(err)
-			}
-			rc.Close()
-
-		init:
-			go conf.Web.init()
-		}
-	}()
-
-	if conf.Debug {
-		debug.SetOutput(os.Stderr)
-	} else {
-		debug.SetOutput(io.Discard)
+	file, err := os.Open(name)
+	if err != nil {
+		return err
 	}
+	defer file.Close()
 
-	go conf.Web.init()
-}
-
-func parseConf(r io.Reader, conf *Conf) error {
-	_, err := toml.NewDecoder(r).Decode(conf)
+	_, err = toml.NewDecoder(file).Decode(conf)
+	conf.file = name
 	return err
 }
 
 func openConf(name string) (*Conf, error) {
 	var conf Conf
-
-	file, err := os.Open(name)
+	err := readConf(name, &conf)
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	return &conf, nil
+}
 
-	conf.file = name
-	return &conf, parseConf(file, &conf)
+func start(conf *Conf) {
+	c := make(chan os.Signal, 1)
+	go signal.Notify(c, syscall.SIGUSR1, os.Interrupt)
+
+	for {
+		// Enabled or disable debugging
+		if conf.Debug {
+			debug.SetOutput(os.Stderr)
+			debug.Print("Enabled debugging output")
+		} else {
+			debug.Print("Disabling debugging output")
+			debug.SetOutput(io.Discard)
+		}
+
+		// XXX: Setting a global variable here goes against
+		// the centralised, non-global configuration design.
+		// A way should be found to circumvent this direct
+		// approach, and only have games end early that were
+		// started when EarlyWin was enabled (and vice versa).
+		earlyWin = conf.EarlyWin
+
+		// Start the queue manager
+		go conf.Game.init()
+		// Start the database manager
+		go conf.Database.init()
+		// Start accepting TCP requests
+		go conf.TCP.init()
+		// Start the web-server and websocket
+		go conf.Web.init()
+
+		sig := <-c
+		// Stop accepting TCP connections
+		conf.TCP.deinit()
+		// Shut down webserver
+		conf.Web.deinit()
+		// Close database
+		conf.Database.deinit()
+
+		// Terminate on an interrupt
+		if sig == os.Interrupt {
+			return
+		}
+
+		// Read configuration file if necessary
+		if conf.file != "" {
+			nconf, err := openConf(conf.file)
+			if err == nil {
+				conf = nconf
+			} else {
+				log.Println(err)
+			}
+		}
+
+	}
 }

@@ -128,12 +128,9 @@ func TestLegal(t *testing.T) {
 			t.Errorf("(%d) Didn't recognize illegla move", i)
 		}
 	}
-
 }
 
 func TestSow(t *testing.T) {
-	conf.Game.EarlyWin = false
-
 	for i, test := range []struct {
 		start, end *Board
 		move       int

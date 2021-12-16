@@ -25,8 +25,6 @@ import (
 	"fmt"
 	"io/fs"
 	"log"
-	"os"
-	"os/signal"
 	"path"
 	"strings"
 	"sync"
@@ -41,8 +39,6 @@ import (
 // handles possible errors.
 
 type DBAction func(*sql.DB)
-
-var dbact = make(chan DBAction, 1)
 
 // The SQL queries are stored under ./sql/, and they are loaded by the
 // database manager.  These are prepared and stored in QUERIES, that
@@ -277,7 +273,7 @@ func scanGame(scan func(dest ...interface{}) error) (*Game, error) {
 	return &game, nil
 }
 
-func queryGames(c chan<- *Game, page int, aid *int) DBAction {
+func (wc *WebConf) queryGames(c chan<- *Game, page int, aid *int) DBAction {
 	return func(db *sql.DB) {
 		var (
 			rows *sql.Rows
@@ -286,7 +282,7 @@ func queryGames(c chan<- *Game, page int, aid *int) DBAction {
 
 		defer close(c)
 		if aid == nil {
-			rows, err = queries["select-games"].Query(page, conf.Web.Limit)
+			rows, err = queries["select-games"].Query(page, wc.Limit)
 		} else {
 			rows, err = queries["select-games-by"].Query(*aid, page)
 		}
@@ -315,10 +311,10 @@ func queryGames(c chan<- *Game, page int, aid *int) DBAction {
 	}
 }
 
-func queryAgents(c chan<- *Agent, page int) DBAction {
+func (wc *WebConf) queryAgents(c chan<- *Agent, page int) DBAction {
 	return func(db *sql.DB) {
 		defer close(c)
-		rows, err := queries["select-agents"].Query(page, conf.Web.Limit)
+		rows, err := queries["select-agents"].Query(page, wc.Limit)
 		if err != nil {
 			if err != sql.ErrNoRows {
 				log.Print(err)
@@ -344,49 +340,46 @@ func queryAgents(c chan<- *Agent, page int) DBAction {
 	}
 }
 
-func databaseManager(id uint, db *sql.DB, wg *sync.WaitGroup) {
+func (dc *DBConf) manager(id uint, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	// The channel is copied so that when the server is requested
 	// to terminate we can continue to process the remaining
 	// actions, without an other thread writing on a closed
 	// channel that would trigger a panic.
-	dbact := dbact
-	for act := range dbact {
+	for act := range dc.act {
 		if act == nil {
 			continue
 		}
 
-		act(db)
+		act(dc.db)
 	}
 }
 
-func manageDatabase() {
+func (dc *DBConf) deinit() {
+	if dc.act != nil {
+		old := dc.act
+		dc.act = make(chan DBAction)
+		time.Sleep(100 * time.Millisecond)
+		close(old)
+	}
+	if dc.db != nil {
+		dc.db.Close()
+	}
+}
+
+func (dc *DBConf) init() {
+	debug.Print("Starting database manager")
+
+	var err error
+
 	uri := fmt.Sprintf("%s?mode=%s&_journal=wal",
-		conf.Database.File,
-		conf.Database.Mode)
-	db, err := sql.Open("sqlite3", uri)
+		dc.File,
+		dc.Mode)
+	dc.db, err = sql.Open("sqlite3", uri)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer db.Close()
-
-	go func() {
-		intr := make(chan os.Signal, 1)
-		signal.Notify(intr, os.Interrupt)
-
-		// The first interrupt signals the database managers to stop
-		// accepting more requests
-		<-intr
-		old := dbact
-		dbact = make(chan DBAction)
-		time.Sleep(100 * time.Millisecond)
-		close(old)
-
-		// The second interrupt force-exits the process
-		<-intr
-		os.Exit(1)
-	}()
 
 	err = fs.WalkDir(sqlDir, "sql", func(file string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -402,9 +395,9 @@ func manageDatabase() {
 		}
 
 		if strings.HasPrefix(base, "create-") {
-			_, err = db.Exec(string(data))
+			_, err = dc.db.Exec(string(data))
 		} else {
-			queries[strings.TrimSuffix(base, ".sql")], err = db.Prepare(string(data))
+			queries[strings.TrimSuffix(base, ".sql")], err = dc.db.Prepare(string(data))
 		}
 		if err != nil {
 			log.Fatal(err)
@@ -416,9 +409,9 @@ func manageDatabase() {
 	}
 
 	var wg sync.WaitGroup
-	for id := uint(0); id < conf.Database.Threads; id++ {
+	for id := uint(0); id < dc.Threads; id++ {
 		wg.Add(1)
-		go databaseManager(id, db, &wg)
+		go dc.manager(id, &wg)
 	}
 	wg.Wait()
 }

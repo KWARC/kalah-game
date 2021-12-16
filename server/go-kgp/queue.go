@@ -31,7 +31,7 @@ var (
 )
 
 // Attempt to match clients for new games
-func match(queue []*Client) []*Client {
+func (gc *GameConf) match(queue []*Client) []*Client {
 	north := queue[0]
 	for i, cli := range queue[1:] {
 		i += 1
@@ -46,8 +46,8 @@ func match(queue []*Client) []*Client {
 
 			go (&Game{
 				Board: makeBoard(
-					conf.Game.Sizes[rand.Intn(len(conf.Game.Sizes))],
-					conf.Game.Stones[rand.Intn(len(conf.Game.Stones))]),
+					gc.Sizes[rand.Intn(len(gc.Sizes))],
+					gc.Stones[rand.Intn(len(gc.Stones))]),
 				North: north,
 				South: south,
 			}).Start()
@@ -63,7 +63,7 @@ func match(queue []*Client) []*Client {
 // most one client in QUEUE.  If should therefore be possible to
 // simplify the algorithm below that accounts for possible duplicates.
 
-func remove(cli *Client, queue []*Client) []*Client {
+func (gc *GameConf) remove(cli *Client, queue []*Client) []*Client {
 	// Traverse the queue and replace any reference to CLI with a nil
 	// pointer.
 	found := false
@@ -124,7 +124,9 @@ func remove(cli *Client, queue []*Client) []*Client {
 }
 
 // Try to organise matches
-func queueManager() {
+func (gc *GameConf) init() {
+	debug.Print("Starting queue manager")
+
 	var queue []*Client
 
 	for {
@@ -132,11 +134,11 @@ func queueManager() {
 		case cli := <-enqueue:
 			queue = append(queue, cli)
 		case cli := <-forget:
-			queue = remove(cli, queue)
+			queue = gc.remove(cli, queue)
 		}
 
 		if len(queue) >= 2 {
-			queue = match(queue)
+			queue = gc.match(queue)
 		}
 	}
 }

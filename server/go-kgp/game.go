@@ -76,6 +76,9 @@ type Game struct {
 	Outcome Outcome // For south
 	Ended   *time.Time
 	Started *time.Time
+	// The configuration for this game
+	conf  *GameConf
+	dbact chan<- DBAction
 }
 
 // String generates a KGP board representation for the current player
@@ -177,11 +180,11 @@ func (g *Game) Start() {
 	g.side = SideSouth
 	g.last = g.South.Send("state", g)
 
-	timer := time.NewTimer(time.Duration(conf.Game.Timeout) * time.Second)
+	timer := time.NewTimer(time.Duration(g.conf.Timeout) * time.Second)
 
 	if g.North.token != nil && g.South.token != nil {
 		g.logged = true
-		dbact <- g.updateDatabase(nil)
+		g.dbact <- g.updateDatabase(nil)
 	}
 
 	for {
@@ -218,7 +221,7 @@ func (g *Game) Start() {
 			// be removed.
 			time.Sleep(time.Second)
 
-			if conf.Endless {
+			if opp.conf.Endless {
 				if g.Current() == opp {
 					opp.Respond(g.last, "stop")
 				}
@@ -255,7 +258,7 @@ func (g *Game) Start() {
 				choice = g.Board.Random(g.side)
 			}
 
-			dbact <- saveMove(g, g.Current(), g.side, choice, time.Now())
+			g.dbact <- saveMove(g, g.Current(), g.side, choice, time.Now())
 
 			again := g.Board.Sow(g.side, choice)
 			if g.Board.Over() {
@@ -269,7 +272,7 @@ func (g *Game) Start() {
 			*g.choice() = -1
 			g.last = g.Current().Send("state", g)
 
-			timer.Reset(time.Duration(conf.Game.Timeout) * time.Second)
+			timer.Reset(time.Duration(g.conf.Timeout) * time.Second)
 		}
 	}
 
@@ -277,20 +280,23 @@ func (g *Game) Start() {
 		g.updateScore()
 	}
 
-	if conf.Endless {
-		// In the "endless" mode, the client is just
-		// added back to the waiting queue as soon as
-		// the game is over.
+	// In the "endless" mode, the client is just
+	// added back to the waiting queue as soon as
+	// the game is over.
+	if g.North.conf.Endless {
 		if g.North.game == g {
 			g.North.game = nil
 			enqueue <- g.North
 		}
+	} else {
+		g.North.killFunc()
+	}
+	if g.South.conf.Endless {
 		if g.South.game == g {
 			g.South.game = nil
 			enqueue <- g.South
 		}
 	} else {
-		g.North.killFunc()
 		g.South.killFunc()
 	}
 }

@@ -57,6 +57,8 @@ type Client struct {
 	comment  string
 	simple   bool
 	pending  int64
+	conf     *TCPConf
+	dbact    chan<- DBAction
 }
 
 func (cli *Client) String() string {
@@ -120,7 +122,7 @@ func (cli *Client) Respond(to uint64, command string, args ...interface{}) uint6
 	debug.Print(cli, " > ", buf.String())
 	fmt.Fprint(buf, "\r\n")
 
-	i := conf.TCP.Retries // allow 8 unsuccesful retries
+	i := cli.conf.Retries // allow 8 unsuccesful retries
 retry:
 	n, err := io.Copy(cli.rwc, buf)
 	if err != nil {
@@ -132,7 +134,7 @@ retry:
 		nerr, ok := err.(net.Error)
 		if i > 0 && (!ok || (ok && nerr.Temporary())) {
 			wait := time.Millisecond
-			wait <<= (conf.TCP.Retries - i)
+			wait <<= cli.conf.Retries - i
 			wait *= 10
 			time.Sleep(wait)
 			if n > 0 {
@@ -151,10 +153,10 @@ retry:
 }
 
 func (cli *Client) Pinger(done <-chan struct{}) {
-	if conf.TCP.Timeout == 0 {
+	if cli.conf.Timeout == 0 {
 		panic("TCP Timeout must be greater than 0")
 	}
-	ticker := time.NewTicker(time.Duration(conf.TCP.Timeout) * time.Second)
+	ticker := time.NewTicker(time.Duration(cli.conf.Timeout) * time.Second)
 	defer ticker.Stop()
 
 	for {
@@ -176,7 +178,6 @@ func (cli *Client) Pinger(done <-chan struct{}) {
 		cli.Send("ping")
 		cli.pinged = true
 	}
-
 }
 
 // Handle controls a connection and reads user input
@@ -197,7 +198,7 @@ func (cli *Client) Handle() {
 	// Optionally start a thread to periodically send ping
 	// requests to the client
 	var done chan struct{}
-	if conf.TCP.Ping {
+	if cli.conf.Ping {
 		done = make(chan (struct{}))
 		go cli.Pinger(done)
 	}

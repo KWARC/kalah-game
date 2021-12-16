@@ -21,10 +21,8 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"io"
 	"log"
-	"net"
 	"os"
 
 	"github.com/BurntSushi/toml"
@@ -39,30 +37,17 @@ const (
 )
 
 var (
-	conf *Conf = &defaultConfig
-
 	debug = log.New(io.Discard, "[debug] ", log.Ltime|log.Lshortfile|log.Lmicroseconds)
 
 	version string
 )
 
-func listen(ln net.Listener) {
-	for {
-		conn, err := ln.Accept()
-		if err != nil {
-			log.Print(err)
-			continue
-		}
-
-		log.Printf("New connection from %s", conn.RemoteAddr())
-		go (&Client{rwc: conn}).Handle()
-	}
-}
-
 func main() {
 	var (
 		confFile = flag.String("conf", defConfName, "Name of configuration file")
 		dumpConf = flag.Bool("dump-config", false, "Dump default configuration")
+
+		conf = &defaultConfig
 	)
 
 	flag.UintVar(&conf.TCP.Port, "port",
@@ -77,8 +62,8 @@ func main() {
 	flag.StringVar(&conf.Web.Host, "webhost",
 		conf.Web.Host,
 		"Host for HTTP connections")
-	flag.BoolVar(&conf.WS.Enabled, "websocket",
-		conf.WS.Enabled,
+	flag.BoolVar(&conf.Web.WS.Enabled, "websocket",
+		conf.Web.WS.Enabled,
 		"Listen for websocket upgrades only")
 	flag.StringVar(&conf.Database.File, "db",
 		conf.Database.File,
@@ -114,21 +99,5 @@ func main() {
 	if newconf != nil {
 		conf = newconf
 	}
-	conf.init()
-
-	if conf.TCP.Enabled {
-		tcp := fmt.Sprintf("%s:%d", conf.TCP.Host, conf.TCP.Port)
-		plain, err := net.Listen("tcp", tcp)
-		if err != nil {
-			log.Fatal(err)
-		}
-		debug.Printf("Listening on TCP %s", tcp)
-		go listen(plain)
-	}
-
-	// Start match scheduler
-	go queueManager()
-
-	// Start database manager
-	manageDatabase()
+	start(conf)
 }

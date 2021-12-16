@@ -35,13 +35,14 @@ const (
 	SideSouth Side = true
 )
 
+var earlyWin bool
+
 // String returns a string represenation for a side
 func (b Side) String() string {
 	if b {
 		return "South"
 	}
 	return "North"
-
 }
 
 // Board represents a Kalah game
@@ -222,7 +223,7 @@ func (b *Board) OverFor(side Side) bool {
 
 // Over returns true if the game is over for either side
 func (b *Board) Over() bool {
-	if conf.Game.EarlyWin {
+	if earlyWin {
 		var stones uint
 
 		for _, pit := range b.northPits {
@@ -238,6 +239,7 @@ func (b *Board) Over() bool {
 			return true
 		}
 	}
+
 	return b.OverFor(SideNorth) || b.OverFor(SideSouth)
 }
 
@@ -279,10 +281,6 @@ func (b *Board) Outcome(side Side) Outcome {
 // Move all stones for SIDE to the Kalah on SIDE
 func (b *Board) Collect() {
 	var north, south uint
-
-	if !b.Over() {
-		panic("Stones may not be collected")
-	}
 
 	for i, p := range b.northPits {
 		north += p

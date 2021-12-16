@@ -37,46 +37,50 @@ import (
 //go:embed html
 var html embed.FS
 
-var T *template.Template
-var funcs = template.FuncMap{
-	"inc": func(i int) int {
-		return i + 1
-	},
-	"dec": func(i int) int {
-		return i - 1
-	},
-	"isOver": func(g Game) bool {
-		return g.IsOver()
-	},
-	"timefmt": func(t time.Time) string {
-		return t.Format(time.Stamp)
-	},
-	"result": func(out Outcome) string {
-		switch out {
-		case ONGOING:
-			return "Ongoing"
-		case WIN:
-			return "South won"
-		case DRAW:
-			return "Draw"
-		case LOSS:
-			return "North won"
-		case RESIGN:
-			return "Resignation"
-		default:
-			return "???"
-		}
-	},
-	"hasAbout": func() bool {
-		return conf.Web.About != ""
-	},
-	"version": func() string {
-		if version == "" {
-			return "unknown"
-		}
-		return version
-	},
-}
+var showAbout bool
+
+var (
+	T     *template.Template
+	funcs = template.FuncMap{
+		"inc": func(i int) int {
+			return i + 1
+		},
+		"dec": func(i int) int {
+			return i - 1
+		},
+		"isOver": func(g Game) bool {
+			return g.IsOver()
+		},
+		"timefmt": func(t time.Time) string {
+			return t.Format(time.Stamp)
+		},
+		"result": func(out Outcome) string {
+			switch out {
+			case ONGOING:
+				return "Ongoing"
+			case WIN:
+				return "South won"
+			case DRAW:
+				return "Draw"
+			case LOSS:
+				return "North won"
+			case RESIGN:
+				return "Resignation"
+			default:
+				return "???"
+			}
+		},
+		"hasAbout": func() bool {
+			return showAbout
+		},
+		"version": func() string {
+			if version == "" {
+				return "unknown"
+			}
+			return version
+		},
+	}
+)
 
 var (
 	// The static file system as a HTTP Handler
@@ -95,75 +99,16 @@ func init() {
 	static = http.FileServer(http.FS(staticfs))
 }
 
-func (wc *WebConf) init() {
-	if !wc.Enabled {
-		return
-	}
-
+func (wc *WebConf) deinit() {
 	if wc.server != nil {
-		wc.server.Shutdown(context.Background())
-	}
-
-	mux := http.NewServeMux()
-	weblock.Lock()
-	defer weblock.Unlock()
-
-	// Install HTTP handlers
-	mux.HandleFunc("/games", listGames)
-	mux.HandleFunc("/agents", listAgents)
-	mux.HandleFunc("/game/", showGame)
-	mux.HandleFunc("/agent/", showAgent)
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/":
-			w.Header().Add("Content-Type", "text/html")
-			err := T.ExecuteTemplate(w, "index.tmpl", struct{}{})
-			if err != nil {
-				log.Print(err)
-			}
-		case "/about":
-			if conf.Web.About == "" {
-				http.Error(w, "No about page", http.StatusNoContent)
-				return
-			}
-			w.Header().Add("Content-Type", "text/html")
-			T.ExecuteTemplate(w, "header.tmpl", nil)
-			T.ExecuteTemplate(w, "about.tmpl", struct{}{})
-			T.ExecuteTemplate(w, "footer.tmpl", nil)
-		default:
-			static.ServeHTTP(w, r)
-		}
-	})
-
-	if conf.WS.Enabled {
-		mux.HandleFunc("/socket", listenUpgrade)
-		debug.Print("Handling websocket on /socket")
-	}
-
-	// Parse templates
-	var err error
-	T = template.Must(template.New("").Funcs(funcs).ParseFS(html, "html/*.tmpl"))
-	if conf.Web.About != "" {
-		about, err := os.ReadFile(conf.Web.About)
+		err := wc.server.Shutdown(context.Background())
 		if err != nil {
-			log.Fatal(err)
+			log.Println(err)
 		}
-		_, err = T.New("about.tmpl").Parse(string(about))
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-
-	addr := fmt.Sprintf("%s:%d", conf.Web.Host, conf.Web.Port)
-	log.Printf("Listening via HTTP on %s", addr)
-	wc.server = &http.Server{Addr: addr, Handler: mux}
-	err = wc.server.ListenAndServe()
-	if err != nil {
-		log.Print(err)
 	}
 }
 
-func showGame(w http.ResponseWriter, r *http.Request) {
+func (wc *WebConf) showGame(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(path.Base(r.URL.Path))
 	if err != nil {
 		http.Error(w, "Invalid ID", http.StatusBadRequest)
@@ -171,7 +116,8 @@ func showGame(w http.ResponseWriter, r *http.Request) {
 	}
 
 	c := make(chan *Game)
-	dbact <- queryGame(id, c)
+	wc.dbact <- queryGame(id, c)
+
 	w.Header().Add("Content-Type", "text/html")
 	err = T.ExecuteTemplate(w, "show-game.tmpl", <-c)
 	if err != nil {
@@ -179,7 +125,7 @@ func showGame(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func showAgent(w http.ResponseWriter, r *http.Request) {
+func (wc *WebConf) showAgent(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(path.Base(r.URL.Path))
 	if err != nil {
 		http.Error(w, "Invalid ID", http.StatusBadRequest)
@@ -192,9 +138,9 @@ func showAgent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	c := make(chan *Agent)
-	dbact <- queryAgent(id, c)
+	wc.dbact <- queryAgent(id, c)
 	games := make(chan *Game)
-	dbact <- queryGames(games, page-1, &id)
+	wc.dbact <- wc.queryGames(games, page-1, &id)
 
 	w.Header().Add("Content-Type", "text/html")
 	err = T.ExecuteTemplate(w, "show-agent.tmpl", struct {
@@ -207,14 +153,14 @@ func showAgent(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func listGames(w http.ResponseWriter, r *http.Request) {
+func (wc *WebConf) listGames(w http.ResponseWriter, r *http.Request) {
 	page, err := strconv.Atoi(r.URL.Query().Get("page"))
 	if err != nil {
 		page = 1
 	}
 
 	c := make(chan *Game)
-	dbact <- queryGames(c, page-1, nil)
+	wc.dbact <- wc.queryGames(c, page-1, nil)
 	w.Header().Add("Content-Type", "text/html")
 	err = T.ExecuteTemplate(w, "list-games.tmpl", struct {
 		Games chan *Game
@@ -225,14 +171,14 @@ func listGames(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func listAgents(w http.ResponseWriter, r *http.Request) {
+func (wc *WebConf) listAgents(w http.ResponseWriter, r *http.Request) {
 	page, err := strconv.Atoi(r.URL.Query().Get("page"))
 	if err != nil {
 		page = 1
 	}
 
 	c := make(chan *Agent)
-	dbact <- queryAgents(c, page-1)
+	wc.dbact <- wc.queryAgents(c, page-1)
 
 	w.Header().Add("Content-Type", "text/html")
 	err = T.ExecuteTemplate(w, "list-agents.tmpl", struct {
@@ -241,5 +187,73 @@ func listAgents(w http.ResponseWriter, r *http.Request) {
 	}{c, page})
 	if err != nil {
 		log.Print(err)
+	}
+}
+
+func (wc *WebConf) init() {
+	debug.Print("Starting web server")
+
+	if !wc.Enabled {
+		return
+	}
+
+	showAbout = wc.About != ""
+
+	mux := http.NewServeMux()
+	weblock.Lock()
+	defer weblock.Unlock()
+
+	// Install HTTP handlers
+	mux.HandleFunc("/games", wc.listGames)
+	mux.HandleFunc("/agents", wc.listAgents)
+	mux.HandleFunc("/game/", wc.showGame)
+	mux.HandleFunc("/agent/", wc.showAgent)
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/":
+			w.Header().Add("Content-Type", "text/html")
+			err := T.ExecuteTemplate(w, "index.tmpl", struct{}{})
+			if err != nil {
+				log.Print(err)
+			}
+		case "/about":
+			if wc.About == "" {
+				http.Error(w, "No about page", http.StatusNoContent)
+				return
+			}
+			w.Header().Add("Content-Type", "text/html")
+			T.ExecuteTemplate(w, "header.tmpl", nil)
+			T.ExecuteTemplate(w, "about.tmpl", struct{}{})
+			T.ExecuteTemplate(w, "footer.tmpl", nil)
+		default:
+			static.ServeHTTP(w, r)
+		}
+	})
+
+	if wc.WS.Enabled {
+		mux.HandleFunc("/socket", listenUpgrade)
+		debug.Print("Handling websocket on /socket")
+	}
+
+	// Parse templates
+	var err error
+	T = template.Must(template.New("").Funcs(funcs).ParseFS(html, "html/*.tmpl"))
+	if wc.About != "" {
+		about, err := os.ReadFile(wc.About)
+		if err != nil {
+			log.Fatal(err)
+		}
+		_, err = T.New("about.tmpl").Parse(string(about))
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	addr := fmt.Sprintf("%s:%d", wc.Host, wc.Port)
+	debug.Printf("Listening via HTTP on %s", addr)
+	wc.server = &http.Server{Addr: addr, Handler: mux}
+	err = wc.server.ListenAndServe()
+	if err != nil {
+		debug.Print(err)
 	}
 }
