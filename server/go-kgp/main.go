@@ -95,7 +95,8 @@ func main() {
 	flag.Parse()
 
 	if flag.NArg() != 0 {
-		log.Fatal("Too many arguments")
+		flag.Usage()
+		os.Exit(1)
 	}
 
 	if *dumpConf {
