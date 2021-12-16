@@ -65,8 +65,6 @@ type Game struct {
 	South   *Client
 	nchoice int
 	schoice int
-	// Is this game logged in the database?
-	logged bool
 	// Data for the web interface.
 	//
 	// These fields are usually empty, unless a Game object has
@@ -179,11 +177,6 @@ func (g *Game) Start() {
 
 	timer := time.NewTimer(time.Duration(conf.Game.Timeout) * time.Second)
 
-	if g.North.token != nil && g.South.token != nil {
-		g.logged = true
-		dbact <- g.updateDatabase(nil)
-	}
-
 	for {
 		next := false
 		select {
@@ -255,8 +248,6 @@ func (g *Game) Start() {
 				choice = g.Board.Random(g.side)
 			}
 
-			dbact <- saveMove(g, g.Current(), g.side, choice, time.Now())
-
 			again := g.Board.Sow(g.side, choice)
 			if g.Board.Over() {
 				break
@@ -273,9 +264,7 @@ func (g *Game) Start() {
 		}
 	}
 
-	if g.logged {
-		g.updateScore()
-	}
+	g.updateScore()
 
 	if conf.Endless {
 		// In the "endless" mode, the client is just

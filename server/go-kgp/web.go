@@ -111,9 +111,7 @@ func (wc *WebConf) init() {
 	defer weblock.Unlock()
 
 	// Install HTTP handlers
-	mux.HandleFunc("/games", listGames)
 	mux.HandleFunc("/agents", listAgents)
-	mux.HandleFunc("/game/", showGame)
 	mux.HandleFunc("/agent/", showAgent)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
@@ -165,23 +163,6 @@ func (wc *WebConf) init() {
 	}
 }
 
-func showGame(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.Atoi(path.Base(r.URL.Path))
-	if err != nil {
-		http.Error(w, "Invalid ID", http.StatusBadRequest)
-		return
-	}
-
-	c := make(chan *Game)
-	dbact <- queryGame(id, c)
-
-	w.Header().Add("Content-Type", "text/html")
-	err = T.ExecuteTemplate(w, "show-game.tmpl", <-c)
-	if err != nil {
-		log.Print(err)
-	}
-}
-
 func showAgent(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(path.Base(r.URL.Path))
 	if err != nil {
@@ -196,32 +177,10 @@ func showAgent(w http.ResponseWriter, r *http.Request) {
 
 	c := make(chan *Agent)
 	dbact <- queryAgent(id, c)
-	games := make(chan *Game)
-	dbact <- queryGames(games, page-1, &id)
 
 	w.Header().Add("Content-Type", "text/html")
 	err = T.ExecuteTemplate(w, "show-agent.tmpl", struct {
 		Agent chan *Agent
-		Games chan *Game
-		Page  int
-	}{c, games, page})
-	if err != nil {
-		log.Print(err)
-	}
-}
-
-func listGames(w http.ResponseWriter, r *http.Request) {
-	page, err := strconv.Atoi(r.URL.Query().Get("page"))
-	if err != nil {
-		page = 1
-	}
-
-	c := make(chan *Game)
-	dbact <- queryGames(c, page-1, nil)
-
-	w.Header().Add("Content-Type", "text/html")
-	err = T.ExecuteTemplate(w, "list-games.tmpl", struct {
-		Games chan *Game
 		Page  int
 	}{c, page})
 	if err != nil {

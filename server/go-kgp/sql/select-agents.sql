@@ -1,9 +1,7 @@
 -- -*- sql-product: sqlite; -*-
 
-SELECT agent.id, agent.name, agent.author, agent.score, COUNT(agent.id)
+SELECT id, name, author, score
 FROM agent
-CROSS JOIN game ON agent.id == game.north OR agent.id == game.south
-GROUP BY agent.id
-ORDER BY agent.score DESC
+ORDER BY score DESC
 LIMIT ?2
 OFFSET ?1 * ?2;

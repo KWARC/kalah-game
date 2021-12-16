@@ -4,7 +4,6 @@
 	    <td>Name</td>
 	    <td>Rating (<a href="https://en.wikipedia.org/wiki/Elo_rating_system">ELO</a>)</td>
 	    <td>Author</td>
-	    <td>Games</td>
 	</tr>
     </thead>
     <tbody>
@@ -21,7 +20,6 @@
 		</td>
 		<td>{{ printf "%.f" .Score }}</td>
 		<td>{{ with .Author }}{{ . }}{{ else }}<em>anonymous</em>{{ end }}</td>
-		<td>{{ .Games }}</td>
 	    </tr>
 	{{ else }}
 	<tr><td colspan="4"><em>No agents in the database</em></td></tr>

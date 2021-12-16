@@ -41,7 +41,6 @@ type Agent struct {
 	Descr  string
 	Score  float64
 	Id     int64
-	Games  uint
 }
 
 // Client wraps a network connection into a player
