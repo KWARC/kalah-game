@@ -42,12 +42,7 @@ import (
 
 type DBAction func(*sql.DB) error
 
-var (
-	// For writing requests
-	dbact = make(chan DBAction, 1)
-	// For reading requests
-	do = func(_ DBAction) error { panic("Database not initialised") }
-)
+var dbact = make(chan DBAction, 1)
 
 // The SQL queries are stored under ./sql/, and they are loaded by the
 // database manager.  These are prepared and stored in QUERIES, that
@@ -383,9 +378,6 @@ func manageDatabase() {
 		log.Fatal(err)
 	}
 	defer db.Close()
-	do = func(act DBAction) error {
-		return act(db)
-	}
 
 	go func() {
 		intr := make(chan os.Signal, 1)
