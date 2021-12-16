@@ -41,7 +41,6 @@ func (b Side) String() string {
 		return "South"
 	}
 	return "North"
-
 }
 
 // Board represents a Kalah game

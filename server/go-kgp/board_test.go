@@ -128,7 +128,6 @@ func TestLegal(t *testing.T) {
 			t.Errorf("(%d) Didn't recognize illegla move", i)
 		}
 	}
-
 }
 
 func TestSow(t *testing.T) {

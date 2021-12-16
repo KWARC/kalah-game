@@ -37,46 +37,48 @@ import (
 //go:embed html
 var html embed.FS
 
-var T *template.Template
-var funcs = template.FuncMap{
-	"inc": func(i int) int {
-		return i + 1
-	},
-	"dec": func(i int) int {
-		return i - 1
-	},
-	"isOver": func(g Game) bool {
-		return g.IsOver()
-	},
-	"timefmt": func(t time.Time) string {
-		return t.Format(time.Stamp)
-	},
-	"result": func(out Outcome) string {
-		switch out {
-		case ONGOING:
-			return "Ongoing"
-		case WIN:
-			return "South won"
-		case DRAW:
-			return "Draw"
-		case LOSS:
-			return "North won"
-		case RESIGN:
-			return "Resignation"
-		default:
-			return "???"
-		}
-	},
-	"hasAbout": func() bool {
-		return conf.Web.About != ""
-	},
-	"version": func() string {
-		if version == "" {
-			return "unknown"
-		}
-		return version
-	},
-}
+var (
+	T     *template.Template
+	funcs = template.FuncMap{
+		"inc": func(i int) int {
+			return i + 1
+		},
+		"dec": func(i int) int {
+			return i - 1
+		},
+		"isOver": func(g Game) bool {
+			return g.IsOver()
+		},
+		"timefmt": func(t time.Time) string {
+			return t.Format(time.Stamp)
+		},
+		"result": func(out Outcome) string {
+			switch out {
+			case ONGOING:
+				return "Ongoing"
+			case WIN:
+				return "South won"
+			case DRAW:
+				return "Draw"
+			case LOSS:
+				return "North won"
+			case RESIGN:
+				return "Resignation"
+			default:
+				return "???"
+			}
+		},
+		"hasAbout": func() bool {
+			return conf.Web.About != ""
+		},
+		"version": func() string {
+			if version == "" {
+				return "unknown"
+			}
+			return version
+		},
+	}
+)
 
 var (
 	// The static file system as a HTTP Handler

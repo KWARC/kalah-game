@@ -176,7 +176,6 @@ func (cli *Client) Pinger(done <-chan struct{}) {
 		cli.Send("ping")
 		cli.pinged = true
 	}
-
 }
 
 // Handle controls a connection and reads user input
