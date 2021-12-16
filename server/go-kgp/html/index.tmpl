@@ -14,7 +14,7 @@ too.
 
 <p>
 If a token is set, the agent will be listed in the
-local <a href="/agents">Scoreboard</a>.  Clients without a token will
+local Scoreboard (see below).  Clients without a token will
 be regarded as anonymous.
 </p>
 
@@ -25,6 +25,10 @@ also set the authors.  The server only remembers the last value
 associated with your token, so you can update all of these attributes
 whenever you want.
 </p>
+
+<hr />
+
+{{ template "agent-table.tmpl" . }}
 
 <hr />
 

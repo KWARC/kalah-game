@@ -111,13 +111,23 @@ func (wc *WebConf) init() {
 	defer weblock.Unlock()
 
 	// Install HTTP handlers
-	mux.HandleFunc("/agents", listAgents)
 	mux.HandleFunc("/agent/", showAgent)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/":
+			page, err := strconv.Atoi(r.URL.Query().Get("page"))
+			if err != nil {
+				page = 1
+			}
+
+			c := make(chan *Agent)
+			dbact <- queryAgents(c, page-1)
+
 			w.Header().Add("Content-Type", "text/html")
-			err := T.ExecuteTemplate(w, "index.tmpl", struct{}{})
+			err = T.ExecuteTemplate(w, "index.tmpl", struct {
+				Agents chan *Agent
+				Page   int
+			}{c, page})
 			if err != nil {
 				log.Print(err)
 			}
@@ -182,25 +192,6 @@ func showAgent(w http.ResponseWriter, r *http.Request) {
 	err = T.ExecuteTemplate(w, "show-agent.tmpl", struct {
 		Agent chan *Agent
 		Page  int
-	}{c, page})
-	if err != nil {
-		log.Print(err)
-	}
-}
-
-func listAgents(w http.ResponseWriter, r *http.Request) {
-	page, err := strconv.Atoi(r.URL.Query().Get("page"))
-	if err != nil {
-		page = 1
-	}
-
-	c := make(chan *Agent)
-	dbact <- queryAgents(c, page-1)
-
-	w.Header().Add("Content-Type", "text/html")
-	err = T.ExecuteTemplate(w, "list-agents.tmpl", struct {
-		Agents chan *Agent
-		Page   int
 	}{c, page})
 	if err != nil {
 		log.Print(err)

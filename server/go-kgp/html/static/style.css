@@ -55,6 +55,10 @@ table, td {
     border-color: #9ad;
 }
 
+table.list {
+    margin: auto;
+}
+
 table.list td {
     border-bottom: 1px solid grey;
     overflow-x: auto;
