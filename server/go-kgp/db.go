@@ -66,7 +66,7 @@ func (cli *Client) updateDatabase(wait *sync.WaitGroup, query bool) DBAction {
 			err = queries["select-agent-token"].QueryRowContext(ctx, cli.token).Scan(
 				&cli.Id, &name, &descr, &score)
 			if err != nil && err != sql.ErrNoRows {
-				log.Print(err)
+				log.Fatal(err)
 			}
 
 			if name != nil {
@@ -106,7 +106,7 @@ func queryAgent(aid int, c chan<- *Agent) DBAction {
 			&agent.Author,
 			&agent.Score)
 		if err != nil {
-			log.Print(err)
+			log.Fatal(err)
 		} else {
 			c <- &agent
 		}
@@ -131,7 +131,7 @@ func queryAgents(c chan<- *Agent, page int) DBAction {
 
 			err = rows.Scan(&agent.Id, &agent.Name, &agent.Author, &agent.Score)
 			if err != nil {
-				log.Print(err)
+				log.Fatal(err)
 				return err
 			}
 
