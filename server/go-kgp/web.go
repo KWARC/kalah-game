@@ -77,6 +77,9 @@ var (
 			}
 			return version
 		},
+		"hasMore": func(i int) bool {
+			return i%int(conf.Web.Limit) != 0
+		},
 	}
 )
 

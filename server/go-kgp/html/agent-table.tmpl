@@ -1,3 +1,5 @@
+{{ $n := 0 }}
+
 <table class="list">
     <thead>
 	<tr>
@@ -7,24 +9,41 @@
 	</tr>
     </thead>
     <tbody>
-	{{ range .Agents }}
+	{{ range $i, $a := .Agents }}
 	    <tr>
 		<td>
-		<a href="/agent/{{ .Id }}">
-		{{ with .Name }}
+		<a href="/agent/{{ $a.Id }}">
+		{{ with $a.Name }}
 		{{ . }}
 		{{ else }}
 		<em>Unnamed</em>
 		{{ end }}
 		</a>
 		</td>
-		<td>{{ printf "%.f" .Score }}</td>
-		<td>{{ with .Author }}{{ . }}{{ else }}<em>anonymous</em>{{ end }}</td>
+		<td>{{ printf "%.f" $a.Score }}</td>
+		<td>{{ with $a.Author }}{{ . }}{{ else }}<em>anonymous</em>{{ end }}</td>
 	    </tr>
+	    {{ $n = $i }}
 	{{ else }}
-	<tr><td colspan="4"><em>No agents in the database</em></td></tr>
+	<tr><td colspan="4">
+	  <em>No more agents</em>
+	</td></tr>
 	{{ end }}
     </tbody>
 </table>
 
-{{ template "pagination.tmpl" .Page }}
+{{ if ne $n 0 }}
+<nav id="pageination">
+{{ if ge .Page 1 }}
+{{ if ne .Page 1 }}
+<a href="?page={{ dec .Page }}">&xlarr;</a>
+{{ end }}
+Page {{ .Page }}
+{{ if hasMore $n }}
+<a href="?page={{ inc .Page }}">&xrarr;</a>
+{{ end }}
+{{ else }}
+Invalid page
+{{ end }}
+</nav>
+{{ end }}
