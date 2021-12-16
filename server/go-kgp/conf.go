@@ -26,6 +26,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/BurntSushi/toml"
 )
@@ -60,9 +61,10 @@ type TCPConf struct {
 }
 
 type DBConf struct {
-	File    string `toml:"file"`
-	Threads uint   `toml:"threads"`
-	Mode    string `toml:"mode"`
+	File    string        `toml:"file"`
+	Threads uint          `toml:"threads"`
+	Mode    string        `toml:"mode"`
+	Timeout time.Duration `toml:"timeout"`
 }
 
 type Conf struct {
@@ -82,6 +84,7 @@ var defaultConfig = Conf{
 		File:    "kalah.sql",
 		Threads: 1,
 		Mode:    "rwc",
+		Timeout: 100 * time.Millisecond,
 	},
 	Endless: true,
 	Game: GameConf{

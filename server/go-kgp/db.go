@@ -20,6 +20,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"embed"
 	"fmt"
@@ -40,7 +41,7 @@ import (
 // managers via the channel DBACT, that executes the action and
 // handles possible errors.
 
-type DBAction func(*sql.DB) error
+type DBAction func(*sql.DB, context.Context) error
 
 var dbact = make(chan DBAction, 1)
 
@@ -62,16 +63,16 @@ func (game *Game) updateDatabase(wait *sync.WaitGroup) DBAction {
 		return nil
 	}
 
-	return func(db *sql.DB) (err error) {
+	return func(db *sql.DB, ctx context.Context) (err error) {
 		if wait != nil {
 			defer wait.Done()
 		}
 
 		if game.IsOver() {
-			_, err = queries["update-game"].Exec(game.Board.Outcome(SideSouth), game.Id)
+			_, err = queries["update-game"].ExecContext(ctx, game.Board.Outcome(SideSouth), game.Id)
 		} else {
 			var res sql.Result
-			res, err = queries["insert-game"].Exec(
+			res, err = queries["insert-game"].ExecContext(ctx,
 				len(game.Board.northPits),
 				game.Board.init,
 				game.North.Id,
@@ -93,8 +94,8 @@ func saveMove(in *Game, by *Client, side Side, move int, when time.Time) DBActio
 		return nil
 	}
 
-	return func(db *sql.DB) error {
-		_, err := queries["insert-move"].Exec(
+	return func(db *sql.DB, ctx context.Context) error {
+		_, err := queries["insert-move"].ExecContext(ctx,
 			in.Id,
 			by.Id,
 			side,
@@ -116,14 +117,14 @@ func (cli *Client) updateDatabase(wait *sync.WaitGroup, query bool) DBAction {
 		return nil
 	}
 
-	return func(db *sql.DB) (err error) {
+	return func(db *sql.DB, ctx context.Context) (err error) {
 		var (
 			name, descr *string
 			score       *float64
 		)
 
 		if query {
-			err = queries["select-agent-token"].QueryRow(cli.token).Scan(
+			err = queries["select-agent-token"].QueryRowContext(ctx, cli.token).Scan(
 				&cli.Id, &name, &descr, &score)
 			if err != nil && err != sql.ErrNoRows {
 				log.Print(err)
@@ -140,7 +141,7 @@ func (cli *Client) updateDatabase(wait *sync.WaitGroup, query bool) DBAction {
 			}
 		}
 
-		_, err = queries["insert-agent"].Exec(
+		_, err = queries["insert-agent"].ExecContext(ctx,
 			cli.token,
 			cli.Name,
 			cli.Descr,
@@ -160,11 +161,11 @@ func (cli *Client) updateDatabase(wait *sync.WaitGroup, query bool) DBAction {
 }
 
 func queryAgent(aid int, c chan<- *Agent) DBAction {
-	return func(db *sql.DB) error {
+	return func(db *sql.DB, ctx context.Context) error {
 		var agent Agent
 
 		defer close(c)
-		err := queries["select-agent-id"].QueryRow(aid).Scan(
+		err := queries["select-agent-id"].QueryRowContext(ctx, aid).Scan(
 			&agent.Name,
 			&agent.Descr,
 			&agent.Author,
@@ -179,16 +180,16 @@ func queryAgent(aid int, c chan<- *Agent) DBAction {
 }
 
 func queryGame(gid int, c chan<- *Game) DBAction {
-	return func(db *sql.DB) error {
+	return func(db *sql.DB, ctx context.Context) error {
 		defer close(c)
-		row := queries["select-game"].QueryRow(gid)
-		game, err := scanGame(row.Scan)
+		row := queries["select-game"].QueryRowContext(ctx, gid)
+		game, err := scanGame(ctx, row.Scan)
 		if err != nil {
 			log.Print(err)
 			return err
 		}
 
-		rows, err := queries["select-moves"].Query(gid)
+		rows, err := queries["select-moves"].QueryContext(ctx, gid)
 		if err != nil {
 			log.Print(err)
 			return err
@@ -230,7 +231,7 @@ func queryGame(gid int, c chan<- *Game) DBAction {
 	}
 }
 
-func scanGame(scan func(dest ...interface{}) error) (*Game, error) {
+func scanGame(ctx context.Context, scan func(dest ...interface{}) error) (*Game, error) {
 	var (
 		game         Game
 		north, south Agent
@@ -260,7 +261,7 @@ func scanGame(scan func(dest ...interface{}) error) (*Game, error) {
 		game.Outcome = Outcome(*outcome)
 	}
 
-	err = queries["select-agent-id"].QueryRow(north.Id).Scan(
+	err = queries["select-agent-id"].QueryRowContext(ctx, north.Id).Scan(
 		&north.Name,
 		&north.Descr,
 		&north.Author,
@@ -270,7 +271,7 @@ func scanGame(scan func(dest ...interface{}) error) (*Game, error) {
 	}
 	game.North = &Client{Agent: north}
 
-	err = queries["select-agent-id"].QueryRow(south.Id).Scan(
+	err = queries["select-agent-id"].QueryRowContext(ctx, south.Id).Scan(
 		&south.Name,
 		&south.Descr,
 		&south.Author,
@@ -284,14 +285,14 @@ func scanGame(scan func(dest ...interface{}) error) (*Game, error) {
 }
 
 func queryGames(c chan<- *Game, page int, aid *int) DBAction {
-	return func(db *sql.DB) (err error) {
+	return func(db *sql.DB, ctx context.Context) (err error) {
 		var rows *sql.Rows
 
 		defer close(c)
 		if aid == nil {
-			rows, err = queries["select-games"].Query(page, conf.Web.Limit)
+			rows, err = queries["select-games"].QueryContext(ctx, page, conf.Web.Limit)
 		} else {
-			rows, err = queries["select-games-by"].Query(*aid, page)
+			rows, err = queries["select-games-by"].QueryContext(ctx, *aid, page)
 		}
 		if err != nil {
 			if err != sql.ErrNoRows {
@@ -303,7 +304,7 @@ func queryGames(c chan<- *Game, page int, aid *int) DBAction {
 
 		var game *Game
 		for rows.Next() {
-			game, err = scanGame(rows.Scan)
+			game, err = scanGame(ctx, rows.Scan)
 			if err != nil {
 				if err != sql.ErrNoRows {
 					log.Print(err)
@@ -321,9 +322,9 @@ func queryGames(c chan<- *Game, page int, aid *int) DBAction {
 }
 
 func queryAgents(c chan<- *Agent, page int) DBAction {
-	return func(db *sql.DB) error {
+	return func(db *sql.DB, ctx context.Context) error {
 		defer close(c)
-		rows, err := queries["select-agents"].Query(page, conf.Web.Limit)
+		rows, err := queries["select-agents"].QueryContext(ctx, page, conf.Web.Limit)
 		if err != nil {
 			if err != sql.ErrNoRows {
 				log.Print(err)
@@ -365,7 +366,12 @@ func databaseManager(id uint, db *sql.DB, wg *sync.WaitGroup) {
 			continue
 		}
 
-		act(db)
+		context, cancel := context.WithTimeout(context.Background(), time.Millisecond*10000)
+		defer cancel()
+		act(db, context)
+		if err := context.Err(); err != nil {
+			log.Println(err)
+		}
 	}
 }
 
@@ -388,7 +394,7 @@ func manageDatabase() {
 		<-intr
 		old := dbact
 		dbact = make(chan DBAction)
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(conf.Database.Timeout)
 		close(old)
 
 		// The second interrupt force-exits the process
