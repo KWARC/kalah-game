@@ -25,7 +25,6 @@ header, footer {
     background: whitesmoke;
     border: 0 solid silver;
     padding: 8px;
-    overflow-x: auto;
 }
 
 header {
