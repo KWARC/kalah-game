@@ -40,11 +40,13 @@ import (
 // managers via the channel DBACT, that executes the action and
 // handles possible errors.
 
-type DBAction func(*sql.DB)
+type DBAction func(*sql.DB) error
 
 var (
+	// For writing requests
 	dbact = make(chan DBAction, 1)
-	db    *sql.DB
+	// For reading requests
+	do = func(_ DBAction) error { panic("Database not initialised") }
 )
 
 // The SQL queries are stored under ./sql/, and they are loaded by the
@@ -65,8 +67,11 @@ func (game *Game) updateDatabase(wait *sync.WaitGroup) DBAction {
 		return nil
 	}
 
-	return func(db *sql.DB) {
-		var err error
+	return func(db *sql.DB) (err error) {
+		if wait != nil {
+			defer wait.Done()
+		}
+
 		if game.IsOver() {
 			_, err = queries["update-game"].Exec(game.Board.Outcome(SideSouth), game.Id)
 		} else {
@@ -83,9 +88,8 @@ func (game *Game) updateDatabase(wait *sync.WaitGroup) DBAction {
 		if err != nil {
 			log.Print(err)
 		}
-		if wait != nil {
-			wait.Done()
-		}
+
+		return
 	}
 }
 
@@ -94,7 +98,7 @@ func saveMove(in *Game, by *Client, side Side, move int, when time.Time) DBActio
 		return nil
 	}
 
-	return func(db *sql.DB) {
+	return func(db *sql.DB) error {
 		_, err := queries["insert-move"].Exec(
 			in.Id,
 			by.Id,
@@ -105,6 +109,7 @@ func saveMove(in *Game, by *Client, side Side, move int, when time.Time) DBActio
 		if err != nil {
 			log.Print(err)
 		}
+		return err
 	}
 }
 
@@ -116,11 +121,10 @@ func (cli *Client) updateDatabase(wait *sync.WaitGroup, query bool) DBAction {
 		return nil
 	}
 
-	return func(db *sql.DB) {
+	return func(db *sql.DB) (err error) {
 		var (
 			name, descr *string
 			score       *float64
-			err         error
 		)
 
 		if query {
@@ -155,11 +159,13 @@ func (cli *Client) updateDatabase(wait *sync.WaitGroup, query bool) DBAction {
 		if wait != nil {
 			wait.Done()
 		}
+
+		return
 	}
 }
 
 func queryAgent(aid int, c chan<- *Agent) DBAction {
-	return func(db *sql.DB) {
+	return func(db *sql.DB) error {
 		var agent Agent
 
 		defer close(c)
@@ -173,23 +179,24 @@ func queryAgent(aid int, c chan<- *Agent) DBAction {
 		} else {
 			c <- &agent
 		}
+		return err
 	}
 }
 
 func queryGame(gid int, c chan<- *Game) DBAction {
-	return func(db *sql.DB) {
+	return func(db *sql.DB) error {
 		defer close(c)
 		row := queries["select-game"].QueryRow(gid)
 		game, err := scanGame(row.Scan)
 		if err != nil {
 			log.Print(err)
-			return
+			return err
 		}
 
 		rows, err := queries["select-moves"].Query(gid)
 		if err != nil {
 			log.Print(err)
-			return
+			return err
 		}
 
 		for rows.Next() {
@@ -204,7 +211,7 @@ func queryGame(gid int, c chan<- *Game) DBAction {
 			err = rows.Scan(&aid, &side, &comm, &move)
 			if err != nil {
 				log.Print(err)
-				return
+				return err
 			}
 
 			// TODO Ensure the next move is on the right
@@ -224,6 +231,7 @@ func queryGame(gid int, c chan<- *Game) DBAction {
 		}
 
 		c <- game
+		return err
 	}
 }
 
@@ -281,11 +289,8 @@ func scanGame(scan func(dest ...interface{}) error) (*Game, error) {
 }
 
 func queryGames(c chan<- *Game, page int, aid *int) DBAction {
-	return func(db *sql.DB) {
-		var (
-			rows *sql.Rows
-			err  error
-		)
+	return func(db *sql.DB) (err error) {
+		var rows *sql.Rows
 
 		defer close(c)
 		if aid == nil {
@@ -315,18 +320,20 @@ func queryGames(c chan<- *Game, page int, aid *int) DBAction {
 		if err = rows.Err(); err != nil {
 			log.Print(err)
 		}
+
+		return
 	}
 }
 
 func queryAgents(c chan<- *Agent, page int) DBAction {
-	return func(db *sql.DB) {
+	return func(db *sql.DB) error {
 		defer close(c)
 		rows, err := queries["select-agents"].Query(page, conf.Web.Limit)
 		if err != nil {
 			if err != sql.ErrNoRows {
 				log.Print(err)
 			}
-			return
+			return err
 		}
 		defer rows.Close()
 
@@ -336,14 +343,17 @@ func queryAgents(c chan<- *Agent, page int) DBAction {
 			err = rows.Scan(&agent.Id, &agent.Name, &agent.Author, &agent.Score, &agent.Games)
 			if err != nil {
 				log.Print(err)
-				return
+				return err
 			}
 
 			c <- &agent
 		}
 		if err = rows.Err(); err != nil {
 			log.Print(err)
+			return err
 		}
+
+		return nil
 	}
 }
 
@@ -365,16 +375,17 @@ func databaseManager(id uint, db *sql.DB, wg *sync.WaitGroup) {
 }
 
 func manageDatabase() {
-	var err error
-
 	uri := fmt.Sprintf("%s?mode=%s&_journal=wal",
 		conf.Database.File,
 		conf.Database.Mode)
-	db, err = sql.Open("sqlite3", uri)
+	db, err := sql.Open("sqlite3", uri)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer db.Close()
+	do = func(act DBAction) error {
+		return act(db)
+	}
 
 	go func() {
 		intr := make(chan os.Signal, 1)

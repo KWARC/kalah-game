@@ -173,7 +173,12 @@ func showGame(w http.ResponseWriter, r *http.Request) {
 	}
 
 	c := make(chan *Game)
-	queryGame(id, c)(db)
+	err = do(queryGame(id, c))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	w.Header().Add("Content-Type", "text/html")
 	err = T.ExecuteTemplate(w, "show-game.tmpl", <-c)
 	if err != nil {
@@ -194,9 +199,18 @@ func showAgent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	c := make(chan *Agent)
-	queryAgent(id, c)(db)
+	err = do(queryAgent(id, c))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	games := make(chan *Game)
-	queryGames(games, page-1, &id)(db)
+	err = do(queryGames(games, page-1, &id))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	w.Header().Add("Content-Type", "text/html")
 	err = T.ExecuteTemplate(w, "show-agent.tmpl", struct {
@@ -216,7 +230,12 @@ func listGames(w http.ResponseWriter, r *http.Request) {
 	}
 
 	c := make(chan *Game)
-	queryGames(c, page-1, nil)(db)
+	err = do(queryGames(c, page-1, nil))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	w.Header().Add("Content-Type", "text/html")
 	err = T.ExecuteTemplate(w, "list-games.tmpl", struct {
 		Games chan *Game
@@ -234,7 +253,11 @@ func listAgents(w http.ResponseWriter, r *http.Request) {
 	}
 
 	c := make(chan *Agent)
-	queryAgents(c, page-1)(db)
+	err = do(queryAgents(c, page-1))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	w.Header().Add("Content-Type", "text/html")
 	err = T.ExecuteTemplate(w, "list-agents.tmpl", struct {
