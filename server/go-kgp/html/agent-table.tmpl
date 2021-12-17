@@ -32,7 +32,6 @@
     </tbody>
 </table>
 
-{{ if ne $n 0 }}
 <nav id="pageination">
 {{ if ge .Page 1 }}
 {{ if ne .Page 1 }}
@@ -46,4 +45,3 @@ Page {{ .Page }}
 Invalid page
 {{ end }}
 </nav>
-{{ end }}
