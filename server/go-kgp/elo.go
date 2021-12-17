@@ -28,7 +28,7 @@ import (
 const (
 	MAX_DIFF = 700
 	EPS      = 0.0001
-	K        = 10
+	K        = 20
 )
 
 var OutcomeToPoints = map[Outcome]float64{
