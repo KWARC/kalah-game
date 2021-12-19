@@ -20,10 +20,12 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"embed"
 	"fmt"
 	"html/template"
+	"io"
 	"io/fs"
 	"log"
 	"net/http"
@@ -80,6 +82,9 @@ var (
 		"hasMore": func(i int) bool {
 			return i%int(conf.Web.Limit) != 0
 		},
+		"now": func() string {
+			return time.Now().Format(time.RFC3339)
+		},
 	}
 )
 
@@ -90,6 +95,9 @@ var (
 	// A lock to synchronise the restarting of a web server on
 	// configuration reload
 	weblock sync.Mutex
+
+	// The cached state of the front-page
+	indexPage []byte
 )
 
 func init() {
@@ -98,6 +106,19 @@ func init() {
 		log.Fatal(err)
 	}
 	static = http.FileServer(http.FS(staticfs))
+
+	go func() {
+		time.Sleep(10 * time.Second)
+		var buf bytes.Buffer
+		err := genIndex(0, &buf)
+		if err != nil {
+			log.Println(err)
+		} else {
+			indexPage = buf.Bytes()
+		}
+
+		time.Sleep(10 * time.Minute)
+	}()
 }
 
 func (wc *WebConf) init() {
@@ -114,39 +135,10 @@ func (wc *WebConf) init() {
 	defer weblock.Unlock()
 
 	// Install HTTP handlers
+	mux.HandleFunc("/", index)
 	mux.HandleFunc("/agent/", showAgent)
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/":
-			page, err := strconv.Atoi(r.URL.Query().Get("page"))
-			if err != nil {
-				page = 1
-			}
-
-			c := make(chan *Agent)
-			dbact <- queryAgents(c, page-1)
-
-			w.Header().Add("Content-Type", "text/html")
-			err = T.ExecuteTemplate(w, "index.tmpl", struct {
-				Agents chan *Agent
-				Page   int
-			}{c, page})
-			if err != nil {
-				log.Print(err)
-			}
-		case "/about":
-			if conf.Web.About == "" {
-				http.Error(w, "No about page", http.StatusNoContent)
-				return
-			}
-			w.Header().Add("Content-Type", "text/html")
-			T.ExecuteTemplate(w, "header.tmpl", nil)
-			T.ExecuteTemplate(w, "about.tmpl", struct{}{})
-			T.ExecuteTemplate(w, "footer.tmpl", nil)
-		default:
-			static.ServeHTTP(w, r)
-		}
-	})
+	mux.HandleFunc("/about", about)
+	mux.Handle("/static/", http.StripPrefix("/static/", static))
 
 	if conf.WS.Enabled {
 		mux.HandleFunc("/socket", listenUpgrade)
@@ -174,6 +166,45 @@ func (wc *WebConf) init() {
 	if err != nil {
 		log.Print(err)
 	}
+}
+
+func genIndex(page int, w io.Writer) error {
+	c := make(chan *Agent)
+	dbact <- queryAgents(c, page-1)
+	err := T.ExecuteTemplate(w, "index.tmpl", struct {
+		Agents chan *Agent
+		Page   int
+	}{c, page})
+	return err
+}
+
+func index(w http.ResponseWriter, r *http.Request) {
+	page, err := strconv.Atoi(r.URL.Query().Get("page"))
+	if err != nil {
+		page = 1
+	}
+
+	w.Header().Add("Content-Type", "text/html")
+	w.Header().Add("Cache-Control", "max-age=60")
+	if !conf.Debug && page == 1 {
+		_, err = w.Write(indexPage)
+	} else {
+		err = genIndex(page, w)
+	}
+	if err != nil {
+		log.Print(err)
+	}
+}
+
+func about(w http.ResponseWriter, r *http.Request) {
+	if conf.Web.About == "" {
+		http.Error(w, "No about page", http.StatusNoContent)
+		return
+	}
+	w.Header().Add("Content-Type", "text/html")
+	T.ExecuteTemplate(w, "header.tmpl", nil)
+	T.ExecuteTemplate(w, "about.tmpl", struct{}{})
+	T.ExecuteTemplate(w, "footer.tmpl", nil)
 }
 
 func showAgent(w http.ResponseWriter, r *http.Request) {
