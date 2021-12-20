@@ -149,7 +149,7 @@ class Board:
                 side = not side
                 pos = 0
             else:
-                b[side] += 1
+                b[side, pos] += 1
                 pos += 1
                 stones -= 1
 
@@ -161,7 +161,7 @@ class Board:
             if b[side, last] == 1 and b[not side, other] > 0:
                 b[side] += b[not side, other] + 1
                 b[not side, other] = 0
-                b[side] = 0
+                b[side, last] = 0
 
         return b, False
 
