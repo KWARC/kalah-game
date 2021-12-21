@@ -48,6 +48,7 @@ type WebConf struct {
 	Port    uint   `toml:"port"`
 	Limit   uint   `toml:"limit"`
 	About   string `toml:"about"`
+	Cache   bool   `toml:"cache"`
 	server  *http.Server
 }
 
@@ -99,6 +100,7 @@ var defaultConfig = Conf{
 		Port:    8080,
 		Limit:   50,
 		About:   "",
+		Cache:   false,
 	},
 	WS: WSConf{
 		Enabled: false,

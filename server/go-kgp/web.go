@@ -186,7 +186,7 @@ func index(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Add("Content-Type", "text/html")
 	w.Header().Add("Cache-Control", "max-age=60")
-	if !conf.Debug && page == 1 {
+	if conf.Web.Cache && page == 1 {
 		_, err = w.Write(indexPage)
 	} else {
 		err = genIndex(page, w)
