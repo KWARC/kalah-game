@@ -34,7 +34,7 @@ var (
 )
 
 // Attempt to match clients for new games
-func match(queue []*Client, players map[*Client]uint64) []*Client {
+func match(queue []*Client) []*Client {
 	north := queue[0]
 	for i, cli := range queue[1:] {
 		i += 1
@@ -124,11 +124,7 @@ func remove(cli *Client, queue []*Client) []*Client {
 
 // Try to organise matches
 func queueManager() {
-	var (
-		queue []*Client
-		//
-		players = make(map[*Client]uint64)
-	)
+	var queue []*Client
 
 	for {
 		select {
@@ -139,7 +135,7 @@ func queueManager() {
 		}
 
 		if len(queue) >= 2 {
-			queue = match(queue, players)
+			queue = match(queue)
 		}
 		waiting = int64(len(queue))
 	}
