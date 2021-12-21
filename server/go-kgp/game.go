@@ -266,6 +266,11 @@ func (g *Game) Start() {
 
 	g.updateScore()
 
+	atomic.AddInt64(&playing, -2)
+	if playing < 0 {
+		panic("Illegal value for playing")
+	}
+
 	if conf.Endless {
 		// In the "endless" mode, the client is just
 		// added back to the waiting queue as soon as

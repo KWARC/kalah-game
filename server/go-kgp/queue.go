@@ -23,15 +23,18 @@ import (
 	"bytes"
 	"fmt"
 	"math/rand"
+	"sync/atomic"
 )
 
 var (
 	enqueue = make(chan *Client) // append a client to the queue
 	forget  = make(chan *Client) // remove a client from the queue
+
+	playing, waiting int64
 )
 
 // Attempt to match clients for new games
-func match(queue []*Client) []*Client {
+func match(queue []*Client, players map[*Client]uint64) []*Client {
 	north := queue[0]
 	for i, cli := range queue[1:] {
 		i += 1
@@ -51,6 +54,7 @@ func match(queue []*Client) []*Client {
 				North: north,
 				South: south,
 			}).Start()
+			atomic.AddInt64(&playing, 2)
 			break
 		}
 	}
@@ -120,7 +124,11 @@ func remove(cli *Client, queue []*Client) []*Client {
 
 // Try to organise matches
 func queueManager() {
-	var queue []*Client
+	var (
+		queue []*Client
+		//
+		players = make(map[*Client]uint64)
+	)
 
 	for {
 		select {
@@ -131,7 +139,8 @@ func queueManager() {
 		}
 
 		if len(queue) >= 2 {
-			queue = match(queue)
+			queue = match(queue, players)
 		}
+		waiting = int64(len(queue))
 	}
 }

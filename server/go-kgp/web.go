@@ -85,6 +85,14 @@ var (
 		"now": func() string {
 			return time.Now().Format(time.RFC3339)
 		},
+		"waiting": func() int64 { return waiting },
+		"playing": func() int64 { return playing },
+		"are": func(n int64) string {
+			if n == 1 {
+				return "is"
+			}
+			return "are"
+		},
 	}
 )
 
