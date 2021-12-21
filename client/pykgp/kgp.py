@@ -47,7 +47,7 @@ class Board:
 
         try:
             data = [int(d) for d in match.group(2).split(',')]
-            size, north, south, *rest = data
+            size, south, north, *rest = data
             if len(data) != data[0] * 2 + 2 + 1:
                 return None
 
