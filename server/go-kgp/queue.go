@@ -54,7 +54,6 @@ func match(queue []*Client) []*Client {
 				North: north,
 				South: south,
 			}).Start()
-			atomic.AddInt64(&playing, 2)
 			break
 		}
 	}
