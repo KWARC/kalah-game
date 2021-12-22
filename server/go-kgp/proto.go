@@ -20,15 +20,17 @@
 package main
 
 import (
-	"crypto/sha256"
 	"errors"
-	"fmt"
+	"log"
 	"regexp"
 	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 	"unicode"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 var (
@@ -102,9 +104,13 @@ func (cli *Client) Set(key, val string) error {
 		cli.comment = val
 	case "auth:token":
 		if cli.token == nil {
-			hash := sha256.New()
-			fmt.Fprint(hash, val)
-			cli.token = hash.Sum(nil)
+			passwd := []byte(val)
+			hash, err := bcrypt.GenerateFromPassword(passwd, bcrypt.MinCost)
+			if err != nil {
+				log.Println(err)
+				break
+			}
+			cli.token = hash
 			cli.Score = 1000.0
 
 			var wg sync.WaitGroup
@@ -115,9 +121,12 @@ func (cli *Client) Set(key, val string) error {
 	case "auth:forget":
 		time.Sleep(time.Second)
 
-		hash := sha256.New()
-		fmt.Fprint(hash, val)
-		token = hash.Sum(nil)
+		passwd := []byte(val)
+		token, err := bcrypt.GenerateFromPassword(passwd, bcrypt.MinCost)
+		if err != nil {
+			log.Println(err)
+			break
+		}
 
 		dbact <- cli.forget(token)
 	}
