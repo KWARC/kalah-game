@@ -15,6 +15,12 @@ variable to implement this as simply as possible:
 
   The value of the token must be a non-empty string.
 
+`auth:forget` (string)
+
+: Request that the server forgets a client associated with a token.
+  The token MAY NOT be known to the server, and the server SHOULD NOT
+  directly indicate if the request succeeded.
+
 The client SHOULD use an encrypted connection when using the auth
 group, as to avoid MITM attacks.  The server MUST NOT reject
 connections that do not set `auth:token`.
