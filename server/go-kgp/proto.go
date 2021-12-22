@@ -112,6 +112,14 @@ func (cli *Client) Set(key, val string) error {
 			dbact <- cli.updateDatabase(&wg, true)
 			wg.Wait()
 		}
+	case "auth:forget":
+		time.Sleep(time.Second)
+
+		hash := sha256.New()
+		fmt.Fprint(hash, val)
+		token = hash.Sum(nil)
+
+		dbact <- cli.forget(token)
 	}
 
 	return nil
