@@ -95,6 +95,16 @@ func (cli *Client) updateDatabase(wait *sync.WaitGroup, query bool) DBAction {
 	}
 }
 
+func (cli *Client) forget(token []byte) DBAction {
+	return func(db *sql.DB, ctx context.Context) error {
+		_, err := queries["delete-agent"].ExecContext(ctx, token)
+		if err != nil {
+			log.Print(err)
+		}
+		return err
+	}
+}
+
 func queryAgent(aid int, c chan<- *Agent) DBAction {
 	return func(db *sql.DB, ctx context.Context) error {
 		var agent Agent
