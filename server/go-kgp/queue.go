@@ -23,7 +23,6 @@ import (
 	"bytes"
 	"fmt"
 	"math/rand"
-	"sync/atomic"
 )
 
 var (
