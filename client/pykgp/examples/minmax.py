@@ -66,7 +66,10 @@ def agent(state):
 # you will have to use a websocket connection, so just add the keyword
 # host as follows:
 #
-#       kgp.connect(agent, host="wss://kalah.kwarc.info/socket")
+#       kgp.connect(agent, host   = "wss://kalah.kwarc.info/socket",
+#                          token  = "A hopefully random string only I know",
+#                          author = "Eva Lu Ator, Ben Bitdiddle",
+#                          name   = "magenta")
 #
 # Note that this requires that the "websocket-client" library (not to
 # be confused with "websockets", that ends with an "s") has to be
