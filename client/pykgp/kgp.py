@@ -376,10 +376,10 @@ def connect(agent, host='wss://kalah.kwarc.info/socket', port=2671, token=None, 
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             sock.setblocking(True)
             sock.connect((host, port))
-            def write(msg):
-                pseudo.write(msg)
-                pseudo.flush()
             with sock.makefile(mode='rw') as pseudo:
+                def write(msg):
+                    pseudo.write(msg)
+                    pseudo.flush()
                 handle(lambda: pseudo, write)
 
 # Local Variables:
