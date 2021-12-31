@@ -42,7 +42,6 @@ func (b Side) String() string {
 		return "South"
 	}
 	return "North"
-
 }
 
 // Board represents a Kalah game
@@ -79,9 +78,7 @@ func parseBoard(str string) *Board {
 	if len(raw) < 5 {
 		return nil
 	}
-	var (
-		data = make([]uint, len(raw))
-	)
+	data := make([]uint, len(raw))
 	fmt.Printf("%#v\n", raw)
 	for i, r := range raw {
 		v, err := strconv.Atoi(r)

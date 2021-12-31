@@ -57,13 +57,13 @@ func start(cli *Client, id uint64, board *Board) {
 		scanner.Split(bufio.ScanWords)
 		for scanner.Scan() {
 			word := scanner.Text()
-			move, err := strconv.Atoi()
+			move, err := strconv.Atoi(word)
 			if err != nil {
-				log.Fprintf(os.Stderr, "Cannot parse \"%s\"\n", word)
+				fmt.Fprintf(os.Stderr, "Cannot parse \"%s\"\n", word)
 				continue
 			}
 			if !board.Legal(SideSouth, move) {
-				log.Fprintf(os.Stderr, "Attempted to make illegal move %d\n", move)
+				fmt.Fprintf(os.Stderr, "Attempted to make illegal move %d\n", move)
 				continue
 			}
 			cli.Respond(id, "move", move)

@@ -46,9 +46,7 @@ func (cli *Client) Error(to uint64, args ...interface{}) {
 
 // Respond forwards a referenced message to the client
 func (cli *Client) Respond(to uint64, command string, args ...interface{}) uint64 {
-	var (
-		id = atomic.AddUint64(&cli.rid, 2)
-	)
+	id := atomic.AddUint64(&cli.rid, 2)
 
 	fmt.Fprint(cli.rwc, id)
 	if to > 0 {
@@ -107,5 +105,5 @@ func (cli *Client) Handle() {
 	}
 
 	// Try to send a goodbye message, ignoring any errors
-	fmt.Fprintf(cli, rwc, "goodbye\r\n")
+	fmt.Fprintf(cli.rwc, "goodbye\r\n")
 }
