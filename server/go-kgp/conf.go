@@ -69,6 +69,7 @@ type DBConf struct {
 }
 
 type Conf struct {
+	Sched    string   `toml:"sched"`
 	Debug    bool     `toml:"debug"`
 	Endless  bool     `toml:"endless"`
 	Database DBConf   `toml:"database"`
@@ -81,6 +82,7 @@ type Conf struct {
 
 var defaultConfig = Conf{
 	Debug: false,
+	Sched: "fifo",
 	Database: DBConf{
 		File:    "kalah.sql",
 		Threads: 1,

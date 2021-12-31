@@ -92,6 +92,9 @@ func main() {
 	flag.StringVar(&conf.Web.About, "about",
 		conf.Web.About,
 		"A template for the about page")
+	flag.StringVar(&conf.Sched, "sched",
+		conf.Sched,
+		"Game scheduler algorithm.")
 	flag.Parse()
 
 	if flag.NArg() != 0 {
@@ -128,7 +131,14 @@ func main() {
 	}
 
 	// Start match scheduler
-	go queueManager()
+	var sched Sched
+	switch conf.Sched {
+	case "fifo":
+		sched = &FIFO{}
+	default:
+		log.Fatal("Unknown scheduler", conf.Sched)
+	}
+	go schedule(sched)
 
 	// Start database manager
 	manageDatabase()

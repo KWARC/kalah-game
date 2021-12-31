@@ -150,9 +150,6 @@ func (g *Game) Other(cli *Client) *Client {
 
 // Start manages a game between the north and south client
 func (g *Game) Start() {
-	defer atomic.AddInt64(&playing, -2)
-	atomic.AddInt64(&playing, 2)
-
 	yield := make(chan *Client)
 	move := make(chan *Move)
 	death := make(chan *Client)
@@ -170,10 +167,6 @@ func (g *Game) Start() {
 	}
 	g.South.game = g
 	g.schoice = -1
-
-	log.Printf("Start game (%d, %d) between %s and %s",
-		len(g.Board.northPits), g.Board.init,
-		g.North, g.South)
 
 	g.side = SideSouth
 	g.last = g.South.Send("state", g)
