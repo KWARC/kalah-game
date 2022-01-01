@@ -65,6 +65,12 @@ class Board:
         self.south_pits = south_pits
         self.size = len(north_pits)
 
+    def __eq__(self, other):
+        return (self.north == other.north and
+                self.south == other.south and
+                self.north_pits == other.north_pits and
+                self.south_pits == other.south_pits)
+
     def __str__(self):
         """Return board in KGP board representation."""
         data = [self.size,
