@@ -42,8 +42,8 @@ type Move struct {
 	Client  *Client
 	Comment string
 	Yield   bool
-	game    *Game
 	id      uint64
+	when    time.Time
 }
 
 // Game represents a game between two players
@@ -99,6 +99,17 @@ func (g *Game) Player(side Side) *Client {
 		return g.South
 	default:
 		panic("Invalid state")
+	}
+}
+
+func (g *Game) Side(cli *Client) Side {
+	switch cli {
+	case g.North:
+		return SideNorth
+	case g.South:
+		return SideSouth
+	default:
+		panic("Unknown client")
 	}
 }
 
@@ -166,7 +177,6 @@ func (g *Game) Start() {
 
 	if g.North.token != nil && g.South.token != nil {
 		g.logged = true
-		dbact <- g.updateDatabase(nil)
 	}
 
 	for {
@@ -193,6 +203,7 @@ func (g *Game) Start() {
 			} else if !g.Board.Legal(g.side, m.Pit) {
 				m.Client.Error(m.id, fmt.Sprintf("Illegal move %d", m.Pit+1))
 			} else {
+				m.when = time.Now()
 				choice = m
 			}
 		case cli := <-death:
@@ -232,28 +243,30 @@ func (g *Game) Start() {
 			g.Current().Respond(g.last, "stop")
 			atomic.AddInt64(&g.Current().pending, 1)
 
-			// We generate a random move to replace
-			// whatever the current choice is, either if
-			// no choice was made (denoted by a -1) or if
-			// the client is playing in simple mode and
-			// there are pending stop requests that have
-			// to be responded to with a yield
-			if choice == nil || (g.Current().simple && g.Current().pending > 0) {
-				choice = &Move{
-					Pit:    g.Board.Random(g.side),
-					Client: g.Current(),
-				}
-			}
-
-			g.Moves = append(g.Moves, choice)
-
-			again := g.Board.Sow(g.side, choice.Pit)
-			if g.Board.Over() {
-				break
-			}
-
-			if !again {
+			if choice.Yield {
 				g.side = !g.side
+			} else {
+
+				// We generate a random move to replace
+				// whatever the current choice is, either if
+				// no choice was made (denoted by a -1) or if
+				// the client is playing in simple mode and
+				// there are pending stop requests that have
+				// to be responded to with a yield
+				if choice == nil || (g.Current().simple && g.Current().pending > 0) {
+					choice.Pit = g.Board.Random(g.side)
+				}
+
+				g.Moves = append(g.Moves, choice)
+
+				again := g.Board.Sow(g.side, choice.Pit)
+				if g.Board.Over() {
+					break
+				}
+
+				if !again {
+					g.side = !g.side
+				}
 			}
 
 			g.last = g.Current().Send("state", g)

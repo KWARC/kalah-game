@@ -56,56 +56,53 @@ var queries = make(map[string]*sql.Stmt)
 
 func (game *Game) updateDatabase(wait *sync.WaitGroup) DBAction {
 	if !game.logged {
-		if wait != nil {
-			wait.Done()
-		}
+		panic("Saving unlogged game")
+	}
 
-		return nil
+	if !game.IsOver() {
+		panic("Game is not over")
 	}
 
 	return func(db *sql.DB, ctx context.Context) (err error) {
-		if wait != nil {
-			defer wait.Done()
+		tx, err := db.BeginTx(ctx, nil)
+		if err != nil {
+			log.Print(err)
+			return err
 		}
 
-		if game.IsOver() {
-			_, err = queries["update-game"].ExecContext(ctx, game.Board.Outcome(SideSouth), game.Id)
-		} else {
-			var res sql.Result
-			res, err = queries["insert-game"].ExecContext(ctx,
-				len(game.Board.northPits),
-				game.Board.init,
-				game.North.Id,
-				game.South.Id)
-			if err == nil {
-				game.Id, err = res.LastInsertId()
+		res, err := tx.Stmt(queries["insert-game"]).ExecContext(ctx,
+			len(game.Board.northPits),
+			game.Board.init,
+			game.North.Id,
+			game.South.Id,
+			game.Board.Outcome(SideSouth))
+		if err != nil {
+		}
+		game.Id, err = res.LastInsertId()
+		if err != nil {
+			log.Print(err)
+		}
+
+		for _, move := range game.Moves {
+			_, err = tx.Stmt(queries["insert-move"]).ExecContext(ctx,
+				game.Id,
+				move.Client.Id,
+				game.Side(move.Client),
+				move.Pit,
+				move.Comment,
+				move.when)
+			if err != nil {
+				log.Print(err)
+				return
 			}
 		}
+
+		err = tx.Commit()
 		if err != nil {
 			log.Print(err)
 		}
 
 		return
-	}
-}
-
-func saveMove(in *Game, by *Client, side Side, move int, when time.Time) DBAction {
-	if !in.logged {
-		return nil
-	}
-
-	return func(db *sql.DB, ctx context.Context) error {
-		_, err := queries["insert-move"].ExecContext(ctx,
-			in.Id,
-			by.Id,
-			side,
-			move,
-			by.comment,
-			when)
-		if err != nil {
-			log.Print(err)
-		}
-		return err
 	}
 }
 
@@ -218,7 +215,6 @@ func queryGame(gid int, c chan<- *Game) DBAction {
 			game.Moves = append(game.Moves, &Move{
 				Pit:     move,
 				Client:  game.Player(side),
-				game:    game,
 				Comment: comm,
 			})
 		}
