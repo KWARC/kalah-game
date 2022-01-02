@@ -192,14 +192,14 @@ func (cli *Client) Interpret(input string) error {
 			ref:    ref,
 		}
 	case "yield":
-		new := atomic.AddInt64(&cli.pending, -1)
-		if cli.simple && new < -1 {
-			cli.Error(id, "Preemptive yield")
-			cli.kill()
+		if game == nil || (ref != game.last && ref != 0) {
+			return nil
 		}
 
-		if game == nil || !game.IsCurrent(cli, ref) {
-			return nil
+		new := atomic.AddUint64(&cli.nyield, 1)
+		if cli.simple && new-1 > cli.nstop {
+			cli.Error(id, "Preemptive yield")
+			cli.killFunc()
 		}
 
 		game.yield <- cli

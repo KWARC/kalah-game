@@ -55,7 +55,10 @@ type Client struct {
 	token   []byte
 	comment string
 	simple  bool
-	pending int64
+
+	// Simple mode state management
+	nyield uint64
+	nstop  uint64
 }
 
 func (cli *Client) String() string {

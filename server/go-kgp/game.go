@@ -184,10 +184,7 @@ func (g *Game) Start() {
 		next := false
 		select {
 		case m := <-move:
-			if !g.IsCurrent(m.Client, m.ref) {
-				break
-			}
-			if m.Client.simple && m.Client.pending >= 1 {
+			if m.Client.simple && m.Client.nstop != m.Client.nyield {
 				// If the client has sent us a move even
 				// though he has not responded to a previous
 				// "stop" command via "yield" we must conclude
@@ -200,6 +197,15 @@ func (g *Game) Start() {
 			}
 		case cli := <-yield:
 			if cli != g.Current() {
+				break
+			}
+			if cli.simple && cli.nstop != cli.nyield {
+				// In simple mode the client must
+				// respond to every stop, and in case
+				// the client is behind with
+				// responding, we shouldn't interpret
+				// a yield as a request to give up the
+				// remaining time.
 				break
 			}
 			// The client has indicated it does not intend
@@ -236,7 +242,7 @@ func (g *Game) Start() {
 
 		if next {
 			g.Current().Respond(g.last, "stop")
-			atomic.AddInt64(&g.Current().pending, 1)
+			atomic.AddUint64(&g.Current().nstop, 1)
 
 			choice := *g.choice()
 
@@ -246,7 +252,7 @@ func (g *Game) Start() {
 			// the client is playing in simple mode and
 			// there are pending stop requests that have
 			// to be responded to with a yield
-			if choice == -1 || (g.Current().simple && g.Current().pending > 0) {
+			if choice == -1 || (g.Current().simple && g.Current().nstop != g.Current().nyield) {
 				choice = g.Board.Random(g.side)
 			}
 
