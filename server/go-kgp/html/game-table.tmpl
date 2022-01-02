@@ -4,8 +4,6 @@
 	  <td>Id</td>
 	  <td>North</td>
 	  <td>South</td>
-	  <td>Started</td>
-	  <td>Ended?</td>
 	  <td>Result</td>
       </tr>
   </thead>
@@ -42,16 +40,6 @@
 	    Anon.
 	  {{ end }}
 	{{ end }}
-	</td>
-	<td>
-	  {{ timefmt .Started }}
-	</td>
-	<td>
-	  {{ with .Ended }}
-	     {{ timefmt . }}
-	  {{ else }}
-	     No
-	  {{ end}}
 	</td>
 	<td>
 	  {{ result .Outcome }}

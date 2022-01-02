@@ -29,7 +29,7 @@ import (
 type Outcome uint8
 
 const (
-	ONGOING = iota
+	_ = iota
 	WIN
 	DRAW
 	LOSS
@@ -74,8 +74,6 @@ type Game struct {
 	Id      int64
 	Moves   []*Move
 	Outcome Outcome // For south
-	Ended   *time.Time
-	Started *time.Time
 }
 
 // String generates a KGP board representation for the current player

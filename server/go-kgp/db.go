@@ -239,22 +239,13 @@ func scanGame(ctx context.Context, scan func(dest ...interface{}) error) (*Game,
 		&size, &init,
 		&north.Id,
 		&south.Id,
-		&outcome,
-		&game.Started,
-		&game.Ended)
+		&outcome)
 	if err != nil {
 		return nil, err
 	}
 
 	game.Board = makeBoard(size, init)
-
-	if game.Ended == nil {
-		game.Outcome = ONGOING
-	} else if outcome == nil {
-		game.Outcome = RESIGN
-	} else {
-		game.Outcome = Outcome(*outcome)
-	}
+	game.Outcome = Outcome(*outcome)
 
 	err = queries["select-agent-id"].QueryRowContext(ctx, north.Id).Scan(
 		&north.Name,

@@ -54,8 +54,6 @@ var (
 		},
 		"result": func(out Outcome) string {
 			switch out {
-			case ONGOING:
-				return "Ongoing"
 			case WIN:
 				return "South won"
 			case DRAW:
