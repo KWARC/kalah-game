@@ -23,7 +23,6 @@ import (
 	"context"
 	"database/sql"
 	"embed"
-	"fmt"
 	"io/fs"
 	"log"
 	"os"
@@ -372,10 +371,7 @@ func databaseManager(id uint, db *sql.DB, wg *sync.WaitGroup) {
 }
 
 func manageDatabase() {
-	uri := fmt.Sprintf("%s?mode=%s&_journal=wal",
-		conf.Database.File,
-		conf.Database.Mode)
-	db, err := sql.Open("sqlite3", uri)
+	db, err := sql.Open("sqlite3", conf.Database.File+"?mode=rwc")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -397,6 +393,25 @@ func manageDatabase() {
 		<-intr
 		os.Exit(1)
 	}()
+
+	for _, pragma := range []string{
+		// https://www.sqlite.org/pragma.html#pragma_journal_mode
+		"journal_mode = WAL",
+		// https://www.sqlite.org/pragma.html#pragma_synchronous
+		"synchronous = normal",
+		// https://www.sqlite.org/pragma.html#pragma_temp_store
+		"temp_store = memory",
+		// https://www.sqlite.org/pragma.html#pragma_mmap_size
+		"mmap_size = 268435456",
+		// https://www.sqlite.org/pragma.html#pragma_foreign_keys
+		"foreign_keys = on",
+	} {
+		_, err = db.Exec("PRAGMA " + pragma + ";")
+		if err != nil {
+			log.Fatal(err)
+		}
+
+	}
 
 	err = fs.WalkDir(sqlDir, "sql", func(file string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -424,6 +439,17 @@ func manageDatabase() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	go func() {
+		for {
+			time.Sleep(8 * time.Hour)
+			// https://www.sqlite.org/pragma.html#pragma_optimize
+			_, err = db.Exec("PRAGMA optimize;")
+			if err != nil {
+				log.Print(err)
+			}
+		}
+	}()
 
 	var wg sync.WaitGroup
 	for id := uint(0); id < conf.Database.Threads; id++ {
