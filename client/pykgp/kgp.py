@@ -372,7 +372,8 @@ def connect(agent, host='wss://kalah.kwarc.info/socket', port=2671, token=None, 
                         send("pong", args[0], ref=cid)
                     else:
                         send("pong", ref=cid)
-
+                elif cmd == "goodbye":
+                    return
             except ValueError:
                 pass
             except TypeError:
