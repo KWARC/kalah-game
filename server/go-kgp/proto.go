@@ -199,7 +199,11 @@ func (cli *Client) Interpret(input string) error {
 			return nil
 		}
 
-		game.yield <- cli
+		game.move <- &Move{
+			Yield:  true,
+			Client: cli,
+			id:     id,
+		}
 	case "ok", "error":
 		// We do not expect the client to confirm or reject anything,
 		// so we can ignore these response messages.

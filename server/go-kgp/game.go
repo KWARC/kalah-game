@@ -41,6 +41,7 @@ type Move struct {
 	Pit     int
 	Client  *Client
 	Comment string
+	Yield   bool
 	game    *Game
 	id      uint64
 }
@@ -57,7 +58,6 @@ type Game struct {
 	side Side
 	// The control channel that is used to send actions like move
 	// or yield.  These are processed in .Start().
-	yield chan<- *Client
 	move  chan<- *Move
 	death chan<- *Client
 	// The two clients
@@ -152,10 +152,8 @@ func (g *Game) Other(cli *Client) *Client {
 
 // Start manages a game between the north and south client
 func (g *Game) Start() {
-	yield := make(chan *Client)
 	move := make(chan *Move)
 	death := make(chan *Client)
-	g.yield = yield
 	g.move = move
 	g.death = death
 
@@ -188,7 +186,14 @@ func (g *Game) Start() {
 		next := false
 		select {
 		case m := <-move:
-			if m.Client.simple && m.Client.pending >= 1 {
+			if m.Yield {
+				if m.Client != g.Current() {
+					break
+				}
+				// The client has indicated it does not intend
+				// to use the remaining time.
+				next = true
+			} else if m.Client.simple && m.Client.pending >= 1 {
 				// If the client has sent us a move even
 				// though he has not responded to a previous
 				// "stop" command via "yield" we must conclude
@@ -199,13 +204,6 @@ func (g *Game) Start() {
 			} else {
 				*g.choice() = m.Pit
 			}
-		case cli := <-yield:
-			if cli != g.Current() {
-				break
-			}
-			// The client has indicated it does not intend
-			// to use the remaining time.
-			next = true
 		case cli := <-death:
 			if g.North != cli && g.South != cli {
 				log.Print("Unrelated death")
