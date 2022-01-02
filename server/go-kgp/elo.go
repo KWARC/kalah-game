@@ -43,9 +43,6 @@ func (g *Game) updateScore() (err error) {
 	}
 
 	diff := g.North.Score - g.South.Score
-	if math.Abs(diff) > MAX_DIFF {
-		return nil
-	}
 
 	// Calculate the new ELO rating for the current client
 	// according to
