@@ -28,6 +28,8 @@ import (
 var (
 	enqueue = make(chan *Client) // append a client to the queue
 	forget  = make(chan *Client) // remove a client from the queue
+
+	playing, waiting int64
 )
 
 // Attempt to match clients for new games
@@ -57,11 +59,6 @@ func match(queue []*Client) []*Client {
 
 	return queue
 }
-
-// TODO (philip, 27Nov21): The operations ENQUEUE (append), PROMOTE
-// (prepend) and FORGET (delete) should ensure that there is always at
-// most one client in QUEUE.  If should therefore be possible to
-// simplify the algorithm below that accounts for possible duplicates.
 
 func remove(cli *Client, queue []*Client) []*Client {
 	// Traverse the queue and replace any reference to CLI with a nil
@@ -138,5 +135,6 @@ func queueManager() {
 		if len(queue) >= 2 {
 			queue = match(queue)
 		}
+		waiting = int64(len(queue))
 	}
 }

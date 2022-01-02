@@ -106,24 +106,18 @@ func (game *Game) updateDatabase(wait *sync.WaitGroup) DBAction {
 }
 
 func (cli *Client) updateDatabase(wait *sync.WaitGroup, query bool) DBAction {
-	if cli.token == nil {
-		if wait != nil {
-			wait.Done()
-		}
-		return nil
-	}
-
 	return func(db *sql.DB, ctx context.Context) (err error) {
 		var (
 			name, descr *string
 			score       *float64
 		)
+		defer wait.Done()
 
 		if query {
 			err = queries["select-agent-token"].QueryRowContext(ctx, cli.token).Scan(
 				&cli.Id, &name, &descr, &score)
 			if err != nil && err != sql.ErrNoRows {
-				log.Print(err)
+				log.Fatal(err)
 			}
 
 			if name != nil {
@@ -148,11 +142,17 @@ func (cli *Client) updateDatabase(wait *sync.WaitGroup, query bool) DBAction {
 			return
 		}
 
-		if wait != nil {
-			wait.Done()
-		}
-
 		return
+	}
+}
+
+func (cli *Client) forget(token []byte) DBAction {
+	return func(db *sql.DB, ctx context.Context) error {
+		_, err := queries["delete-agent"].ExecContext(ctx, token)
+		if err != nil {
+			log.Print(err)
+		}
+		return err
 	}
 }
 
@@ -167,7 +167,7 @@ func queryAgent(aid int, c chan<- *Agent) DBAction {
 			&agent.Author,
 			&agent.Score)
 		if err != nil {
-			log.Print(err)
+			log.Fatal(err)
 		} else {
 			c <- &agent
 		}
@@ -322,9 +322,9 @@ func queryAgents(c chan<- *Agent, page int) DBAction {
 		for rows.Next() {
 			var agent Agent
 
-			err = rows.Scan(&agent.Id, &agent.Name, &agent.Author, &agent.Score, &agent.Games)
+			err = rows.Scan(&agent.Id, &agent.Name, &agent.Author, &agent.Score)
 			if err != nil {
-				log.Print(err)
+				log.Fatal(err)
 				return err
 			}
 

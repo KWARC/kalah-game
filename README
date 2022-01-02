@@ -11,6 +11,8 @@ Contents of this repository:
   /client/	A collection of client-side libraries, which
   		implement the protocol.
 
+  /misc/	Utility programs and scripts
+
 The project homepage can be found here:
 
     https://github.com/KWARC/kalah-game

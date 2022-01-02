@@ -47,7 +47,7 @@ class Board:
 
         try:
             data = [int(d) for d in match.group(2).split(',')]
-            size, north, south, *rest = data
+            size, south, north, *rest = data
             if len(data) != data[0] * 2 + 2 + 1:
                 return None
 
@@ -64,6 +64,12 @@ class Board:
         self.north_pits = north_pits
         self.south_pits = south_pits
         self.size = len(north_pits)
+
+    def __eq__(self, other):
+        return (self.north == other.north and
+                self.south == other.south and
+                self.north_pits == other.north_pits and
+                self.south_pits == other.south_pits)
 
     def __str__(self):
         """Return board in KGP board representation."""
@@ -122,6 +128,14 @@ class Board:
         """Return a deep copy of the current board state."""
         return copy.deepcopy(self)
 
+    def _collect(self):
+        self.north += sum(self.north_pits)
+        self.north_pits = [0] * len(self.north_pits)
+        self.south += sum(self.south_pits)
+        self.south_pits = [0] * len(self.south_pits)
+
+        return self, False
+
     def sow(self, side, pit, pure=True):
         """
         Sow the stones from pit on side.
@@ -149,11 +163,13 @@ class Board:
                 side = not side
                 pos = 0
             else:
-                b[side] += 1
+                b[side, pos] += 1
                 pos += 1
                 stones -= 1
 
         if pos == 0 and not me == side:
+            if b.is_final():
+                return b._collect()
             return b, True
         elif side == me and pos > 0:
             last = pos - 1
@@ -161,7 +177,10 @@ class Board:
             if b[side, last] == 1 and b[not side, other] > 0:
                 b[side] += b[not side, other] + 1
                 b[not side, other] = 0
-                b[side] = 0
+                b[side, last] = 0
+
+        if b.is_final():
+            b._collect()
 
         return b, False
 
@@ -376,10 +395,10 @@ def connect(agent, host='wss://kalah.kwarc.info/socket', port=2671, token=None, 
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             sock.setblocking(True)
             sock.connect((host, port))
-            def write(msg):
-                pseudo.write(msg)
-                pseudo.flush()
             with sock.makefile(mode='rw') as pseudo:
+                def write(msg):
+                    pseudo.write(msg)
+                    pseudo.flush()
                 handle(lambda: pseudo, write)
 
 # Local Variables:

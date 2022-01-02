@@ -19,29 +19,20 @@ body {
     flex-direction: column;
     min-height: 100vh;
     justify-content: flex-start;
-}
-
-header, footer {
-    background: whitesmoke;
-    border: 0 solid silver;
-    padding: 8px;
+    max-width: 800px;
+    margin: 8px auto;
 }
 
 header {
-    border-bottom-width: 1px;
     white-space: nowrap;
 }
 
 footer {
-    border-top-width: 1px;
-    margin-top: auto;
     text-align: center;
     font-size: 80%;
 }
 
 main, nav {
-    max-width: 800px;
-    margin: 4px auto;
     padding: 0 8px;
 }
 
@@ -53,6 +44,10 @@ a {
 table, td {
     border-collapse: collapse;
     border-color: #9ad;
+}
+
+table.list {
+    margin: auto;
 }
 
 table.list td {

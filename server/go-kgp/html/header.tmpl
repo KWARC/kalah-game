@@ -3,8 +3,8 @@
   <head>
     <meta charset="utf-8">
     <title>KGP Server</title>
-    <link rel="stylesheet" href="/normalize.css">
-    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="/static/normalize.css">
+    <link rel="stylesheet" href="/static/style.css">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'">
   </head>
@@ -12,8 +12,6 @@
     <header>
       <nav>
 	<a href="/"><strong>KGP Server</strong></a>
-	| <a href="/agents">Agent Scoreboard</a>
-	| <a href="/games">Game List</a>
 	{{ if hasAbout }} | <a href="/about">About</a> {{ end }}
       </nav>
     </header>

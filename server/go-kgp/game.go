@@ -150,6 +150,9 @@ func (g *Game) Other(cli *Client) *Client {
 
 // Start manages a game between the north and south client
 func (g *Game) Start() {
+	defer atomic.AddInt64(&playing, -2)
+	atomic.AddInt64(&playing, 2)
+
 	move := make(chan *Move)
 	death := make(chan *Client)
 	g.move = move
@@ -273,9 +276,7 @@ func (g *Game) Start() {
 		}
 	}
 
-	if g.logged {
-		g.updateScore()
-	}
+	g.updateScore()
 
 	if conf.Endless {
 		// In the "endless" mode, the client is just

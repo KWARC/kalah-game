@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.net.ProtocolException;
 import java.net.SocketException;
+import java.sql.Timestamp;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.BrokenBarrierException;
@@ -37,7 +38,7 @@ public class ProtocolManager {
                     "\"(?:\\\\.|[^\"])*\"|" + // strings
                     "<\\d+(,\\d+)*>",
             Pattern.CASE_INSENSITIVE);
-    private PrintStream debugStream = System.out;
+    private PrintStream debugStream;
     private final String host;
     private final Integer port;
     private final Agent agent;
@@ -49,6 +50,8 @@ public class ProtocolManager {
     private Integer clock = null, opClock = null;
     private String serverName = null;
     private Connection connection;
+    private String stateIDAgent = null;
+    private String stateIDManager = null;
     private KalahState kalahStateManager = null;
     private KalahState kalahStateAgent = null;
     private ProtocolState state = null;
@@ -91,6 +94,8 @@ public class ProtocolManager {
             opClock = null;
             serverName = null;
 
+            stateIDAgent = null;
+            stateIDManager = null;
             kalahStateManager = null;
             kalahStateAgent = null;
 
@@ -178,7 +183,7 @@ public class ProtocolManager {
                     if (event instanceof AgentFinished) { // agent stopped/yielded
                         AgentFinished af = (AgentFinished) event;
 
-                        sendToServer("yield");
+                        sendYield();
 
                         if (kalahStateManager == null) {
                             // Did not receive state command yet, but agent is ready now
@@ -224,7 +229,7 @@ public class ProtocolManager {
                                     }
 
                                     // supported version, reply with mode
-                                    sendToServer("mode simple");
+                                    sendToServer("mode freeplay");
 
                                     // and wait for the first state command
                                     state = ProtocolState.WAITING_FOR_STATE;
@@ -265,6 +270,8 @@ public class ProtocolManager {
                                     // no legal moves
                                     throw new ProtocolException("Server sent state with no legal moves:\n" + kalahStateManager);
                                 }
+
+                                stateIDManager = cmd.id;
 
                                 // Only start searching if the agent is ready
 
@@ -329,6 +336,10 @@ public class ProtocolManager {
         }
     }
 
+    private void sendYield() throws IOException {
+        sendToServer("@" + stateIDAgent + " yield");
+    }
+
     // start game
     private void startGame() {
         // state and agent are available, start searching!
@@ -336,7 +347,9 @@ public class ProtocolManager {
 
         // copy state to agent so you can change it without disturbing the agent
         kalahStateAgent = new KalahState(kalahStateManager);
+        stateIDAgent = stateIDManager;
         kalahStateManager = null;
+        stateIDManager = null;
 
         // Command agent thread to search by joining him on the cyclic barrier
         // This barrier also ensures that the agent sees the new state
@@ -361,7 +374,7 @@ public class ProtocolManager {
             throw new ProtocolException("Not a correct error command: " + msg.original);
         }
 
-        System.err.println("Received and ignored error command from server: " + msg.original);
+        System.err.println("Received error from server: " + msg.original);
         // throw new ProtocolException("Received error command from server: " + msg.original);
     }
 
@@ -508,13 +521,7 @@ public class ProtocolManager {
             throw new IllegalArgumentException("Move cannot be negative");
         }
 
-        if (kalahStateAgent.getHouse(KalahState.Player.SOUTH, move - 1) == 0) {
-            throw new IllegalArgumentException("Agent tried to send illegal move " + move + ":\n" + kalahStateAgent);
-        }
-
-        // TODO REMOVE CHECK
-
-        sendToServer("move " + move);
+        sendToServer("@" + stateIDAgent + " move " + move);
     }
 
     private void sendGoodbyeAndCloseConnection() throws IOException {
@@ -538,7 +545,8 @@ public class ProtocolManager {
 
         // logging
         if (debugStream != null) {
-            debugStream.println("Client: " + msg);
+            Timestamp t = new Timestamp(System.currentTimeMillis());
+            debugStream.println("["+t+"] Client: " + msg);
         }
     }
 
@@ -556,7 +564,8 @@ public class ProtocolManager {
 
         // logging
         if (debugStream != null) {
-            debugStream.println("Server: " + line);
+            Timestamp t = new Timestamp(System.currentTimeMillis());
+            debugStream.println("["+t+"] Server: " + line);
         }
 
         Matcher mat = commandPattern.matcher(line);
@@ -564,7 +573,8 @@ public class ProtocolManager {
             throw new ProtocolException("Malformed input: " + line);
         }
 
-        // ignore id and ref for this implementation
+        String id = mat.group(1);
+        String ref = mat.group(2);
         String name = mat.group(3);
         List<String> args = new LinkedList<>();
 
@@ -577,6 +587,8 @@ public class ProtocolManager {
 
         return new Command(line.substring(
                 mat.start(3)),
+                id,
+                ref,
                 name,
                 args);
     }
@@ -689,12 +701,14 @@ public class ProtocolManager {
 
     private static class Command extends Event {
 
-        String original, name;
+        String original, id, ref, name;
         List<String> args;
 
-        Command(String original, String name, List<String> args) {
+        Command(String original, String id, String ref, String name, List<String> args) {
             super();
             this.original = original;
+            this.id = id;
+            this.ref = ref;
             this.name = name;
             this.args = args;
         }

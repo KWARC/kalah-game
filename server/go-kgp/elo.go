@@ -28,7 +28,7 @@ import (
 const (
 	MAX_DIFF = 700
 	EPS      = 0.0001
-	K        = 10
+	K        = 20
 )
 
 var OutcomeToPoints = map[Outcome]float64{
@@ -38,10 +38,11 @@ var OutcomeToPoints = map[Outcome]float64{
 }
 
 func (g *Game) updateScore() (err error) {
-	diff := g.North.Score - g.South.Score
-	if math.Abs(diff) > MAX_DIFF {
+	if g.North.token == nil || g.South.token == nil {
 		return nil
 	}
+
+	diff := g.North.Score - g.South.Score
 
 	// Calculate the new ELO rating for the current client
 	// according to
@@ -62,10 +63,9 @@ func (g *Game) updateScore() (err error) {
 
 	// Send database manager a request to update the entry
 	var wait sync.WaitGroup
-	wait.Add(3)
+	wait.Add(2)
 	dbact <- g.South.updateDatabase(&wait, false)
 	dbact <- g.North.updateDatabase(&wait, false)
-	dbact <- g.updateDatabase(&wait)
 	wait.Wait()
 
 	return nil
