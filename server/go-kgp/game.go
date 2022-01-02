@@ -117,17 +117,6 @@ func (g *Game) IsCurrent(cli *Client) bool {
 	return g.Current() == cli
 }
 
-func (g *Game) choice() *int {
-	switch g.side {
-	case SideNorth:
-		return &g.nchoice
-	case SideSouth:
-		return &g.schoice
-	default:
-		panic("Invalid state")
-	}
-}
-
 // Other returns the opponent of CLI, or nil if CLI is not playing a
 // game
 func (g *Game) Other(cli *Client) *Client {
@@ -161,12 +150,10 @@ func (g *Game) Start() {
 		panic("Already part of game")
 	}
 	g.North.game = g
-	g.nchoice = -1
 	if g.South.game != nil {
 		panic("Already part of game")
 	}
 	g.South.game = g
-	g.schoice = -1
 
 	log.Printf("Start game (%d, %d) between %s and %s",
 		len(g.Board.northPits), g.Board.init,
@@ -183,7 +170,11 @@ func (g *Game) Start() {
 	}
 
 	for {
-		next := false
+		var (
+			choice *Move
+			next   bool
+		)
+
 		select {
 		case m := <-move:
 			if m.Yield {
@@ -202,7 +193,7 @@ func (g *Game) Start() {
 			} else if !g.Board.Legal(g.side, m.Pit) {
 				m.Client.Error(m.id, fmt.Sprintf("Illegal move %d", m.Pit+1))
 			} else {
-				*g.choice() = m.Pit
+				choice = m
 			}
 		case cli := <-death:
 			if g.North != cli && g.South != cli {
@@ -241,21 +232,22 @@ func (g *Game) Start() {
 			g.Current().Respond(g.last, "stop")
 			atomic.AddInt64(&g.Current().pending, 1)
 
-			choice := *g.choice()
-
 			// We generate a random move to replace
 			// whatever the current choice is, either if
 			// no choice was made (denoted by a -1) or if
 			// the client is playing in simple mode and
 			// there are pending stop requests that have
 			// to be responded to with a yield
-			if choice == -1 || (g.Current().simple && g.Current().pending > 0) {
-				choice = g.Board.Random(g.side)
+			if choice == nil || (g.Current().simple && g.Current().pending > 0) {
+				choice = &Move{
+					Pit:    g.Board.Random(g.side),
+					Client: g.Current(),
+				}
 			}
 
-			dbact <- saveMove(g, g.Current(), g.side, choice, time.Now())
+			g.Moves = append(g.Moves, choice)
 
-			again := g.Board.Sow(g.side, choice)
+			again := g.Board.Sow(g.side, choice.Pit)
 			if g.Board.Over() {
 				break
 			}
@@ -264,7 +256,6 @@ func (g *Game) Start() {
 				g.side = !g.side
 			}
 
-			*g.choice() = -1
 			g.last = g.Current().Send("state", g)
 
 			timer.Reset(time.Duration(conf.Game.Timeout) * time.Second)
