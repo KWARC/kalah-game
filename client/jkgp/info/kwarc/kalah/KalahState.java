@@ -175,6 +175,7 @@ public class KalahState {
 
         // capture move must drop last seed in southern pit
         if (endsUp >= s) {
+            flipIfWasFlipped(wasFlipped);
             return false;
         }
 
