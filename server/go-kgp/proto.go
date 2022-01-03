@@ -175,9 +175,7 @@ func (cli *Client) Interpret(input string) error {
 			cli.Error(id, "Unsupported mode %q", mode)
 		}
 	case "move":
-		if game == nil ||
-			!game.IsCurrent(cli) ||
-			(ref != game.last && ref != 0) {
+		if game == nil || !game.IsCurrent(cli, ref) {
 			return nil
 		}
 
@@ -199,9 +197,7 @@ func (cli *Client) Interpret(input string) error {
 			cli.killFunc()
 		}
 
-		if game == nil ||
-			!game.IsCurrent(cli) ||
-			(ref != game.last && ref != 0) {
+		if game == nil || !game.IsCurrent(cli, ref) {
 			return nil
 		}
 

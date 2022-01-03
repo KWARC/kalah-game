@@ -107,12 +107,12 @@ func (g *Game) Current() *Client {
 
 // IsCurrent returns true, if CLI the game is currently waiting for
 // CLI to answer
-func (g *Game) IsCurrent(cli *Client) bool {
+func (g *Game) IsCurrent(cli *Client, ref uint64) bool {
 	if g == nil {
 		return false
 	}
 
-	return g.Current() == cli
+	return g.Current() == cli && (g.last == ref || ref == 0)
 }
 
 func (g *Game) choice() *int {
