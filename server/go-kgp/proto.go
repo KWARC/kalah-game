@@ -194,7 +194,7 @@ func (cli *Client) Interpret(input string) error {
 		new := atomic.AddInt64(&cli.pending, -1)
 		if cli.simple && new < -1 {
 			cli.Error(id, "Preemptive yield")
-			cli.killFunc()
+			cli.kill()
 		}
 
 		if game == nil || !game.IsCurrent(cli, ref) {
@@ -220,7 +220,7 @@ func (cli *Client) Interpret(input string) error {
 
 		return cli.Set(key, val)
 	case "goodbye":
-		cli.killFunc()
+		cli.kill()
 	}
 
 	return nil

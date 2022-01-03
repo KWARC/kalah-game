@@ -221,7 +221,7 @@ func (g *Game) Start() {
 				opp.game = nil
 				enqueue <- opp
 			} else {
-				opp.killFunc()
+				opp.kill()
 			}
 
 			return
@@ -282,7 +282,7 @@ func (g *Game) Start() {
 			enqueue <- g.South
 		}
 	} else {
-		g.North.killFunc()
-		g.South.killFunc()
+		g.North.kill()
+		g.South.kill()
 	}
 }
