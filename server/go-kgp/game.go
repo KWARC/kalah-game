@@ -148,8 +148,30 @@ func (g *Game) Other(cli *Client) *Client {
 	}
 }
 
+// Semaphore-like channel to limit the number of concurrent games
+//
+// If nil (as by default), there is no upper bound.  This variable is
+// initialised in main according to conf.Game.Slots.
+var slots chan struct{}
+
 // Start manages a game between the north and south client
 func (g *Game) Start() {
+	if slots != nil {
+		// Attempt to reserve a slot
+		<-slots
+	}
+
+	defer func() {
+		// Have the clients forget about this game
+		g.North.game = nil
+		g.South.game = nil
+
+		// Initiate an available slot
+		if slots != nil {
+			slots <- struct{}{}
+		}
+	}()
+
 	yield := make(chan *Client)
 	move := make(chan *Move)
 	death := make(chan *Client)

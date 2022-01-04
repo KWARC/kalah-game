@@ -130,11 +130,23 @@ func main() {
 		go listen(plain)
 	}
 
+	// In case an upper bound of concurrent games has been
+	// specified, we prepare the "slots" channel to be used as a
+	// semaphore.
+	if conf.Game.Slots > 0 {
+		slots = make(chan struct{}, conf.Game.Slots)
+		for i := uint(0); i < conf.Game.Slots; i++ {
+			slots <- struct{}{}
+		}
+	}
+
 	// Start match scheduler
 	var sched Sched
 	switch conf.Sched {
 	case "fifo":
 		sched = fifo
+	case "rr", "round-robin":
+		sched = makeTournament(roundRobin)
 	default:
 		log.Fatal("Unknown scheduler", conf.Sched)
 	}
