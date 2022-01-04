@@ -148,8 +148,6 @@ func launch(dir string, c chan<- *Client) {
 		}
 
 		run = exec.Command(path.Join(dir, "run.sh", port))
-	case "bwrap": // In a bubblewrap sandbox
-		run = exec.Command("bwrap", "run.sh")
 	case "guix": // In a Guix shell
 		run = exec.Command("guix", "shell",
 			"--container", "--no-cwd",
