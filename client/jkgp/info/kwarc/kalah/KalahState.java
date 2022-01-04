@@ -278,7 +278,7 @@ public class KalahState {
      * @return Sum of all seeds, from both stores and all houses
      */
     public int totalSeeds() {
-        return storeSouth + storeNorth + getHouseSumSouth() + getHouseSumSouth();
+        return storeSouth + storeNorth + getHouseSumSouth() + getHouseSumNorth();
     }
 
     /**
