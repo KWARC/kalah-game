@@ -12,9 +12,13 @@ your local system package manager[2].
 
 Client examples can be found in the examples/ subdirectory.
 
+Pykgp should be compatible with PyPy[3], an alternative and faster
+implementation of Python.
+
 [0] https://www.python.org/
 [1] https://pypi.org/project/websocket-client/
 [2] https://repology.org/project/python:websocket-client/packages,
     https://repology.org/project/websocket-client/packages
+[3] https://www.pypy.org/
 
 Maintainer: Philip Kaludercic <philip.kaludercic@fau.de>
