@@ -1,4 +1,4 @@
-This is a client-side library implementation of the Kalah Game Protocl
+This is a client-side library implementation of the Kalah Game Protocol
 (KGP), written in Python 3[0].  It implements the base protocol, without
 any extensions.  Currently, it assumes the "freeplay" mode.
 
