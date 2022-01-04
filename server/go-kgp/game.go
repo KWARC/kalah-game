@@ -42,7 +42,7 @@ type Move struct {
 	Client  *Client
 	Comment string
 	game    *Game
-	id      uint64
+	id, ref uint64
 }
 
 // Game represents a game between two players
@@ -184,6 +184,9 @@ func (g *Game) Start() {
 		next := false
 		select {
 		case m := <-move:
+			if !g.IsCurrent(m.Client, m.ref) {
+				break
+			}
 			if m.Client.simple && m.Client.pending >= 1 {
 				// If the client has sent us a move even
 				// though he has not responded to a previous
