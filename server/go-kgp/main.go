@@ -92,9 +92,12 @@ func main() {
 	flag.StringVar(&conf.Web.About, "about",
 		conf.Web.About,
 		"A template for the about page")
-	flag.StringVar(&conf.Sched, "sched",
-		conf.Sched,
-		"Game scheduler algorithm.")
+	flag.BoolVar(&conf.Tourn.Enabled, "tour",
+		conf.Tourn.Enabled,
+		"Manage a local tournament.")
+	flag.StringVar(&conf.Tourn.Isolation, "isolate",
+		conf.Tourn.Isolation,
+		"Isolation mechanism used for the tournament.")
 	flag.Parse()
 
 	if flag.NArg() != 0 {

@@ -21,7 +21,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"sync/atomic"
 	"time"
 )
@@ -219,8 +218,7 @@ func (g *Game) Start() {
 			next = true
 		case cli := <-death:
 			if g.North != cli && g.South != cli {
-				log.Print("Unrelated death")
-				return
+				panic("Unrelated death")
 			}
 			opp := g.Other(cli)
 

@@ -69,21 +69,38 @@ type DBConf struct {
 	Timeout time.Duration `toml:"timeout"`
 }
 
+type TournConf struct {
+	Enabled   bool   `toml:"enabled"`
+	Directory string `toml:"directory"`
+	Rounds    uint   `toml:"rounds"`
+	System    string `toml:"system"`
+	Isolation string `toml:"isolation"`
+	Warmup    uint   `toml:"warmup"`
+}
+
 type Conf struct {
-	Sched    string   `toml:"sched"`
-	Debug    bool     `toml:"debug"`
-	Endless  bool     `toml:"endless"`
-	Database DBConf   `toml:"database"`
-	Game     GameConf `toml:"game"`
-	Web      WebConf  `toml:"web"`
-	WS       WSConf   `toml:"websocket"`
-	TCP      TCPConf  `toml:"tcp"`
+	Sched    string    `toml:"sched"`
+	Debug    bool      `toml:"debug"`
+	Endless  bool      `toml:"endless"`
+	Database DBConf    `toml:"database"`
+	Tourn    TournConf `tomp:"tournament"`
+	Game     GameConf  `toml:"game"`
+	Web      WebConf   `toml:"web"`
+	WS       WSConf    `toml:"websocket"`
+	TCP      TCPConf   `toml:"tcp"`
 	file     string
 }
 
 var defaultConfig = Conf{
 	Debug: false,
-	Sched: "fifo",
+	Tourn: TournConf{
+		Enabled:   false,
+		Directory: ".",
+		Rounds:    1,
+		System:    "round-robin",
+		Isolation: "none",
+		Warmup:    60 * 10,
+	},
 	Database: DBConf{
 		File:    "kalah.sql",
 		Threads: 1,

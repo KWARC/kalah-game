@@ -169,6 +169,9 @@ func (cli *Client) Interpret(input string) error {
 			cli.simple = true
 			fallthrough
 		case "freeplay":
+			if cli.notify != nil {
+				cli.notify <- cli
+			}
 			enqueue <- cli
 			cli.Respond(id, "ok")
 		default:

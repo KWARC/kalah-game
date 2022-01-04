@@ -22,6 +22,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"log"
 	"math/rand"
 )
 
@@ -34,8 +35,35 @@ var (
 
 // A Scheduler updates the waiting queue and manages games
 type Sched func([]*Client) []*Client
+
+// Compose multiple scheduling systems into one
+func compose(s ...Sched) Sched {
+	return func(queue []*Client) []*Client {
+		for {
+			if len(s) == 0 {
+				return nil
+			}
+
+			step := s[0](queue)
+			if step != nil {
+				return step
+			}
+			s = s[1:]
+		}
+	}
 }
 
+// Limit the number of times a scheduler can be used
+func limit(s Sched, n uint) Sched {
+	return func(queue []*Client) []*Client {
+		if n == 0 {
+			return nil
+		}
+		n--
+
+		return s(queue)
+	}
+}
 
 // The FIFO scheduler minimises the time a client remains in the
 // queue, at the expense of the quality of a pairing.

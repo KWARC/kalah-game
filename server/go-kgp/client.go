@@ -28,6 +28,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -56,6 +57,8 @@ type Client struct {
 	comment  string
 	simple   bool
 	pending  int64
+	proc     *os.Process
+	notify   chan<- *Client
 }
 
 func (cli *Client) String() string {
