@@ -199,7 +199,7 @@ func (cli *Client) Interpret(input string) error {
 		new := atomic.AddUint64(&cli.nyield, 1)
 		if cli.simple && new-1 > cli.nstop {
 			cli.Error(id, "Preemptive yield")
-			cli.killFunc()
+			cli.kill()
 		}
 
 		game.yield <- cli

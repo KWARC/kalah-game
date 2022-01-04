@@ -150,7 +150,12 @@ func (g *Game) Other(cli *Client) *Client {
 
 // Start manages a game between the north and south client
 func (g *Game) Start() {
-	defer atomic.AddInt64(&playing, -2)
+	defer func() {
+		g.Outcome = g.Board.Outcome(SideSouth)
+		g.North.game = nil
+		g.South.game = nil
+		atomic.AddInt64(&playing, -2)
+	}()
 	atomic.AddInt64(&playing, 2)
 
 	yield := make(chan *Client)
@@ -288,22 +293,4 @@ func (g *Game) Start() {
 	}
 over:
 
-	g.updateScore()
-
-	if conf.Endless {
-		// In the "endless" mode, the client is just
-		// added back to the waiting queue as soon as
-		// the game is over.
-		if g.North.game == g {
-			g.North.game = nil
-			enqueue <- g.North
-		}
-		if g.South.game == g {
-			g.South.game = nil
-			enqueue <- g.South
-		}
-	} else {
-		g.North.kill()
-		g.South.kill()
-	}
 }

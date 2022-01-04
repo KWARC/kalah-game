@@ -22,6 +22,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"log"
 	"math/rand"
 )
 
@@ -46,13 +47,46 @@ func match(queue []*Client) []*Client {
 				south, north = north, south
 			}
 
-			go (&Game{
-				Board: makeBoard(
-					conf.Game.Sizes[rand.Intn(len(conf.Game.Sizes))],
-					conf.Game.Stones[rand.Intn(len(conf.Game.Stones))]),
-				North: north,
-				South: south,
-			}).Start()
+			go func() {
+				size := conf.Game.Sizes[rand.Intn(len(conf.Game.Sizes))]
+				stones := conf.Game.Stones[rand.Intn(len(conf.Game.Stones))]
+
+				g1 := &Game{
+					Board: makeBoard(size, stones),
+					North: north,
+					South: south,
+				}
+				g1.Start()
+
+				g2 := &Game{
+					Board: makeBoard(size, stones),
+					North: south,
+					South: north,
+				}
+				g2.Start()
+
+				o1 := g1.Outcome
+				o2 := g2.Outcome
+				if o1 != o2 || o1 == DRAW {
+					if err := g1.updateScore(); err != nil {
+						log.Print(err)
+					}
+					if err := g2.updateScore(); err != nil {
+						log.Print(err)
+					}
+				}
+
+				if conf.Endless {
+					// In the "endless" mode, the client is just
+					// added back to the waiting queue as soon as
+					// the game is over.
+					enqueue <- north
+					enqueue <- south
+				} else {
+					north.kill()
+					south.kill()
+				}
+			}()
 			break
 		}
 	}
