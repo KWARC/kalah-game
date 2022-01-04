@@ -134,7 +134,7 @@ func main() {
 	var sched Sched
 	switch conf.Sched {
 	case "fifo":
-		sched = &FIFO{}
+		sched = fifo
 	default:
 		log.Fatal("Unknown scheduler", conf.Sched)
 	}

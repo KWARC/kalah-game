@@ -259,23 +259,4 @@ func (g *Game) Start() {
 			timer.Reset(time.Duration(conf.Game.Timeout) * time.Second)
 		}
 	}
-
-	g.updateScore()
-
-	if conf.Endless {
-		// In the "endless" mode, the client is just
-		// added back to the waiting queue as soon as
-		// the game is over.
-		if g.North.game == g {
-			g.North.game = nil
-			enqueue <- g.North
-		}
-		if g.South.game == g {
-			g.South.game = nil
-			enqueue <- g.South
-		}
-	} else {
-		g.North.killFunc()
-		g.South.killFunc()
-	}
 }

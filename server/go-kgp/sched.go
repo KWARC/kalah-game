@@ -32,13 +32,14 @@ var (
 	playing, waiting int64
 )
 
-type Sched interface {
-	Match([]*Client, chan<- *Game) []*Client
+// A Scheduler updates the waiting queue and manages games
+type Sched func([]*Client) []*Client
 }
 
-type FIFO struct{}
 
-func (f *FIFO) Match(queue []*Client, games chan<- *Game) []*Client {
+// The FIFO scheduler minimises the time a client remains in the
+// queue, at the expense of the quality of a pairing.
+var fifo Sched = func(queue []*Client) []*Client {
 	north := queue[0]
 	for i, cli := range queue[1:] {
 		i += 1
@@ -51,13 +52,46 @@ func (f *FIFO) Match(queue []*Client, games chan<- *Game) []*Client {
 				south, north = north, south
 			}
 
-			go (&Game{
-				Board: makeBoard(
-					conf.Game.Sizes[rand.Intn(len(conf.Game.Sizes))],
-					conf.Game.Stones[rand.Intn(len(conf.Game.Stones))]),
-				North: north,
-				South: south,
-			}).Start()
+			go func() {
+				size := conf.Game.Sizes[rand.Intn(len(conf.Game.Sizes))]
+				stones := conf.Game.Stones[rand.Intn(len(conf.Game.Stones))]
+
+				g1 := &Game{
+					Board: makeBoard(size, stones),
+					North: north,
+					South: south,
+				}
+				g1.Start()
+
+				g2 := &Game{
+					Board: makeBoard(size, stones),
+					North: south,
+					South: north,
+				}
+				g2.Start()
+
+				o1 := g1.Outcome
+				o2 := g2.Outcome
+				if o1 != o2 || o1 == DRAW {
+					if err := g1.updateScore(); err != nil {
+						log.Print(err)
+					}
+					if err := g2.updateScore(); err != nil {
+						log.Print(err)
+					}
+				}
+
+				if conf.Endless {
+					// In the "endless" mode, the client is just
+					// added back to the waiting queue as soon as
+					// the game is over.
+					enqueue <- north
+					enqueue <- south
+				} else {
+					north.killFunc()
+					south.killFunc()
+				}
+			}()
 			break
 		}
 	}
@@ -125,12 +159,10 @@ func remove(queue []*Client, cli *Client) []*Client {
 	return queue
 }
 
-// Try to organise matches
+// Using a scheduler, handle incoming events (requests to add and
+// remove clients from the queue), to start games.
 func schedule(sched Sched) {
-	var (
-		queue []*Client
-		start = make(chan *Game)
-	)
+	var queue []*Client
 
 	for {
 		select {
@@ -141,7 +173,7 @@ func schedule(sched Sched) {
 		}
 
 		// Attempt to organise a match
-		queue = sched.Match(queue, start)
+		queue = sched(queue)
 
 		// Update statistics
 		waiting = int64(len(queue))
