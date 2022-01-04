@@ -36,6 +36,7 @@ type GameConf struct {
 	Stones   []uint `toml:"stones"`
 	Timeout  uint   `toml:"timeout"`
 	EarlyWin bool   `toml:"earlywin"`
+	SkipTriv bool   `toml:"skiptriv"`
 }
 
 type WSConf struct {
@@ -92,6 +93,7 @@ var defaultConfig = Conf{
 		Sizes:    []uint{4, 5, 6, 7, 8, 9, 10, 11, 12},
 		Stones:   []uint{4, 5, 6, 7, 8, 9, 10, 11, 12},
 		EarlyWin: true,
+		SkipTriv: true,
 		Timeout:  5,
 	},
 	Web: WebConf{

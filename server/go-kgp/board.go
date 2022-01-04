@@ -104,6 +104,17 @@ func (b *Board) Legal(side Side, pit int) bool {
 	return b.southPits[pit] > 0
 }
 
+func (b *Board) Moves(side Side) (count int, last int) {
+	for i := 0; i < len(b.northPits); i++ {
+		if b.Legal(side, i) {
+			last = i
+			count++
+		}
+	}
+
+	return
+}
+
 // Random returns a random legal move for SIDE
 func (b *Board) Random(side Side) (move int) {
 	legal := make([]int, 0, len(b.northPits))
@@ -114,7 +125,7 @@ func (b *Board) Random(side Side) (move int) {
 		}
 	}
 
-	// if len(legal) == true, rand.Intn panics.  This is ok, beacuse
+	// if len(legal) == true, rand.Intn panics.  This is ok, because
 	// Random shouldn't be called when the game is already over.
 	return legal[rand.Intn(len(legal))]
 }

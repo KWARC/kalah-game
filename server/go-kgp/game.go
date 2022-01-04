@@ -234,10 +234,6 @@ func (g *Game) Start() {
 			next = true
 		}
 
-		if g.IsOver() {
-			break
-		}
-
 		if next {
 			g.Current().Respond(g.last, "stop")
 			atomic.AddInt64(&g.Current().pending, 1)
@@ -254,13 +250,28 @@ func (g *Game) Start() {
 				choice = g.Board.Random(g.side)
 			}
 
-			again := g.Board.Sow(g.side, choice)
-			if g.Board.Over() {
-				break
-			}
+			for {
+				again := g.Board.Sow(g.side, choice)
+				if g.Board.Over() {
+					break
+				}
 
-			if !again {
-				g.side = !g.side
+				if !again {
+					g.side = !g.side
+				}
+				if g.IsOver() {
+					goto over
+				}
+
+				count, last := g.Board.Moves(g.side)
+				if count == 0 {
+					panic("No moves even though game is not over")
+				} else if count == 1 && conf.Game.SkipTriv {
+					// Skip trivial moves
+					choice = last
+				} else {
+					break
+				}
 			}
 
 			*g.choice() = -1
@@ -269,6 +280,7 @@ func (g *Game) Start() {
 			timer.Reset(time.Duration(conf.Game.Timeout) * time.Second)
 		}
 	}
+over:
 
 	g.updateScore()
 
