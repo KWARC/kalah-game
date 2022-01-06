@@ -22,7 +22,6 @@ import os
 import sys
 import socket
 import threading
-import multiprocessing as mp
 import copy
 
 try:
@@ -64,12 +63,6 @@ class Board:
         self.north_pits = north_pits
         self.south_pits = south_pits
         self.size = len(north_pits)
-
-    def __eq__(self, other):
-        return (self.north == other.north and
-                self.south == other.south and
-                self.north_pits == other.north_pits and
-                self.south_pits == other.south_pits)
 
     def __str__(self):
         """Return board in KGP board representation."""
@@ -128,14 +121,6 @@ class Board:
         """Return a deep copy of the current board state."""
         return copy.deepcopy(self)
 
-    def _collect(self):
-        self.north += sum(self.north_pits)
-        self.north_pits = [0] * len(self.north_pits)
-        self.south += sum(self.south_pits)
-        self.south_pits = [0] * len(self.south_pits)
-
-        return self, False
-
     def sow(self, side, pit, pure=True):
         """
         Sow the stones from pit on side.
@@ -168,8 +153,6 @@ class Board:
                 stones -= 1
 
         if pos == 0 and not me == side:
-            if b.is_final():
-                return b._collect()
             return b, True
         elif side == me and pos > 0:
             last = pos - 1
@@ -178,9 +161,6 @@ class Board:
                 b[side] += b[not side, other] + 1
                 b[not side, other] = 0
                 b[side, last] = 0
-
-        if b.is_final():
-            b._collect()
 
         return b, False
 
@@ -221,8 +201,6 @@ def connect(agent, host='wss://kalah.kwarc.info/socket', port=2671, token=None, 
     FLOAT_PATTERN = re.compile(r'^(\d+(?:\.\d+)?)\s*')
     BOARD_PATTERN = _BOARD_PATTERN
 
-    queue = mp.Queue()
-
     def split(args):
         """
         Parse ARGS as far as possible.
@@ -260,7 +238,7 @@ def connect(agent, host='wss://kalah.kwarc.info/socket', port=2671, token=None, 
                 return parsed
 
     def handle(read, write):
-        id = mp.Value('d', 1)
+        lock = threading.Lock()
 
         def send(cmd, *args, ref=None):
             """
@@ -269,7 +247,7 @@ def connect(agent, host='wss://kalah.kwarc.info/socket', port=2671, token=None, 
             If ref is not None, add a reference.
             """
 
-            msg = str(int(id.value))
+            msg = ""
             if ref:
                 msg += f'@{ref}'
             msg += " " + cmd
@@ -284,13 +262,14 @@ def connect(agent, host='wss://kalah.kwarc.info/socket', port=2671, token=None, 
 
             if debug:
                 print(">", msg, file=sys.stderr)
-            msg += "\r\n"
-            queue.put(msg)
 
-            with id.get_lock():
-                id.value += 2
+            with lock:
+                write(str(send.idn) + msg + "\r\n")
+                send.idn += 2
 
-        def query(state, cid):
+        send.idn = 1
+
+        def query(state, timeout, cid):
             """
             Start querying agent what move to make.
 
@@ -304,18 +283,15 @@ def connect(agent, host='wss://kalah.kwarc.info/socket', port=2671, token=None, 
             for move in agent(state):
                 if not type(move) is int:
                     raise TypeError("Not a move")
+                if timeout.is_set():
+                    break
                 if move != last:
                     send("move", move+1, ref=cid)
                     last = move
             else:
                 send("yield", ref=cid)
 
-        threads = {}
-
-        def sender():
-            while True:
-                write(queue.get())
-        threading.Thread(target=sender).start()
+        running = {}
 
         for line in read():
             if debug:
@@ -348,21 +324,22 @@ def connect(agent, host='wss://kalah.kwarc.info/socket', port=2671, token=None, 
                 elif cmd == "state":
                     board = args[0]
 
-                    if cid in threads:
+                    if cid in running:
                         # Duplicate IDs by the server are ignored
                         continue
 
-                    threads[cid] = mp.Process(
+                    running[cid] = threading.Event()
+                    thread = threading.Thread(
                         name=f'query-{cid}',
-                        args=(board, cid),
+                        args=(board, running[cid], cid),
                         target=query,
                         daemon=True)
-                    threads[cid].start()
+                    thread.start()
                 elif cmd == "stop":
-                    if ref and ref in threads:
-                        thread = threads[ref]
-                        thread.terminate()
-                        threads.pop(ref, None)
+                    if ref and ref in running:
+                        timeout = running[ref]
+                        timeout.set()
+                        running.pop(ref, None)
                 elif cmd == "ok":
                     pass    # ignored
                 elif cmd == "error":
