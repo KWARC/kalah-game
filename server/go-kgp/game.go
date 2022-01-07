@@ -149,7 +149,7 @@ func (g *Game) Other(cli *Client) *Client {
 }
 
 // Start manages a game between the north and south client
-func (g *Game) Start() {
+func (g *Game) Start() bool {
 	defer func() {
 		g.Outcome = g.Board.Outcome(SideSouth)
 		g.North.game = nil
@@ -225,7 +225,7 @@ func (g *Game) Start() {
 		case cli := <-death:
 			if g.North != cli && g.South != cli {
 				log.Print("Unrelated death")
-				return
+				return false
 			}
 			opp := g.Other(cli)
 
@@ -234,17 +234,10 @@ func (g *Game) Start() {
 			// be removed.
 			time.Sleep(time.Second)
 
-			if conf.Endless {
-				if g.Current() == opp {
-					opp.Respond(g.last, "stop")
-				}
-				opp.game = nil
-				enqueue <- opp
-			} else {
-				opp.kill()
+			if g.Current() == opp {
+				opp.Respond(g.last, "stop")
 			}
-
-			return
+			return false
 		case <-timer.C:
 			// The time allocated for the current player
 			// is over, and we proceed to the next round.
@@ -299,4 +292,5 @@ func (g *Game) Start() {
 	}
 over:
 
+	return true
 }

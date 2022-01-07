@@ -62,25 +62,34 @@ func match(queue []*Client) []*Client {
 			}
 
 			go func() {
+				var (
+					g1, g2 *Game
+					o1, o2 Outcome
+				)
+
 				size := conf.Game.Sizes[rand.Intn(len(conf.Game.Sizes))]
 				stones := conf.Game.Stones[rand.Intn(len(conf.Game.Stones))]
 
-				g1 := &Game{
+				g1 = &Game{
 					Board: makeBoard(size, stones),
 					North: north,
 					South: south,
 				}
-				g1.Start()
+				if !g1.Start() {
+					goto finish
+				}
 
-				g2 := &Game{
+				g2 = &Game{
 					Board: makeBoard(size, stones),
 					North: south,
 					South: north,
 				}
-				g2.Start()
+				if !g2.Start() {
+					goto finish
+				}
 
-				o1 := g1.Outcome
-				o2 := g2.Outcome
+				o1 = g1.Outcome
+				o2 = g2.Outcome
 				if o1 != o2 || o1 == DRAW {
 					if err := g1.updateScore(); err != nil {
 						log.Print(err)
@@ -90,15 +99,25 @@ func match(queue []*Client) []*Client {
 					}
 				}
 
+			finish:
 				if conf.Endless {
 					// In the "endless" mode, the client is just
 					// added back to the waiting queue as soon as
 					// the game is over.
-					enqueue <- north
-					enqueue <- south
+
+					if north.rwc != nil {
+						enqueue <- north
+					}
+					if south.rwc != nil {
+						enqueue <- south
+					}
 				} else {
-					north.kill()
-					south.kill()
+					if north.rwc != nil {
+						north.kill()
+					}
+					if south.rwc != nil {
+						south.kill()
+					}
 				}
 			}()
 			break
