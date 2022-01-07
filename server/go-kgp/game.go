@@ -166,12 +166,18 @@ func (g *Game) Start() {
 	g.death = death
 
 	if g.North.game != nil {
-		panic("Already part of game")
+		panic(fmt.Sprintf("Already %s part of game %s (%s, %s) while entering %s (%s, %s)",
+			g.North,
+			g.North.game, g.North.game.South, g.North.game.North,
+			g, g.South, g.North))
 	}
 	g.North.game = g
 	g.nchoice = -1
 	if g.South.game != nil {
-		panic("Already part of game")
+		panic(fmt.Sprintf("Already %s part of game %s (%s, %s) while entering %s (%s, %s)",
+			g.South,
+			g.South.game, g.South.game.South, g.South.game.South,
+			g, g.South, g.North))
 	}
 	g.South.game = g
 	g.schoice = -1
