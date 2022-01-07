@@ -21,7 +21,6 @@ package main
 
 import (
 	"bytes"
-	"fmt"
 	"log"
 	"math/rand"
 )
@@ -35,9 +34,24 @@ var (
 
 // Attempt to match clients for new games
 func match(queue []*Client) []*Client {
+	for len(queue) > 0 {
+		cli := queue[0]
+		if cli.game != nil && cli.rwc != nil {
+			continue
+		}
+		queue = queue[1:]
+	}
+	if len(queue) == 0 {
+		return nil
+	}
+
 	north := queue[0]
 	for i, cli := range queue[1:] {
 		i += 1
+		if cli.game == nil || cli.rwc == nil {
+			queue = append(queue[:i], queue[i+1:]...)
+			continue
+		}
 		if !bytes.Equal(cli.token, north.token) || cli.token == nil {
 			south := cli
 			queue[i] = queue[len(queue)-1]
