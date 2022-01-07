@@ -4,9 +4,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 
 /**
- * A Kalah implementation with a sideToMove variable.
- * We are aware that one could also flip the board accordingly but went for former since it's easier to use.
- * Moves are indexed from 0 to n-1 in sowing direction where n is the number of southern pits
+ * A Kalah board representation keeping track of turns.
+ * We are aware that one could also flip the board accordingly but went for the former since it's easier to use.
+ * Note that most methods are executed from the perspective of the player that is about to move.
+ * Moves are indexed from 0 to N-1 in sowing direction where N is the number of southern (northern) pits
  * Note that this implementation is also ready for use with HashMaps.
  */
 public class KalahState {
@@ -18,8 +19,8 @@ public class KalahState {
 
     /**
      * Creates a board of @param board_size pits with @param seeds each.
-     * @param board_size Number of southern pits
-     * @param seeds Number of initial seeds in one pit
+     * @param board_size Number of southern pits.
+     * @param seeds Number of initial seeds in one pit.
      */
     // create a new board of size h with seeds seeds everywhere and south to move
     public KalahState(int board_size, int seeds) {
@@ -33,7 +34,8 @@ public class KalahState {
     }
 
     /**
-     * Creates a copy of the given Board
+     * Creates a copy of the given Board.
+     * @param state The board to copy.
      */
     public KalahState(KalahState state) {
         storeSouth = state.storeSouth;
@@ -44,7 +46,7 @@ public class KalahState {
     }
 
     /**
-     * Mirrors the board e.g. flips stores, houses and side to move
+     * Mirrors the board e.g. flips stores, houses and side to move.
      */
     public void flip() {
         int tmp = storeSouth;
@@ -60,8 +62,8 @@ public class KalahState {
 
     /**
      * Useful helper function, so algorithms have to be implemented from souths point of view only.
-     * Used together with flipIfNorthToMove()
-     * @param wasFlipped Whether the board should be flipped
+     * Used together with flipIfNorthToMove().
+     * @param wasFlipped Whether the board should be flipped.
      */
     public void flipIfWasFlipped(boolean wasFlipped) {
         if (wasFlipped) {
@@ -72,8 +74,8 @@ public class KalahState {
     /**
      * Flips the board if it's North's turn e.g. so that it's South's turn afterwards.
      * Useful helper function, so algorithms have to be implemented from souths point of view only.
-     * Used together with flipIfWasFlipped()
-     * @return true if the board was flipped
+     * Used together with flipIfWasFlipped().
+     * @return true if the board was flipped.
      */
     public boolean flipIfNorthToMove() {
         if (playerToMove == Player.NORTH) {
@@ -84,8 +86,22 @@ public class KalahState {
     }
 
     /**
-     * @return Leftmost legal move e.g. with the lowest array index
-     * Useful if you need any legal move
+     * Return whether the given move is legal.
+     * @param move Move to check for legality.
+     */
+
+    public boolean isLegalMove(int move) {
+        if (playerToMove == Player.SOUTH) {
+            return housesSouth[move] != 0;
+        } else {
+            return housesNorth[move] != 0;
+        }
+    }
+
+    /**
+     * Returns the leftmost legal move e.g. with the lowest index.
+     * Moves are indexed from 0 to N-1 in sowing direction.
+     * Useful if you need any legal move.
      */
     public int lowestLegalMove() {
         boolean wasFlipped = flipIfNorthToMove();
@@ -103,7 +119,7 @@ public class KalahState {
     }
 
     /**
-     * @return Returns a random legal move
+     * Returns a random legal move. Moves are indexed from 0 to N-1 in sowing direction.
      */
     public int randomLegalMove() {
         boolean wasFlipped = flipIfNorthToMove();
@@ -116,9 +132,7 @@ public class KalahState {
         return chosenMove;
     }
 
-    /**
-     * @return Returns the number of legal moves
-     */
+    /** Returns the number of legal moves. */
     public int numberOfMoves() {
         boolean wasFlipped = flipIfNorthToMove();
 
@@ -133,8 +147,8 @@ public class KalahState {
         return c;
     }
 
-    /**
-     * @return ArrayList of legal moves
+    /** Returns an ArrayList containing the legal moves in sowing direction
+     * Moves are indexed from 0 to N-1 (in sowing direction).
      */
     public ArrayList<Integer> getMoves() {
         boolean wasFlipped = flipIfNorthToMove();
@@ -151,7 +165,8 @@ public class KalahState {
     }
 
     /**
-     * @return True iff the last seed would end up in the store
+     * Returns true iff the last seed would end up in the store.
+     * @param move The move to check. Moves are indexed from 0 to N-1 in sowing direction.
      */
     public boolean isDoubleMove(int move) {
         boolean wasFlipped = flipIfNorthToMove();
@@ -161,7 +176,8 @@ public class KalahState {
     }
 
     /**
-     * @return True iff the move would be a capture
+     * Returns true iff the move would be a capture.
+     * @param move The move to check. Moves are indexed from 0 to N-1 in sowing direction.
      */
     public boolean isCaptureMove(int move) {
         boolean wasFlipped = flipIfNorthToMove();
@@ -206,6 +222,7 @@ public class KalahState {
     /**
      * Executes the given move by modifying the board.
      * Note that there is a constructor for copying from an existing board.
+     * @param move The move to execute. Moves are indexed from 0 to N-1 in sowing direction.
      */
     public void doMove(int move) {
         boolean wasFlipped = flipIfNorthToMove();
@@ -274,16 +291,12 @@ public class KalahState {
         flipIfWasFlipped(wasFlipped);
     }
 
-    /**
-     * @return Sum of all seeds, from both stores and all houses
-     */
+     /** Returns the sum of all seeds, from both stores and all houses. */
     public int totalSeeds() {
         return storeSouth + storeNorth + getHouseSumSouth() + getHouseSumNorth();
     }
 
-    /**
-     * @return GameResult from the player to move's perspective
-     */
+    /** Returns the GameResult from the player to move's perspective. */
     public GameResult result() {
         boolean wasFlipped = flipIfNorthToMove();
 
@@ -314,7 +327,7 @@ public class KalahState {
     /**
      * If either northern or southern houses are empty e.g. the game is over
      * then the remaining seeds in southern houses are moved to the southern store
-     * and the remaining seeds in northern houses are moved to the northern store
+     * and the remaining seeds in northern houses are moved to the northern store.
      */
     public void cleanUpOneSidedHouses() {
         if (getHouseSumSouth() == 0) {
@@ -331,8 +344,8 @@ public class KalahState {
     }
 
     /**
-     * @return Difference between stores from the perspective of the player who is about to move e.g.
-     * positive if the player who is about to move has more seeds in their store
+     * Returns the difference between stores from the perspective of the player who is about to move e.g.
+     * positive if the player who is about to move has more seeds in their store.
      */
     public int getStoreLead() {
         if (playerToMove == Player.SOUTH) {
@@ -342,51 +355,47 @@ public class KalahState {
         }
     }
 
-    /**
-     * @return Returns the number of southern pits
-     */
+    /** Returns the number of southern pits. */
     public int getBoardSize() {
         return housesSouth.length;
     }
 
-    /**
-     * @return Returns the side to move
-     */
+    /** Returns the side to move. */
     public Player getSideToMove() {
         return playerToMove;
     }
 
-    /**
-     * @return Number of seeds in the southern store
-     */
+    /** Returns the number of seeds in southern store. */
     public int getStoreSouth() {
         return storeSouth;
     }
 
     /**
-     * Set the number of seeds in the southern store
+     * Sets the number of seeds in the southern store.
+     * @param seeds New number of seeds.
      */
     public void setStoreSouth(int seeds) {
         storeSouth = seeds;
     }
 
-    /**
-     * @return Number of seeds in the northern store
-     */
+    /** Returns the number of seeds in northern store. */
     public int getStoreNorth() {
         return storeNorth;
     }
 
     /**
-     * Set the number of seeds in the northern store
+     * Sets the number of seeds in the northern store.
+     * @param seeds New number of seeds.
      */
     public void setStoreNorth(int seeds) {
         storeNorth = seeds;
     }
 
     /**
-     * @param index index of the pit
-     * Sets the number of seeds in the given house
+     * Sets the number of seeds in the given house.
+     * @param index Index of the pit (0 to N-1 in sowing direction).
+     * @param player Which houses to set.
+     * @param seeds Number of seeds to set.
      */
     public void setHouse(Player player, int index, int seeds) {
         if (player == Player.SOUTH) {
@@ -397,7 +406,9 @@ public class KalahState {
     }
 
     /**
-     * @return Number of seeds in this pit
+     * @param index Index of the pit (0 to N-1 in sowing direction).
+     * @param player Which houses to set.
+     * Returns the number of seeds in this pit.
      */
     public int getHouse(Player player, int index) {
         if (player == Player.SOUTH) {
@@ -407,9 +418,7 @@ public class KalahState {
         }
     }
 
-    /**
-     * @return Sum of seeds in southern houses
-     */
+    /** Returns the sum of seeds in southern houses. */
     public int getHouseSumSouth() {
         int sum = 0;
         for (int p : housesSouth) {
@@ -418,9 +427,7 @@ public class KalahState {
         return sum;
     }
 
-    /**
-     * @return Sum of seeds in northern houses
-     */
+    /** Returns the sum of seeds in northern houses. */
     public int getHouseSumNorth() {
         int sum = 0;
         for (int p : housesNorth) {
@@ -429,16 +436,12 @@ public class KalahState {
         return sum;
     }
 
-    /**
-     * @return Sum of seeds in all houses
-     */
+    /** Returns the sum of seeds in all houses. */
     public int getHouseSum() {
         return getHouseSumSouth() + getHouseSumNorth();
     }
 
-    /**
-     * @return Hash code for board, not considering who is about to move
-     */
+    /** Returns the hash code for board, not considering who is about to move */
     @Override
     public int hashCode() {
         int ah = Arrays.hashCode(housesSouth) ^ Arrays.hashCode(housesNorth);
@@ -446,9 +449,7 @@ public class KalahState {
         return ah ^ sh;
     }
 
-    /**
-     * @return True iff stores, houses and turn are perfectly equal
-     */
+    /** Returns true iff stores, houses and turn are perfectly equal e.g. same side to move, same stores, same houses. */
     @Override
     public boolean equals(Object o) {
 
@@ -465,9 +466,7 @@ public class KalahState {
                 Arrays.equals(housesNorth, s.housesNorth);
     }
 
-    /**
-     * @return Multiline representation of the board, including stores and turn
-     */
+    /** Returns a multiline representation of the board, including stores and side to move. */
     @Override
     public String toString() {
         StringBuilder hn = new StringBuilder("\t");
@@ -486,61 +485,42 @@ public class KalahState {
         return hn.toString() + '\n' + ss + '\n' + hs;
     }
 
-
-    /**
-     * Enum for possible game outcomes
-     */
+    /** Enum for possible game outcomes. */
     public enum GameResult {
-        /**
-         * The outcome of the game is not determined by the seeds in the stores
-         */
+        /** The outcome of the game is not determined by the seeds in the stores. */
         UNDECIDED,
 
-        /**
-         * All houses are empty, the other player has more seeds in their store
-         */
+        /** All houses are empty, the other player has more seeds in their store. */
         LOSS,
 
-        /**
-         * All houses are empty, both players have the same number of seeds in their stores
-         */
+        /** All houses are empty, both players have the same number of seeds in their stores. */
         DRAW,
 
-        /**
-         * All houses are empty, the current player has more seeds in their store
-         */
+        /** All houses are empty, the current player has more seeds in their store. */
         WIN,
 
         /**
          * Not all houses are empty, but the other player has more than half of all seeds in their store,
-         * so it's known that the current player will loose
+         * so it's known that the current player will lose.
          */
         KNOWN_LOSS,
 
         /**
          * Not all houses are empty, but the current player has more than half of all seeds in their store,
-         * so it's known that the current player will win
+         * so it's known that the current player will win.
          */
         KNOWN_WIN,
     }
 
-    /**
-     * The players are North and South
-     */
+    /** The players are North and South. */
     public enum Player {
-        /**
-         * The Northern/upper/Black player, moves second
-         */
+        /** The Northern/upper/Black player, moves second. */
         NORTH,
 
-        /**
-         * The Southern/lower/White player, moves first
-         */
+        /** The Southern/lower/White player, moves first. */
         SOUTH;
 
-        /**
-         * @return Other player
-         */
+        /** Returns the other player. */
         public Player other() {
             if (this == NORTH) {
                 return SOUTH;

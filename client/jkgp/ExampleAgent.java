@@ -9,27 +9,25 @@ import java.util.Random;
 // Simple example of an agent
 // Chooses among the legal moves uniform at random, sends new "best" moves in increasing intervals
 // the latter is just to make it a better example, we don't want to provide any algorithms here
-public class ExampleAgent extends Agent {
+class ExampleAgent extends Agent {
 
     // Token could be any String, but PLEASE use a big non-empty(!!) randomized String for security's sake
     // and so we can distinguish your agents.
     // Concat together some random (decimal/hexadecimal) integers or headbutt your keyboard, whatever works for you.
-    private static final String TOKEN = "10666affd0cde9c3c54b86ef6782d146bf055b8fc4a492a2";
     private final Random rng;
 
 
     public ExampleAgent(String host, Integer port, ProtocolManager.ConnectionType conType) {
 
+        // TODO enter your data
         super(
                 host,
                 port,
                 conType,
                 "ExampleAgent",
-                "Tobias Völk [Former Tutor]",
-                "Totally sophisticated Kalah agent developed by Philip Kaludercic und Tobias Völk in 2021.\n\n" +
-                        "Chooses among the legal moves uniform at random, pretends to be thinking.\n" +
-                        "Very friendly to the environment.",
-                TOKEN,
+                null, // authors go here
+                null, // description goes here
+                null, // token goes here
                 true // don't print network communication
         );
 
@@ -81,7 +79,7 @@ public class ExampleAgent extends Agent {
 
                 // Connect to the server and play games until something happens
                 agent.run();
-            } catch (Exception e) {
+            } catch (IOException e) {
                 e.printStackTrace();
             }
             // Wait 10 seconds before trying again

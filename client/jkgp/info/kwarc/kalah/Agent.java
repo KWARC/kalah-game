@@ -1,25 +1,31 @@
 package info.kwarc.kalah;
 
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
+/**
+ * Superclass to extend agents from.
+ */
 public abstract class Agent {
 
-    private final ProtocolManager com;
-    private String name, authors, description, token;
-    private ProtocolManager.ConnectionType conType;
+    private ProtocolManager com;
+    private final String name, authors, description, token;
+    private String id;
+    private KalahState ks;
+    private final AtomicBoolean running;
 
     /**
-     * For TCP the port has to be non-null, for WebSocket(Secure) it'll use the default ports
-     * If name, authors, description, token are null, then that value will not be sent to the server upon connecting
+     * Creates an agent which is ready to connect to the specified server, introducing itself with the given attributes
+     * if provided. See parameters for details.
      *
-     * @param host Server to connect to
-     * @param port Port to connect via, can be null
-     * @param conType Type of connection TCP, WebSocket, WebSocketSecure
-     * @param name Name of the agent, can be null
-     * @param authors Authors of the agent, can be null
-     * @param description Description of the agent, can be null
-     * @param token Token of the agent, can be null
-     * @param printNetwork Whether to print client-server-communication to stdout
+     * @param host Server to connect to.
+     * @param port Port to connect via, should be null iff you're using WebSocket or WebSocketSecure.
+     * @param conType Type of connection TCP, WebSocket, WebSocketSecure.
+     * @param name Name of the agent, can be null.
+     * @param authors Authors of the agent, can be null.
+     * @param description Description of the agent, can be null.
+     * @param token Token of the agent, can be null.
+     * @param printNetwork Whether to print client-server-communication to stdout.
      */
     public Agent(String host, Integer port, ProtocolManager.ConnectionType conType, String name, String authors, String description, String token, boolean printNetwork) {
 
@@ -28,12 +34,35 @@ public abstract class Agent {
         this.name = name;
         this.authors = authors;
         this.description = description;
-
         this.token = token;
 
-        this.conType = conType;
+        this.running = new AtomicBoolean(false);
     }
 
+    // This is called to hide the setting of id and state and to silently ensure the sequential execution
+    final void do_search(KalahState ks, String id) throws IOException {
+
+        // Already running?
+        boolean isRunning = running.getAndSet(true);
+        if (isRunning) {
+            throw new IOException("Attempt to call Agent.search() in parallel, use multiple Agent instances instead");
+        }
+
+        assert this.id == null;
+        assert this.ks == null;
+
+        // To ensure that the agent is sending the right id for the right states
+        // Note that this cannot be called in parallel
+
+        this.id = id;
+        this.ks = new KalahState(ks);
+        this.search(ks);
+        this.id = null;
+        this.ks = null;
+
+        // Is this thread-safe? I think and hope so
+        running.set(false);
+    }
 
     /**
      * Called when the server sends a state to the client e.g. asks it to start computing moves for that state.
@@ -43,31 +72,22 @@ public abstract class Agent {
      */
     public abstract void search(KalahState ks) throws IOException;
 
-
-    /**
-     * @return Agent's name, null if not specified.
-     */
+    /** Returns agent's name or null if not specified. */
     public String getName() {
         return name;
     }
 
-    /**
-     * @return Agent's authors, null if not specified.
-     */
+    /** Returns agent's authors or null if not specified. */
     public String getAuthors() {
         return authors;
     }
 
-    /**
-     * @return Agent's description, null if not specified.
-     */
+    /** Returns agent's description or null if not specified. */
     public String getDescription() {
         return description;
     }
 
-    /**
-     * @return Agent's token or null if not specified.
-     */
+    /** Returns agent's token or null if not specified. */
     public String getToken() {
         return token;
     }
@@ -75,6 +95,7 @@ public abstract class Agent {
     /**
      * Connects to the server, plays games until the server closes the connection or an error occurs.
      * Exits the connection in a clean way upon error and passes the Exception to the caller as an IOException.
+     * @throws IOException In case an I/O error occurs (also includes protocol and agent errors).
      */
     public final void run() throws IOException {
         com.run();
@@ -83,9 +104,18 @@ public abstract class Agent {
     /**
      * Tells the server the move the agent currently wants to play.
      * Use during search() only.
+     * @param move Move to submit. Moves are indexed from 0 to N-1 in sowing direction.
+     * @throws IOException If something goes wrong with I/O
      */
     protected final void submitMove(int move) throws IOException {
-        com.sendMove(move + 1);
+        assert this.id != null;
+        assert this.ks != null;
+        assert this.ks.isLegalMove(move);
+
+        if (!this.ks.isLegalMove(move)) {
+            throw new IOException("Agent tried to send illegal move " + (move+1) + " on this board:\n"+ks);
+        }
+        com.sendMove(move + 1, this.id);
     }
 
     /**
@@ -98,42 +128,35 @@ public abstract class Agent {
      * @return True after the server told the client to stop searching
      */
     protected final boolean shouldStop() {
-        return com.shouldStop();
+        return com.shouldStop(this.id);
     }
 
     /**
      * Sends a comment about the current position to the server,
      * Use during search() only.
-     * Comment may include linebreaks and newlines
+     * @param comment The comment to send. May include line breaks.
+     * @throws IOException If something goes wrong with I/O.
      */
     protected final void sendComment(String comment) throws IOException {
         com.sendComment(comment);
     }
 
-    /**
-     * @return Time mode if set, otherwise null
-     */
+    /** Returns time mode if available or null otherwise */
     protected final ProtocolManager.TimeMode getTimeMode() {
         return com.getTimeMode();
     }
 
-    /**
-     * @return Number of seconds on agent's clock, otherwise null
-     */
+    /** Returns number of seconds on agents clock if available or null otherwise */
     protected final Integer getTimeClock() {
         return com.getTimeClock();
     }
 
-    /**
-     * @return Number of seconds on opponent's clock, otherwise null
-     */
+    /** Returns number of seconds on opponent's clock if available or null otherwise */
     protected final Integer getTimeOppClock() {
         return com.getTimeOppClock();
     }
 
-    /**
-     * @return Server name if available, otherwise null
-     */
+    /** Returns server name if available or null otherwise */
     protected final String getServerName() {
         return com.getServerName();
     }

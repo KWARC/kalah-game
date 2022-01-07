@@ -3,7 +3,7 @@ package info.kwarc.kalah;
 
 import java.io.IOException;
 
-public interface Connection {
+interface Connection {
 
     void send(String msg) throws IOException;
 

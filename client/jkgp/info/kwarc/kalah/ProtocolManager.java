@@ -5,9 +5,7 @@ import java.io.PrintStream;
 import java.net.ProtocolException;
 import java.net.SocketException;
 import java.sql.Timestamp;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.concurrent.BrokenBarrierException;
+import java.util.*;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.regex.Matcher;
@@ -18,6 +16,9 @@ import java.util.regex.Pattern;
 // Shuts down cleanly in case of Exceptions (client crashes), passes the Exception on to the caller
 // Notifies the server of the server's protocol errors (wrong command / at the wrong time), errors and agent errors
 
+/**
+ * Internal protocol handling logic.
+ */
 public class ProtocolManager {
 
     private static final Pattern commandPattern = Pattern.compile(
@@ -50,18 +51,29 @@ public class ProtocolManager {
     private Integer clock = null, opClock = null;
     private String serverName = null;
     private Connection connection;
-    private String stateIDAgent = null;
-    private String stateIDManager = null;
-    private KalahState kalahStateManager = null;
-    private KalahState kalahStateAgent = null;
     private ProtocolState state = null;
     // Set to true by network thread upon receiving stop command
     // Set to false by network thread after having sent yield/ok
     // basically what the server thinks
-    private volatile boolean shouldStop;
     // tell other two threads when to die
     private volatile boolean running;
     private ConnectionType conType;
+
+    private Set<String> running_ids; // Never deleted, but should be fine I hope
+    private LinkedBlockingQueue<Job> jobs;
+
+    private final Job POISON_PILL_JOB = new Job(null, null);
+
+    class Job {
+        KalahState ks;
+        String id;
+
+        Job(KalahState ks, String id) {
+            this.ks = ks;
+            this.id = id;
+        }
+    }
+
     // Creates new instance of communication to given server for the given agent
     ProtocolManager(String host, Integer port, ConnectionType conType, Agent agent, boolean printNetwork) {
 
@@ -94,10 +106,8 @@ public class ProtocolManager {
             opClock = null;
             serverName = null;
 
-            stateIDAgent = null;
-            stateIDManager = null;
-            kalahStateManager = null;
-            kalahStateAgent = null;
+            running_ids = Collections.synchronizedSet(new HashSet<>());
+            jobs = new LinkedBlockingQueue<>();
 
             state = ProtocolState.WAITING_FOR_VERSION;
 
@@ -134,40 +144,24 @@ public class ProtocolManager {
             new Thread(
                     () -> {
                         while (running) {
-                            // Agent thread is waiting for network thread to join, to start playing
-                            // Also acts as synchronization to make sure this thread sees the current KalahState
+                            String id = null;
                             try {
-                                bar.await();
-                            } catch (InterruptedException e) {
-                                // not supposed to happen, just die
-                                e.printStackTrace();
-                                System.exit(1);
-                            } catch (BrokenBarrierException e) {
-                                return; // we were told to die or something wasn't supposed to happen
-                            }
-
-                            Exception exception = null;
-
-                            try {
-                                // send copy so you can change the other one without
-                                // having to wait for the agent to finish
-                                agent.search(kalahStateAgent);
+                                Job job = jobs.take();
+                                if (job == POISON_PILL_JOB) {
+                                    return;
+                                }
+                                id = job.id;
+                                agent.do_search(job.ks, job.id);
+                                events.add(new AgentFinished(null, id));
+                                running_ids.remove(id);
                             } catch (Exception e) {
-                                // Print error, life goes on
-                                e.printStackTrace();
-
-                                // Tell outside about it though
-                                exception = e;
-                                break;
-                            } finally {
-                                events.add(new AgentFinished(exception));
+                                events.add(new AgentFinished(e, id));
                             }
                         }
                     }).start();
 
 
             // main thread for processing communication
-
             try {
                 while (true) {
                     Event event = null;
@@ -175,22 +169,12 @@ public class ProtocolManager {
                     try {
                         event = events.take();
                     } catch (InterruptedException e) {
-                        // not supposed to happen, just die
                         e.printStackTrace();
-                        System.exit(1);
                     }
 
                     if (event instanceof AgentFinished) { // agent stopped/yielded
                         AgentFinished af = (AgentFinished) event;
-
-                        sendYield();
-
-                        if (kalahStateManager == null) {
-                            // Did not receive state command yet, but agent is ready now
-                            state = ProtocolState.WAITING_FOR_STATE;
-                        } else {
-                            startGame();
-                        }
+                        sendYield(af.id);
 
                     } else if (event instanceof NetworkThreadException) {
                         // throw on whatever happened in network thread
@@ -231,8 +215,7 @@ public class ProtocolManager {
                                     // supported version, reply with mode
                                     sendToServer("mode freeplay");
 
-                                    // and wait for the first state command
-                                    state = ProtocolState.WAITING_FOR_STATE;
+                                    state = ProtocolState.MAIN;
                                 }
                             } else {
                                 throw new ProtocolException("Didn't expect " + cmd.name + " here");
@@ -241,71 +224,43 @@ public class ProtocolManager {
                             if (!isCorrectStateCommand(cmd)) {
                                 throw new ProtocolException("Not a correct state command: " + cmd.original);
                             }
-                            if (state == ProtocolState.WAITING_FOR_STATE ||
-                                    state == ProtocolState.WAITING_FOR_AGENT_TO_STOP) {
 
-                                // Just set state
+                            String[] sp = cmd.args.get(0).substring(1, cmd.args.get(0).length() - 1).split(",");
 
-                                String[] sp = cmd.args.get(0).substring(1, cmd.args.get(0).length() - 1).split(",");
+                            int[] integers = new int[sp.length];
 
-                                int[] integers = new int[sp.length];
-
-                                for (int i = 0; i < integers.length; i++) {
-                                    integers[i] = Integer.parseInt(sp[i]);
-                                }
-
-                                int boardSize = integers[0];
-
-                                kalahStateManager = new KalahState(boardSize, -1);
-
-                                kalahStateManager.setStoreSouth(integers[1]);
-                                kalahStateManager.setStoreNorth(integers[2]);
-
-                                for (int i = 0; i < boardSize; i++) {
-                                    kalahStateManager.setHouse(KalahState.Player.SOUTH, i, integers[i + 3]);
-                                    kalahStateManager.setHouse(KalahState.Player.NORTH, i, integers[i + 3 + boardSize]);
-                                }
-
-                                if (kalahStateManager.getHouseSumSouth() == 0) {
-                                    // no legal moves
-                                    throw new ProtocolException("Server sent state with no legal moves:\n" + kalahStateManager);
-                                }
-
-                                stateIDManager = cmd.id;
-
-                                // Only start searching if the agent is ready
-
-                                if (state == ProtocolState.WAITING_FOR_STATE) {
-                                    startGame();
-                                } else if (state == ProtocolState.WAITING_FOR_AGENT_TO_STOP) {
-                                    // waiting for agent to stop
-                                } else {
-                                    throw new RuntimeException("Wrong internal state");
-                                }
-
-                            } else {
-                                sendError("ABC");
-                                throw new ProtocolException("Didn't expect " + cmd.name + " here");
-
+                            for (int i = 0; i < integers.length; i++) {
+                                integers[i] = Integer.parseInt(sp[i]);
                             }
+
+                            int boardSize = integers[0];
+
+                            KalahState ks = new KalahState(boardSize, -1);
+
+                            ks.setStoreSouth(integers[1]);
+                            ks.setStoreNorth(integers[2]);
+
+                            for (int i = 0; i < boardSize; i++) {
+                                ks.setHouse(KalahState.Player.SOUTH, i, integers[i + 3]);
+                                ks.setHouse(KalahState.Player.NORTH, i, integers[i + 3 + boardSize]);
+                            }
+
+                            if (ks.getHouseSumSouth() == 0) {
+                                // no legal moves
+                                throw new ProtocolException("Server sent state with no legal moves:\n" + ks);
+                            }
+
+                            if (ks.numberOfMoves() > 1) {
+                                jobs.add(new Job(ks, cmd.id));
+                                running_ids.add(cmd.id);
+                            } else {
+                                // Play the only move
+                                sendMove(ks.getMoves().get(0) + 1, cmd.id);
+                                sendYield(cmd.id);
+                            }
+
                         } else if ("stop".equals(cmd.name)) {
-
-                            // Don't care whether stop has any arguments (it's not supposed to have any)
-
-                            if (state == ProtocolState.SEARCHING) {
-
-                                // Tell agent thread to stop
-                                shouldStop = true;
-
-                                // Then go about other business
-                                // The agent will notify this loop via an event
-
-                                state = ProtocolState.WAITING_FOR_AGENT_TO_STOP;
-                            } else if (state == ProtocolState.WAITING_FOR_STATE) {
-                                // just ignore it, might be a stop which was sent before the server received a yield
-                            } else {
-                                throw new ProtocolException("Didn't expect " + cmd.name + " here");
-                            }
+                            running_ids.remove(cmd.ref);
                         } else if ("set".equals(cmd.name)) {
                             reactToSet(cmd);
                         } else {
@@ -324,8 +279,11 @@ public class ProtocolManager {
 
                 // network thread escapes from readLine() via IOError
 
+                // insert poison pill to stop agent thread
+                jobs.add(POISON_PILL_JOB);
+
                 // agent thread (if agent isn't broken) escapes via fake stop:
-                shouldStop = true;
+                running_ids.clear();
 
                 // or it's hung up in the barrier
                 bar.reset();
@@ -336,31 +294,8 @@ public class ProtocolManager {
         }
     }
 
-    private void sendYield() throws IOException {
-        sendToServer("@" + stateIDAgent + " yield");
-    }
-
-    // start game
-    private void startGame() {
-        // state and agent are available, start searching!
-        shouldStop = false;
-
-        // copy state to agent so you can change it without disturbing the agent
-        kalahStateAgent = new KalahState(kalahStateManager);
-        stateIDAgent = stateIDManager;
-        kalahStateManager = null;
-        stateIDManager = null;
-
-        // Command agent thread to search by joining him on the cyclic barrier
-        // This barrier also ensures that the agent sees the new state
-        // although having that volatile variable in between might accomplish that as well?
-        try {
-            bar.await();
-        } catch (InterruptedException | BrokenBarrierException e) {
-            e.printStackTrace();
-        }
-
-        state = ProtocolState.SEARCHING;
+    private void sendYield(String id) throws IOException {
+        sendToServer("@" + id + " yield");
     }
 
     // react to ping
@@ -375,6 +310,7 @@ public class ProtocolManager {
         }
 
         System.err.println("Received error from server: " + msg.original);
+        debugStream.println("Received error from server: " + msg.original);
         // throw new ProtocolException("Received error command from server: " + msg.original);
     }
 
@@ -507,8 +443,8 @@ public class ProtocolManager {
     }
 
     // see documentation of onState(...)
-    boolean shouldStop() {
-        return shouldStop;
+    boolean shouldStop(String id) {
+        return !running_ids.contains(id);
     }
 
     // see documentation of onState(...)
@@ -516,12 +452,12 @@ public class ProtocolManager {
     // but the Kalah implementation uses 0, 1, 2, ..., board_size - 1
     // because of array indexing, so you have to add +1 to your move
     // before calling this function
-    void sendMove(int move) throws IOException {
+    void sendMove(int move, String id) throws IOException {
         if (move <= 0) {
             throw new IllegalArgumentException("Move cannot be negative");
         }
 
-        sendToServer("@" + stateIDAgent + " move " + move);
+        sendToServer("@" + id + " move " + move);
     }
 
     private void sendGoodbyeAndCloseConnection() throws IOException {
@@ -666,16 +602,10 @@ public class ProtocolManager {
 
     private enum ProtocolState {
         WAITING_FOR_VERSION, // awaiting initial communication, server sends version, both exchange some set-options
-
-        WAITING_FOR_STATE, // agent is stopped, waiting for next state
-        SEARCHING, // told agent to start computation, might receive AgentFinished in this state if agent yields
-        WAITING_FOR_AGENT_TO_STOP, // told agent to stop (because server told us to stop), waiting for AgentFinished event
+        MAIN, // Not waiting for version anymore
     }
 
-
-    /**
-     * Enum for the three possible connection types.
-     */
+    /** Enum for the three possible connection types. */
     public enum ConnectionType {
         /**
          * TCP
@@ -722,10 +652,12 @@ public class ProtocolManager {
     private static class AgentFinished extends Event {
 
         Exception exception; // the exception agent through during search or null if there was none
+        String id;
 
-        AgentFinished(Exception exception) {
+        AgentFinished(Exception exception, String id) {
             super();
             this.exception = exception;
+            this.id = id;
         }
     }
 
@@ -738,7 +670,4 @@ public class ProtocolManager {
             this.exception = exception;
         }
     }
-
-    // Pointless main method so "Intelli"J manages to build a jar automatically
-    public static void main(String[] args) {}
 }

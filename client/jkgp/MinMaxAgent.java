@@ -8,21 +8,21 @@ import java.io.IOException;
 
 
 // agent using min max search
-public class MinMaxAgent extends Agent {
+class MinMaxAgent extends Agent {
 
     private final int level; // search depth
 
     public MinMaxAgent(String host, Integer port, ProtocolManager.ConnectionType conType, int level) {
 
+        // TODO enter your data
         super(
                 host,
                 port,
                 conType,
                 "MinMax " + level,
-                "Tobias Völk [Former Tutor]",
-                "MinMax, Iterative deepening until server tells it to stop or depth " + level + " is reached.\n" +
-                        "For depth = 0, the move is chosen uniform at random",
-                "SuperSecretAndComplexMinMaxExampleAgentToken",
+                null, // authors go here
+                null, // description goes here
+                null, // token goes here
                 true
         );
 
@@ -129,14 +129,16 @@ public class MinMaxAgent extends Agent {
         }
     }
 
-    // Example of a main function
     public static void main(String[] args) {
+
         while (true) {
+
             Agent agent = new MinMaxAgent(
                     "kalah.kwarc.info/socket",
                     null,
                     ProtocolManager.ConnectionType.WebSocketSecure,
                     5);
+
             try {
                 agent.run();
             } catch (IOException e) {
@@ -144,7 +146,7 @@ public class MinMaxAgent extends Agent {
             }
 
             try {
-                Thread.sleep(10000);
+                Thread.sleep(10_000);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
