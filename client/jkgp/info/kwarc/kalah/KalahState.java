@@ -175,6 +175,7 @@ public class KalahState {
 
         // capture move must drop last seed in southern pit
         if (endsUp >= s) {
+            flipIfWasFlipped(wasFlipped);
             return false;
         }
 
@@ -277,7 +278,7 @@ public class KalahState {
      * @return Sum of all seeds, from both stores and all houses
      */
     public int totalSeeds() {
-        return storeSouth + storeNorth + getHouseSumSouth() + getHouseSumSouth();
+        return storeSouth + storeNorth + getHouseSumSouth() + getHouseSumNorth();
     }
 
     /**

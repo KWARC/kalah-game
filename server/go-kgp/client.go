@@ -46,16 +46,19 @@ type Agent struct {
 // Client wraps a network connection into a player
 type Client struct {
 	Agent
-	game     *Game
-	rwc      io.ReadWriteCloser
-	lock     sync.Mutex
-	rid      uint64
-	killFunc context.CancelFunc
-	pinged   bool
-	token    []byte
-	comment  string
-	simple   bool
-	pending  int64
+	game    *Game
+	rwc     io.ReadWriteCloser
+	lock    sync.Mutex
+	rid     uint64
+	kill    context.CancelFunc
+	pinged  bool
+	token   []byte
+	comment string
+	simple  bool
+
+	// Simple mode state management
+	nyield uint64
+	nstop  uint64
 }
 
 func (cli *Client) String() string {
@@ -142,7 +145,7 @@ retry:
 			goto retry
 		} else {
 			log.Print(cli, err)
-			cli.killFunc()
+			cli.kill()
 		}
 	}
 
@@ -167,7 +170,7 @@ func (cli *Client) Pinger(done <-chan struct{}) {
 		// kill the client if it is still set
 		if cli.pinged {
 			log.Printf("%s did not respond to a ping in time", cli)
-			cli.killFunc()
+			cli.kill()
 			break
 		}
 		// In case it was not set, ping the client
@@ -186,8 +189,8 @@ func (cli *Client) Handle() {
 	}
 	defer cli.rwc.Close()
 
-	context, cancel := context.WithCancel(context.Background())
-	cli.killFunc = cancel
+	var ctx context.Context
+	ctx, cli.kill = context.WithCancel(context.Background())
 
 	// Initiate the protocol with the client
 	cli.Send("kgp", majorVersion, minorVersion, patchVersion)
@@ -229,13 +232,13 @@ func (cli *Client) Handle() {
 		if err != nil && !strings.Contains(err.Error(), "use of closed network connection") {
 			log.Print(err)
 		}
-		cli.killFunc()
+		cli.kill()
 	}()
 
 	// When the client is killed (a game has finished, the client
 	// timed out, ...) we log this and mark the client as dead for
 	// the input thread
-	<-context.Done()
+	<-ctx.Done()
 
 	// Request for the client to be removed from the queue
 	forget <- cli

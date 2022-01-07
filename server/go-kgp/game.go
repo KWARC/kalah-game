@@ -118,12 +118,12 @@ func (g *Game) Current() *Client {
 
 // IsCurrent returns true, if CLI the game is currently waiting for
 // CLI to answer
-func (g *Game) IsCurrent(cli *Client) bool {
+func (g *Game) IsCurrent(cli *Client, ref uint64) bool {
 	if g == nil {
 		return false
 	}
 
-	return g.Current() == cli
+	return g.Current() == cli && (g.last == ref || ref == 0)
 }
 
 // Other returns the opponent of CLI, or nil if CLI is not playing a
@@ -195,7 +195,7 @@ func (g *Game) Start() {
 				// The client has indicated it does not intend
 				// to use the remaining time.
 				next = true
-			} else if m.Client.simple && m.Client.pending >= 1 {
+			} else if m.Client.simple && m.Client.nstop != m.Client.nyield {
 				// If the client has sent us a move even
 				// though he has not responded to a previous
 				// "stop" command via "yield" we must conclude
@@ -226,7 +226,7 @@ func (g *Game) Start() {
 				opp.game = nil
 				enqueue <- opp
 			} else {
-				opp.killFunc()
+				opp.kill()
 			}
 
 			return
@@ -242,9 +242,26 @@ func (g *Game) Start() {
 
 		if next {
 			g.Current().Respond(g.last, "stop")
-			atomic.AddInt64(&g.Current().pending, 1)
+			atomic.AddUint64(&g.Current().nstop, 1)
 
-			if choice.Yield {
+			choice := *g.choice()
+
+			// We generate a random move to replace
+			// whatever the current choice is, either if
+			// no choice was made (denoted by a -1) or if
+			// the client is playing in simple mode and
+			// there are pending stop requests that have
+			// to be responded to with a yield
+			if choice == -1 || (g.Current().simple && g.Current().nstop != g.Current().nyield) {
+				choice = g.Board.Random(g.side)
+			}
+
+			again := g.Board.Sow(g.side, choice)
+			if g.Board.Over() {
+				break
+			}
+
+			if !again {
 				g.side = !g.side
 			} else {
 
@@ -291,7 +308,7 @@ func (g *Game) Start() {
 			enqueue <- g.South
 		}
 	} else {
-		g.North.killFunc()
-		g.South.killFunc()
+		g.North.kill()
+		g.South.kill()
 	}
 }
