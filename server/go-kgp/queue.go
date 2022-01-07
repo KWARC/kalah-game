@@ -36,8 +36,8 @@ var (
 func match(queue []*Client) []*Client {
 	for len(queue) > 0 {
 		cli := queue[0]
-		if cli.game != nil && cli.rwc != nil {
-			continue
+		if cli.game == nil && cli.rwc != nil {
+			break
 		}
 		queue = queue[1:]
 	}
@@ -48,7 +48,7 @@ func match(queue []*Client) []*Client {
 	north := queue[0]
 	for i, cli := range queue[1:] {
 		i += 1
-		if cli.game == nil || cli.rwc == nil {
+		if cli.game != nil || cli.rwc == nil {
 			queue = append(queue[:i], queue[i+1:]...)
 			continue
 		}
