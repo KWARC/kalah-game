@@ -50,6 +50,7 @@ type WebConf struct {
 	Limit   uint   `toml:"limit"`
 	About   string `toml:"about"`
 	Cache   bool   `toml:"cache"`
+	Base    string `toml:"base"`
 	server  *http.Server
 }
 
@@ -121,6 +122,7 @@ var defaultConfig = Conf{
 		Limit:   50,
 		About:   "",
 		Cache:   false,
+		Base:    "",
 	},
 	WS: WSConf{
 		Enabled: false,

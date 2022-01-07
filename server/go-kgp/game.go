@@ -21,6 +21,8 @@ package main
 
 import (
 	"fmt"
+	"strconv"
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -185,14 +187,47 @@ func (g *Game) Start() {
 	}
 	g.South.game = g
 
+	if g.North.token != nil && g.South.token != nil {
+		g.logged = true
+		var wait sync.WaitGroup
+		wait.Add(1)
+		dbact <- g.updateDatabase(&wait)
+		wait.Wait()
+		g.North.Send("set", "game:id", strconv.FormatInt(g.Id, 10))
+		g.South.Send("set", "game:id", strconv.FormatInt(g.Id, 10))
+		if conf.Web.Base != "" {
+			uri := fmt.Sprintf(conf.Web.Base, g.Id)
+			g.North.Send("set", "game:uri", uri)
+			g.South.Send("set", "game:uri", uri)
+		}
+	} else {
+		g.North.Send("set", "game:id", "")
+		g.South.Send("set", "game:id", "")
+		if conf.Web.Base != "" {
+			// XXX: If the configuration is reloaded and
+			// the base URL is reset, the game URI will
+			// not be unset at the beginning of the next
+			// game.
+			g.North.Send("set", "game:uri", "")
+			g.South.Send("set", "game:uri", "")
+		}
+	}
+
+	if g.South.token != nil {
+		g.North.Send("set", "game:opponent", g.South.Id)
+	} else {
+		g.North.Send("set", "game:opponent", "")
+	}
+	if g.North.token != nil {
+		g.South.Send("set", "game:opponent", g.North.Id)
+	} else {
+		g.South.Send("set", "game:opponent", "")
+	}
+
 	g.side = SideSouth
 	g.last = g.South.Send("state", g)
 
 	timer := time.NewTimer(time.Duration(conf.Game.Timeout) * time.Second)
-
-	if g.North.token != nil && g.South.token != nil {
-		g.logged = true
-	}
 
 	for {
 		var (
