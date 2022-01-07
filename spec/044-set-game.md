@@ -20,13 +20,16 @@ The options this groups offers are:
   assume them to be a sequence of game states.
 
   Two consecutive state commands with the same `game:id` MUST
-  represent two game states
+  represent two game states.  An empty string indicates an anonymous
+  game.
 
 `game:uri` (string)
 
 : A URI pointing to a resource that describes the current game in more
   detail.  The resource should be publicly accessible, or provide the
   necessary credentials for the client to access it.
+
+  An empty string indicates there is no URI for this game.
 
 `game:opponent` (string)
 
