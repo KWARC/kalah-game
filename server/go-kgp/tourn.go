@@ -165,7 +165,6 @@ func launch(dir string, c chan<- *Client) {
 	if err != nil {
 		log.Fatal("Failed to start", dir, err)
 	}
-	cli.proc = run.Process
 }
 
 func makeTournament(sys System) Sched {

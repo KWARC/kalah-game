@@ -57,7 +57,6 @@ type Client struct {
 	comment  string
 	simple   bool
 	pending  int64
-	proc     *os.Process
 	notify   chan<- *Client
 }
 
