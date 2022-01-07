@@ -1,0 +1,38 @@
+<table class="list">
+  <thead>
+      <tr>
+	  <td>Nr</td>
+	  <td>Pit</td>
+	  <td>Agent</td>
+	  <td>Comment</td>
+      </tr>
+  </thead>
+  <tbody>
+    {{ range $i, $m := . }}
+      <tr>
+	<td>{{ $i }}</td>
+	<td>{{ inc $m.Pit }}</td>
+	<td>
+	{{ with $m.Client }}
+	  {{ if ne .Id 0 }}
+	    <a href="/agent/{{ .Id }}">
+	    {{ with .Name }}
+	       {{ . }}
+	    {{ else }}
+	       <em>Unnamed</em>
+	    {{ end }}
+	    </a>
+	  {{ else }}
+	    Anon.
+	  {{ end }}
+	{{ end }}
+	</td>
+	<td>
+	{{ with $m.Comment }}
+	{{ . }}
+	{{ end }}
+    {{ else }}
+       <tr><td colspan="4"><em>No moves</em></td></tr>
+    {{ end }}
+  </tbody>
+</table>

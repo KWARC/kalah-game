@@ -1,0 +1,11 @@
+<nav id="pageination">
+{{ if ge . 1 }}
+{{ if ne . 1 }}
+<a href="?page={{ dec . }}">&xlarr;</a>
+{{ end}}
+Page {{ .}}
+<a href="?page={{ inc . }}">&xrarr;</a>
+{{ else }}
+Invalid page
+{{ end }}
+</nav>

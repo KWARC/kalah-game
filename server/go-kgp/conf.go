@@ -104,7 +104,6 @@ var defaultConfig = Conf{
 	Database: DBConf{
 		File:    "kalah.sql",
 		Threads: 1,
-		Mode:    "rwc",
 		Timeout: 100 * time.Millisecond,
 	},
 	Endless: true,

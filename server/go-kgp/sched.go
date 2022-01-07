@@ -116,8 +116,8 @@ var fifo Sched = func(queue []*Client) []*Client {
 					enqueue <- north
 					enqueue <- south
 				} else {
-					north.killFunc()
-					south.killFunc()
+					north.kill()
+					south.kill()
 				}
 			}()
 			break

@@ -23,7 +23,6 @@ import (
 	"context"
 	"database/sql"
 	"embed"
-	"fmt"
 	"io/fs"
 	"log"
 	"os"
@@ -53,6 +52,58 @@ var dbact = make(chan DBAction, 1)
 var sqlDir embed.FS
 
 var queries = make(map[string]*sql.Stmt)
+
+func (game *Game) updateDatabase(wait *sync.WaitGroup) DBAction {
+	if !game.logged {
+		panic("Saving unlogged game")
+	}
+
+	if !game.IsOver() {
+		panic("Game is not over")
+	}
+
+	return func(db *sql.DB, ctx context.Context) (err error) {
+		tx, err := db.BeginTx(ctx, nil)
+		if err != nil {
+			log.Print(err)
+			return err
+		}
+
+		res, err := tx.Stmt(queries["insert-game"]).ExecContext(ctx,
+			len(game.Board.northPits),
+			game.Board.init,
+			game.North.Id,
+			game.South.Id,
+			game.Board.Outcome(SideSouth))
+		if err != nil {
+		}
+		game.Id, err = res.LastInsertId()
+		if err != nil {
+			log.Print(err)
+		}
+
+		for _, move := range game.Moves {
+			_, err = tx.Stmt(queries["insert-move"]).ExecContext(ctx,
+				game.Id,
+				move.Client.Id,
+				game.Side(move.Client),
+				move.Pit,
+				move.Comment,
+				move.when)
+			if err != nil {
+				log.Print(err)
+				return
+			}
+		}
+
+		err = tx.Commit()
+		if err != nil {
+			log.Print(err)
+		}
+
+		return
+	}
+}
 
 func (cli *Client) updateDatabase(wait *sync.WaitGroup, query bool) DBAction {
 	return func(db *sql.DB, ctx context.Context) (err error) {
@@ -124,6 +175,138 @@ func queryAgent(aid int, c chan<- *Agent) DBAction {
 	}
 }
 
+func queryGame(gid int, c chan<- *Game) DBAction {
+	return func(db *sql.DB, ctx context.Context) error {
+		defer close(c)
+		row := queries["select-game"].QueryRowContext(ctx, gid)
+		game, err := scanGame(ctx, row.Scan)
+		if err != nil {
+			log.Print(err)
+			return err
+		}
+
+		rows, err := queries["select-moves"].QueryContext(ctx, gid)
+		if err != nil {
+			log.Print(err)
+			return err
+		}
+
+		for rows.Next() {
+			var (
+				aid  int64
+				comm string
+				move int
+
+				side = SideSouth
+			)
+
+			err = rows.Scan(&aid, &side, &comm, &move)
+			if err != nil {
+				log.Print(err)
+				return err
+			}
+
+			// TODO Ensure the next move is on the right
+			// side, by checking the return value in the
+			// next iteration.
+			game.Board.Sow(side, move)
+
+			game.Moves = append(game.Moves, &Move{
+				Pit:     move,
+				Client:  game.Player(side),
+				Comment: comm,
+			})
+		}
+		if err = rows.Err(); err != nil {
+			log.Print(err)
+		}
+
+		c <- game
+		return err
+	}
+}
+
+func scanGame(ctx context.Context, scan func(dest ...interface{}) error) (*Game, error) {
+	var (
+		game         Game
+		north, south Agent
+		outcome      *uint8
+		size, init   uint
+	)
+
+	err := scan(
+		&game.Id,
+		&size, &init,
+		&north.Id,
+		&south.Id,
+		&outcome)
+	if err != nil {
+		return nil, err
+	}
+
+	game.Board = makeBoard(size, init)
+	game.Outcome = Outcome(*outcome)
+
+	err = queries["select-agent-id"].QueryRowContext(ctx, north.Id).Scan(
+		&north.Name,
+		&north.Descr,
+		&north.Author,
+		&north.Score)
+	if err != nil {
+		return nil, err
+	}
+	game.North = &Client{Agent: north}
+
+	err = queries["select-agent-id"].QueryRowContext(ctx, south.Id).Scan(
+		&south.Name,
+		&south.Descr,
+		&south.Author,
+		&south.Score)
+	if err != nil {
+		return nil, err
+	}
+	game.South = &Client{Agent: south}
+
+	return &game, nil
+}
+
+func queryGames(c chan<- *Game, page int, aid *int) DBAction {
+	return func(db *sql.DB, ctx context.Context) (err error) {
+		var rows *sql.Rows
+
+		defer close(c)
+		if aid == nil {
+			rows, err = queries["select-games"].QueryContext(ctx, page, conf.Web.Limit)
+		} else {
+			rows, err = queries["select-games-by"].QueryContext(ctx, *aid, page)
+		}
+		if err != nil {
+			if err != sql.ErrNoRows {
+				log.Print(err)
+			}
+			return
+		}
+		defer rows.Close()
+
+		var game *Game
+		for rows.Next() {
+			game, err = scanGame(ctx, rows.Scan)
+			if err != nil {
+				if err != sql.ErrNoRows {
+					log.Print(err)
+				}
+				return
+			}
+			c <- game
+		}
+		if err = rows.Err(); err != nil {
+			log.Print(err)
+		}
+
+		return
+	}
+}
+
 func queryAgents(c chan<- *Agent, page int) DBAction {
 	return func(db *sql.DB, ctx context.Context) error {
 		defer close(c)
@@ -179,10 +362,7 @@ func databaseManager(id uint, db *sql.DB, wg *sync.WaitGroup) {
 }
 
 func manageDatabase() {
-	uri := fmt.Sprintf("%s?mode=%s&_journal=wal",
-		conf.Database.File,
-		conf.Database.Mode)
-	db, err := sql.Open("sqlite3", uri)
+	db, err := sql.Open("sqlite3", conf.Database.File+"?mode=rwc")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -204,6 +384,25 @@ func manageDatabase() {
 		<-intr
 		os.Exit(1)
 	}()
+
+	for _, pragma := range []string{
+		// https://www.sqlite.org/pragma.html#pragma_journal_mode
+		"journal_mode = WAL",
+		// https://www.sqlite.org/pragma.html#pragma_synchronous
+		"synchronous = normal",
+		// https://www.sqlite.org/pragma.html#pragma_temp_store
+		"temp_store = memory",
+		// https://www.sqlite.org/pragma.html#pragma_mmap_size
+		"mmap_size = 268435456",
+		// https://www.sqlite.org/pragma.html#pragma_foreign_keys
+		"foreign_keys = on",
+	} {
+		_, err = db.Exec("PRAGMA " + pragma + ";")
+		if err != nil {
+			log.Fatal(err)
+		}
+
+	}
 
 	err = fs.WalkDir(sqlDir, "sql", func(file string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -231,6 +430,17 @@ func manageDatabase() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	go func() {
+		for {
+			time.Sleep(8 * time.Hour)
+			// https://www.sqlite.org/pragma.html#pragma_optimize
+			_, err = db.Exec("PRAGMA optimize;")
+			if err != nil {
+				log.Print(err)
+			}
+		}
+	}()
 
 	var wg sync.WaitGroup
 	for id := uint(0); id < conf.Database.Threads; id++ {

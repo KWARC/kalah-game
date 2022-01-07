@@ -178,9 +178,7 @@ func (cli *Client) Interpret(input string) error {
 			cli.Error(id, "Unsupported mode %q", mode)
 		}
 	case "move":
-		if game == nil ||
-			!game.IsCurrent(cli) ||
-			(ref != game.last && ref != 0) {
+		if game == nil || !game.IsCurrent(cli, ref) {
 			return nil
 		}
 
@@ -196,19 +194,21 @@ func (cli *Client) Interpret(input string) error {
 			id:     id,
 		}
 	case "yield":
-		new := atomic.AddInt64(&cli.pending, -1)
-		if cli.simple && new < -1 {
-			cli.Error(id, "Preemptive yield")
-			cli.killFunc()
-		}
-
-		if game == nil ||
-			!game.IsCurrent(cli) ||
-			(ref != game.last && ref != 0) {
+		if game == nil || !game.IsCurrent(cli, ref) {
 			return nil
 		}
 
-		game.yield <- cli
+		new := atomic.AddUint64(&cli.nyield, 1)
+		if cli.simple && new-1 > cli.nstop {
+			cli.Error(id, "Preemptive yield")
+			cli.kill()
+		}
+
+		game.move <- &Move{
+			Yield:  true,
+			Client: cli,
+			id:     id,
+		}
 	case "ok", "error":
 		// We do not expect the client to confirm or reject anything,
 		// so we can ignore these response messages.
@@ -227,7 +227,7 @@ func (cli *Client) Interpret(input string) error {
 
 		return cli.Set(key, val)
 	case "goodbye":
-		cli.killFunc()
+		cli.kill()
 	}
 
 	return nil

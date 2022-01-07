@@ -65,6 +65,12 @@ class Board:
         self.south_pits = south_pits
         self.size = len(north_pits)
 
+    def __eq__(self, other):
+        return (self.north == other.north and
+                self.south == other.south and
+                self.north_pits == other.north_pits and
+                self.south_pits == other.south_pits)
+
     def __str__(self):
         """Return board in KGP board representation."""
         data = [self.size,
@@ -122,6 +128,14 @@ class Board:
         """Return a deep copy of the current board state."""
         return copy.deepcopy(self)
 
+    def _collect(self):
+        self.north += sum(self.north_pits)
+        self.north_pits = [0] * len(self.north_pits)
+        self.south += sum(self.south_pits)
+        self.south_pits = [0] * len(self.south_pits)
+
+        return self, False
+
     def sow(self, side, pit, pure=True):
         """
         Sow the stones from pit on side.
@@ -154,6 +168,8 @@ class Board:
                 stones -= 1
 
         if pos == 0 and not me == side:
+            if b.is_final():
+                return b._collect()
             return b, True
         elif side == me and pos > 0:
             last = pos - 1
@@ -162,6 +178,9 @@ class Board:
                 b[side] += b[not side, other] + 1
                 b[not side, other] = 0
                 b[side, last] = 0
+
+        if b.is_final():
+            b._collect()
 
         return b, False
 
@@ -353,7 +372,8 @@ def connect(agent, host='wss://kalah.kwarc.info/socket', port=2671, token=None, 
                         send("pong", args[0], ref=cid)
                     else:
                         send("pong", ref=cid)
-
+                elif cmd == "goodbye":
+                    return
             except ValueError:
                 pass
             except TypeError:

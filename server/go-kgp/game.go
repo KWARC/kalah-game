@@ -28,7 +28,7 @@ import (
 type Outcome uint8
 
 const (
-	ONGOING = iota
+	_ = iota
 	WIN
 	DRAW
 	LOSS
@@ -40,8 +40,9 @@ type Move struct {
 	Pit     int
 	Client  *Client
 	Comment string
-	game    *Game
+	Yield   bool
 	id      uint64
+	when    time.Time
 }
 
 // Game represents a game between two players
@@ -56,7 +57,6 @@ type Game struct {
 	side Side
 	// The control channel that is used to send actions like move
 	// or yield.  These are processed in .Start().
-	yield chan<- *Client
 	move  chan<- *Move
 	death chan<- *Client
 	// The two clients
@@ -64,6 +64,8 @@ type Game struct {
 	South   *Client
 	nchoice int
 	schoice int
+	// Is this game logged in the database?
+	logged bool
 	// Data for the web interface.
 	//
 	// These fields are usually empty, unless a Game object has
@@ -71,8 +73,6 @@ type Game struct {
 	Id      int64
 	Moves   []*Move
 	Outcome Outcome // For south
-	Ended   *time.Time
-	Started *time.Time
 }
 
 // String generates a KGP board representation for the current player
@@ -99,6 +99,17 @@ func (g *Game) Player(side Side) *Client {
 	}
 }
 
+func (g *Game) Side(cli *Client) Side {
+	switch cli {
+	case g.North:
+		return SideNorth
+	case g.South:
+		return SideSouth
+	default:
+		panic("Unknown client")
+	}
+}
+
 // Current returns the player who's turn it is
 func (g *Game) Current() *Client {
 	return g.Player(g.side)
@@ -106,23 +117,12 @@ func (g *Game) Current() *Client {
 
 // IsCurrent returns true, if CLI the game is currently waiting for
 // CLI to answer
-func (g *Game) IsCurrent(cli *Client) bool {
+func (g *Game) IsCurrent(cli *Client, ref uint64) bool {
 	if g == nil {
 		return false
 	}
 
-	return g.Current() == cli
-}
-
-func (g *Game) choice() *int {
-	switch g.side {
-	case SideNorth:
-		return &g.nchoice
-	case SideSouth:
-		return &g.schoice
-	default:
-		panic("Invalid state")
-	}
+	return g.Current() == cli && (g.last == ref || ref == 0)
 }
 
 // Other returns the opponent of CLI, or nil if CLI is not playing a
@@ -171,10 +171,8 @@ func (g *Game) Start() {
 		}
 	}()
 
-	yield := make(chan *Client)
 	move := make(chan *Move)
 	death := make(chan *Client)
-	g.yield = yield
 	g.move = move
 	g.death = death
 
@@ -182,23 +180,36 @@ func (g *Game) Start() {
 		panic("Already part of game")
 	}
 	g.North.game = g
-	g.nchoice = -1
 	if g.South.game != nil {
 		panic("Already part of game")
 	}
 	g.South.game = g
-	g.schoice = -1
 
 	g.side = SideSouth
 	g.last = g.South.Send("state", g)
 
 	timer := time.NewTimer(time.Duration(conf.Game.Timeout) * time.Second)
 
+	if g.North.token != nil && g.South.token != nil {
+		g.logged = true
+	}
+
 	for {
-		next := false
+		var (
+			choice *Move
+			next   bool
+		)
+
 		select {
 		case m := <-move:
-			if m.Client.simple && m.Client.pending >= 1 {
+			if m.Yield {
+				if m.Client != g.Current() {
+					break
+				}
+				// The client has indicated it does not intend
+				// to use the remaining time.
+				next = true
+			} else if m.Client.simple && m.Client.nstop != m.Client.nyield {
 				// If the client has sent us a move even
 				// though he has not responded to a previous
 				// "stop" command via "yield" we must conclude
@@ -207,15 +218,9 @@ func (g *Game) Start() {
 			} else if !g.Board.Legal(g.side, m.Pit) {
 				m.Client.Error(m.id, fmt.Sprintf("Illegal move %d", m.Pit+1))
 			} else {
-				*g.choice() = m.Pit
+				m.when = time.Now()
+				choice = m
 			}
-		case cli := <-yield:
-			if cli != g.Current() {
-				break
-			}
-			// The client has indicated it does not intend
-			// to use the remaining time.
-			next = true
 		case cli := <-death:
 			if g.North != cli && g.South != cli {
 				panic("Unrelated death")
@@ -234,7 +239,7 @@ func (g *Game) Start() {
 				opp.game = nil
 				enqueue <- opp
 			} else {
-				opp.killFunc()
+				opp.kill()
 			}
 
 			return
@@ -250,30 +255,31 @@ func (g *Game) Start() {
 
 		if next {
 			g.Current().Respond(g.last, "stop")
-			atomic.AddInt64(&g.Current().pending, 1)
+			atomic.AddUint64(&g.Current().nstop, 1)
 
-			choice := *g.choice()
+			for {
+				// We generate a random move to replace
+				// whatever the current choice is, either if
+				// no choice was made (denoted by a -1) or if
+				// the client is playing in simple mode and
+				// there are pending stop requests that have
+				// to be responded to with a yield
+				if choice == nil || (g.Current().simple && g.Current().nstop != g.Current().nyield) {
+					choice.Pit = g.Board.Random(g.side)
+				}
 
-			// We generate a random move to replace
-			// whatever the current choice is, either if
-			// no choice was made (denoted by a -1) or if
-			// the client is playing in simple mode and
-			// there are pending stop requests that have
-			// to be responded to with a yield
-			if choice == -1 || (g.Current().simple && g.Current().pending > 0) {
-				choice = g.Board.Random(g.side)
+				g.Moves = append(g.Moves, choice)
+
+				again := g.Board.Sow(g.side, choice.Pit)
+				if g.Board.Over() {
+					break
+				}
+
+				if !again {
+					g.side = !g.side
+				}
 			}
 
-			again := g.Board.Sow(g.side, choice)
-			if g.Board.Over() {
-				break
-			}
-
-			if !again {
-				g.side = !g.side
-			}
-
-			*g.choice() = -1
 			g.last = g.Current().Send("state", g)
 
 			timer.Reset(time.Duration(conf.Game.Timeout) * time.Second)
