@@ -27,3 +27,9 @@ The options this groups offers are:
 : A URI pointing to a resource that describes the current game in more
   detail.  The resource should be publicly accessible, or provide the
   necessary credentials for the client to access it.
+
+`game:opponent` (string)
+
+: A name of the opponent the client is playing against.  The name
+  SHOULD be unique.  Interpreted the same way `game:id` is.  An empty
+  string indicates an unknown opponent.
