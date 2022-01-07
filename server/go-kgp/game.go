@@ -263,14 +263,11 @@ func (g *Game) Start() bool {
 			for {
 				again := g.Board.Sow(g.side, choice)
 				if g.Board.Over() {
-					break
+					goto over
 				}
 
 				if !again {
 					g.side = !g.side
-				}
-				if g.IsOver() {
-					goto over
 				}
 
 				count, last := g.Board.Moves(g.side)
