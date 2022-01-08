@@ -114,7 +114,12 @@ func launch(dir string, c chan<- *Client) {
 	port := addr[i+1:]
 
 	// Create a client and wait for an incoming connection
-	cli := &Client{notify: c}
+	var run *exec.Cmd
+	cli := &Client{
+		notify: c,
+		token:  []byte(dir),
+		tourn:  true,
+	}
 	go func() {
 		var (
 			dir = path.Base(dir)

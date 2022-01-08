@@ -58,6 +58,7 @@ type Client struct {
 	simple  bool
 	proc    *os.Process
 	notify  chan<- *Client
+	tourn   bool
 
 	// Simple mode state management
 	nyield uint64
@@ -67,6 +68,10 @@ type Client struct {
 func (cli *Client) String() string {
 	if cli == nil {
 		return "RND"
+	}
+
+	if cli.tourn {
+		return string(cli.token)
 	}
 
 	hash := base64.StdEncoding.EncodeToString(cli.token)

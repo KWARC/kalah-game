@@ -222,15 +222,21 @@ func (g *Game) Start() bool {
 		}
 	}
 
-	if g.South.token != nil {
-		g.North.Send("set", "game:opponent", g.South.Id)
-	} else {
-		g.North.Send("set", "game:opponent", "")
+	if !g.North.tourn {
+		if g.South.token != nil {
+			g.North.Send("set", "game:opponent",
+				strconv.FormatInt(g.North.Id, 10))
+		} else {
+			g.North.Send("set", "game:opponent", "")
+		}
 	}
-	if g.North.token != nil {
-		g.South.Send("set", "game:opponent", g.North.Id)
-	} else {
-		g.South.Send("set", "game:opponent", "")
+	if !g.South.tourn {
+		if g.North.token != nil {
+			g.South.Send("set", "game:opponent",
+				strconv.FormatInt(g.South.Id, 10))
+		} else {
+			g.South.Send("set", "game:opponent", "")
+		}
 	}
 
 	g.side = SideSouth
