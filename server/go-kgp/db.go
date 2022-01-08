@@ -58,16 +58,15 @@ func (game *Game) updateDatabase(wait *sync.WaitGroup) DBAction {
 		panic("Saving unlogged game")
 	}
 
-	if !game.IsOver() {
-		panic("Game is not over")
-	}
-
 	return func(db *sql.DB, ctx context.Context) (err error) {
+		defer wait.Done()
+
 		tx, err := db.BeginTx(ctx, nil)
 		if err != nil {
 			log.Print(err)
 			return err
 		}
+		defer tx.Rollback()
 
 		res, err := tx.Stmt(queries["insert-game"]).ExecContext(ctx,
 			len(game.Board.northPits),
@@ -76,6 +75,8 @@ func (game *Game) updateDatabase(wait *sync.WaitGroup) DBAction {
 			game.South.Id,
 			game.Board.Outcome(SideSouth))
 		if err != nil {
+			log.Fatal(err)
+			return
 		}
 		game.Id, err = res.LastInsertId()
 		if err != nil {
@@ -91,7 +92,7 @@ func (game *Game) updateDatabase(wait *sync.WaitGroup) DBAction {
 				move.Comment,
 				move.when)
 			if err != nil {
-				log.Print(err)
+				log.Fatal(err)
 				return
 			}
 		}
@@ -353,11 +354,11 @@ func databaseManager(id uint, db *sql.DB, wg *sync.WaitGroup) {
 		}
 
 		context, cancel := context.WithTimeout(context.Background(), time.Millisecond*10000)
-		defer cancel()
 		act(db, context)
 		if err := context.Err(); err != nil {
 			log.Println(err)
 		}
+		cancel()
 	}
 }
 
