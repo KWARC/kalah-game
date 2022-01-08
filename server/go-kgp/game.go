@@ -229,11 +229,26 @@ func (g *Game) Start() {
 
 	timer := time.NewTimer(time.Duration(conf.Game.Timeout) * time.Second)
 
-	for {
+	for !g.Board.Over() {
 		var (
 			choice *Move
 			next   bool
 		)
+
+		// Random move generator
+		//
+		// If a client is nil, we interpret it as a random
+		// move client.
+		if g.Current() == nil {
+			choice = &Move{Pit: g.Board.Random(g.side)}
+			g.Moves = append(g.Moves, choice)
+
+			if !g.Board.Sow(g.side, choice.Pit) {
+				g.side = !g.side
+			}
+
+			continue
+		}
 
 		select {
 		case m := <-move:
@@ -282,10 +297,6 @@ func (g *Game) Start() {
 			// The time allocated for the current player
 			// is over, and we proceed to the next round.
 			next = true
-		}
-
-		if g.IsOver() {
-			break
 		}
 
 		if next {

@@ -65,6 +65,10 @@ type Client struct {
 }
 
 func (cli *Client) String() string {
+	if cli == nil {
+		return "RND"
+	}
+
 	hash := base64.StdEncoding.EncodeToString(cli.token)
 	if conn, ok := cli.rwc.(net.Conn); ok {
 		return fmt.Sprintf("%s (%q)", conn.RemoteAddr(), hash)
@@ -86,6 +90,10 @@ func (cli *Client) Error(to uint64, args ...interface{}) {
 
 // Respond forwards a referenced message to the client
 func (cli *Client) Respond(to uint64, command string, args ...interface{}) uint64 {
+	if cli == nil {
+		return 0
+	}
+
 	var (
 		buf = bytes.NewBuffer(nil)
 		id  = atomic.AddUint64(&cli.rid, 2)

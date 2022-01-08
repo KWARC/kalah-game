@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"sync"
 )
 
 var (
@@ -63,6 +64,43 @@ func limit(s Sched, n uint) Sched {
 
 		return s(queue)
 	}
+}
+
+var random Sched = func(queue []*Client) []*Client {
+	for _, cli := range queue {
+		go func(cli *Client) {
+			size := conf.Game.Sizes[rand.Intn(len(conf.Game.Sizes))]
+			stones := conf.Game.Stones[rand.Intn(len(conf.Game.Stones))]
+
+			g1 := &Game{
+				Board: makeBoard(size, stones),
+				North: cli,
+				South: nil,
+			}
+			g2 := &Game{
+				Board: makeBoard(size, stones),
+				North: cli,
+				South: nil,
+			}
+
+			g1.Start()
+			g2.Start()
+
+			o1 := g1.Outcome
+			o2 := g2.Outcome
+			if o1 == LOSS && o2 == WIN {
+				cli.Score = 1
+			} else {
+				cli.Score = 0
+			}
+
+			var wait sync.WaitGroup
+			wait.Add(1)
+			dbact <- cli.updateDatabase(&wait, false)
+			wait.Wait()
+		}(cli)
+	}
+	return nil
 }
 
 // The FIFO scheduler minimises the time a client remains in the

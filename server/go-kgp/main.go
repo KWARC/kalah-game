@@ -150,6 +150,8 @@ func main() {
 		sched = fifo
 	case "rr", "round-robin":
 		sched = makeTournament(roundRobin)
+	case "rand":
+		sched = random
 	default:
 		log.Fatal("Unknown scheduler", conf.Sched)
 	}
