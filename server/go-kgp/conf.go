@@ -72,7 +72,6 @@ type DBConf struct {
 }
 
 type TournConf struct {
-	Enabled   bool   `toml:"enabled"`
 	Directory string `toml:"directory"`
 	Rounds    uint   `toml:"rounds"`
 	System    string `toml:"system"`
@@ -95,8 +94,8 @@ type Conf struct {
 
 var defaultConfig = Conf{
 	Debug: false,
+	Sched: "fifo",
 	Tourn: TournConf{
-		Enabled:   false,
 		Directory: ".",
 		Rounds:    1,
 		System:    "round-robin",
