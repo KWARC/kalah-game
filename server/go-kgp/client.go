@@ -56,7 +56,9 @@ type Client struct {
 	comment string
 	simple  bool
 	notify  chan<- *Client
-	tourn   bool
+
+	// Tournament isolation
+	isol Isolation
 
 	// Simple mode state management
 	nyield uint64
@@ -74,7 +76,7 @@ func (cli *Client) String() string {
 		return "RND"
 	}
 
-	if cli.tourn {
+	if cli.isol != nil {
 		return string(cli.token)
 	}
 

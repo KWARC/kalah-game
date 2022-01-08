@@ -220,7 +220,7 @@ func (g *Game) Start() bool {
 		}
 	}
 
-	if !g.North.tourn {
+	if g.North.isol != nil {
 		if g.South.token != nil {
 			g.North.Send("set", "game:opponent",
 				strconv.FormatInt(g.North.Id, 10))
@@ -228,7 +228,7 @@ func (g *Game) Start() bool {
 			g.North.Send("set", "game:opponent", "")
 		}
 	}
-	if !g.South.tourn {
+	if g.South.isol != nil {
 		if g.North.token != nil {
 			g.South.Send("set", "game:opponent",
 				strconv.FormatInt(g.South.Id, 10))
@@ -261,6 +261,14 @@ func (g *Game) Start() bool {
 			}
 
 			continue
+		}
+
+		if g.Current().isol != nil {
+			g.Current().isol.Awake()
+		}
+		other := g.Other(g.Current())
+		if other.isol != nil {
+			other.isol.Sleep()
 		}
 
 		select {

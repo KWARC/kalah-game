@@ -20,7 +20,6 @@
 package main
 
 import (
-	"fmt"
 	"io"
 	"log"
 	"net"
@@ -82,6 +81,69 @@ var roundRobin System = func(t *Tournament) (games []*Game) {
 	return
 }
 
+type Isolation interface {
+	Run(port string) error
+	Halt() error
+	Awake()
+	Sleep()
+}
+
+type Plain struct {
+	run *exec.Cmd
+	dir string
+}
+
+func (p *Plain) Run(port string) error {
+	build := exec.Command("./build.sh")
+	build.Dir = p.dir
+	err := build.Run()
+	if err != nil && !os.IsNotExist(err) {
+		log.Print("Failed to build", p.dir)
+		return err
+	}
+
+	p.run = exec.Command("./run.sh", port)
+
+	var file *os.File
+	file, err = os.Create(p.dir + ".stdout")
+	if err != nil {
+		log.Printf("Failed to redirect stdout for %s: %s",
+			p.dir, err)
+		p.run.Stdout = io.Discard
+	} else {
+		p.run.Stdout = file
+		defer file.Close()
+	}
+	file, err = os.Create(p.dir + ".stderr")
+	if err != nil {
+		log.Printf("Failed to redirect stderr for %s: %s",
+			p.dir, err)
+		p.run.Stderr = io.Discard
+	} else {
+		p.run.Stderr = file
+		defer file.Close()
+	}
+	p.run.Dir = p.dir
+
+	err = p.run.Run()
+	if err != nil {
+		log.Printf("Failed to start %v: %s", p.dir, err)
+		return err
+	}
+	return nil
+}
+
+func (p *Plain) Halt() error {
+	if p.run != nil {
+		return p.run.Process.Kill()
+	}
+	return nil
+}
+
+// Plain processes are not paused
+func (Plain) Sleep() {}
+func (Plain) Awake() {}
+
 type Tournament struct {
 	sync.Mutex
 	// What tournament system is being used (swiss, round-robin,
@@ -116,12 +178,20 @@ func launch(dir string, c chan<- *Client) {
 	}
 	port := addr[i+1:]
 
+	// Initialise and prepare a command for the client depending
+	// on the requested isolation mechanism.
+	var isol Isolation
+	switch conf.Tourn.Isolation {
+	case "none": // In a regular process, without any isolation
+		isol = &Plain{dir: dir}
+	default:
+		log.Fatal("Unknown isolation system", conf.Tourn.Isolation)
+	}
 	// Create a client and wait for an incoming connection
-	var run *exec.Cmd
 	cli := &Client{
 		notify: c,
 		token:  []byte(dir),
-		tourn:  true,
+		isol:   isol,
 	}
 	go func() {
 		var (
@@ -141,72 +211,16 @@ func launch(dir string, c chan<- *Client) {
 		// Handle the connection
 		cli.Handle()
 
-		// Attempt to kill the process, if a process exists
-		if run != nil {
-			err = run.Process.Kill()
-			if err != nil {
-				log.Println(err)
-			}
+		// As soon as the connection is terminated, kill the
+		// isolated process as well.
+		err = isol.Halt()
+		if err != nil {
+			log.Println(err)
 		}
 	}()
 
-	// Initialise and prepare a command for the client depending
-	// on the requested isolation mechanism.
-	switch conf.Tourn.Isolation {
-	case "none": // In a regular process, without any isolation
-		build := exec.Command("./build.sh")
-		build.Dir = dir
-		err = build.Run()
-		if err != nil && !os.IsNotExist(err) {
-			log.Print("Failed to build", dir)
-			c <- nil
-			return
-		}
-
-		run = exec.Command("./run.sh", port)
-		run.Dir = dir
-	case "guix": // In a Guix shell
-		run = exec.Command("guix", "shell",
-			"--container", "--no-cwd",
-			// FIXME: map localhost:2761 in the container
-			// to the port of the client's listener
-			"--network",
-			fmt.Sprintf("--expose=%s=/kalah", dir),
-			"--", "/kalah/run.sh", port)
-	default:
-		log.Fatal("Unknown isolation system", conf.Tourn.Isolation)
-	}
-
-	var file *os.File
-	file, err = os.Create(dir + ".stdout")
-	if err != nil {
-		log.Printf("Failed to redirect stdout for %s: %s",
-			dir, err)
-		run.Stdout = io.Discard
-	} else {
-		run.Stdout = file
-		defer file.Close()
-	}
-	file, err = os.Create(dir + ".stderr")
-	if err != nil {
-		log.Printf("Failed to redirect stderr for %s: %s",
-			dir, err)
-		run.Stderr = io.Discard
-	} else {
-		run.Stderr = file
-		defer file.Close()
-	}
-
-	err = run.Run()
-	if err != nil {
-		log.Printf("Failed to start %v: %s", dir, err)
-	}
-	if cli.kill != nil {
-		// cli.kill is set in Client.Handle, that might not
-		// have been called if the connection failed and the
-		// processed aborted.
-		cli.kill()
-	}
+	isol.Run(port)
+	cli.kill()
 }
 
 func makeTournament(sys System) Sched {
