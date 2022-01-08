@@ -297,5 +297,5 @@ func (cli *Client) Handle() {
 		cli.game.death <- cli
 	}
 
-	debug.Print("Closed connection to", cli)
+	debug.Print("Closed connection to ", cli)
 }

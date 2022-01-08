@@ -63,10 +63,8 @@ type Game struct {
 	move  chan<- *Move
 	death chan<- *Client
 	// The two clients
-	North   *Client
-	South   *Client
-	nchoice int
-	schoice int
+	North *Client
+	South *Client
 	// Is this game logged in the database?
 	logged bool
 	// Data for the web interface.
@@ -312,44 +310,50 @@ func (g *Game) Start() bool {
 			g.Current().Respond(g.last, "stop")
 			atomic.AddUint64(&g.Current().nstop, 1)
 
-			for {
-				// We generate a random move to replace
-				// whatever the current choice is, either if
-				// no choice was made (denoted by a -1) or if
-				// the client is playing in simple mode and
-				// there are pending stop requests that have
-				// to be responded to with a yield
-				if choice == nil || (g.Current().simple && g.Current().nstop != g.Current().nyield) {
-					choice.Pit = g.Board.Random(g.side)
+			// We generate a random move to replace
+			// whatever the current choice is, either if
+			// no choice was made (denoted by a -1) or if
+			// the client is playing in simple mode and
+			// there are pending stop requests that have
+			// to be responded to with a yield
+			if choice == nil || (g.Current().simple && g.Current().nstop != g.Current().nyield) {
+				choice = &Move{
+					Client: g.Current(),
+					Pit:    g.Board.Random(g.side),
+					when:   time.Now(),
 				}
+			}
 
+			for {
+				again := g.Board.Sow(g.side, choice.Pit)
+				if g.Board.Over() {
+					goto over
+				}
 				g.Moves = append(g.Moves, choice)
 
-				for {
-					again := g.Board.Sow(g.side, choice.Pit)
-					if g.Board.Over() {
-						goto over
-					}
-
-					if !again {
-						g.side = !g.side
-					}
-
-					count, last := g.Board.Moves(g.side)
-					if count == 0 {
-						panic("No moves even though game is not over")
-					} else if count == 1 && conf.Game.SkipTriv {
-						// Skip trivial moves
-						choice.Pit = last
-					} else {
-						break
-					}
+				if !again {
+					g.side = !g.side
 				}
 
-				g.last = g.Current().Send("state", g)
-
-				timer.Reset(time.Duration(conf.Game.Timeout) * time.Second)
+				count, last := g.Board.Moves(g.side)
+				if count == 0 {
+					// g.Board.Over must be broken
+					panic("No moves even though game is not over")
+				} else if count == 1 && conf.Game.SkipTriv {
+					// Skip trivial moves
+					choice = &Move{
+						Client: g.Current(),
+						Pit:    last,
+						when:   time.Now(),
+					}
+				} else {
+					break
+				}
 			}
+
+			g.last = g.Current().Send("state", g)
+
+			timer.Reset(time.Duration(conf.Game.Timeout) * time.Second)
 		}
 	}
 over:
