@@ -21,6 +21,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -43,7 +44,7 @@ type Move struct {
 	Client  *Client
 	Comment string
 	Yield   bool
-	id      uint64
+	id, ref uint64
 	when    time.Time
 }
 
@@ -156,22 +157,24 @@ func (g *Game) Other(cli *Client) *Client {
 var slots chan struct{}
 
 // Start manages a game between the north and south client
-func (g *Game) Start() {
+func (g *Game) Start() bool {
 	if slots != nil {
 		// Attempt to reserve a slot
 		<-slots
 	}
 
 	defer func() {
-		// Have the clients forget about this game
+		g.Outcome = g.Board.Outcome(SideSouth)
 		g.North.game = nil
 		g.South.game = nil
+		atomic.AddInt64(&playing, -2)
 
 		// Initiate an available slot
 		if slots != nil {
 			slots <- struct{}{}
 		}
 	}()
+	atomic.AddInt64(&playing, 2)
 
 	move := make(chan *Move)
 	death := make(chan *Client)
@@ -179,11 +182,17 @@ func (g *Game) Start() {
 	g.death = death
 
 	if g.North.game != nil {
-		panic("Already part of game")
+		panic(fmt.Sprintf("Already %s part of game %s (%s, %s) while entering %s (%s, %s)",
+			g.North,
+			g.North.game, g.North.game.South, g.North.game.North,
+			g, g.South, g.North))
 	}
 	g.North.game = g
 	if g.South.game != nil {
-		panic("Already part of game")
+		panic(fmt.Sprintf("Already %s part of game %s (%s, %s) while entering %s (%s, %s)",
+			g.South,
+			g.South.game, g.South.game.South, g.South.game.South,
+			g, g.South, g.North))
 	}
 	g.South.game = g
 
@@ -273,7 +282,8 @@ func (g *Game) Start() {
 			}
 		case cli := <-death:
 			if g.North != cli && g.South != cli {
-				panic("Unrelated death")
+				log.Print("Unrelated death")
+				return false
 			}
 			opp := g.Other(cli)
 
@@ -282,17 +292,10 @@ func (g *Game) Start() {
 			// be removed.
 			time.Sleep(time.Second)
 
-			if conf.Endless {
-				if g.Current() == opp {
-					opp.Respond(g.last, "stop")
-				}
-				opp.game = nil
-				enqueue <- opp
-			} else {
-				opp.kill()
+			if g.Current() == opp {
+				opp.Respond(g.last, "stop")
 			}
-
-			return
+			return false
 		case <-timer.C:
 			// The time allocated for the current player
 			// is over, and we proceed to the next round.
@@ -316,19 +319,34 @@ func (g *Game) Start() {
 
 				g.Moves = append(g.Moves, choice)
 
-				again := g.Board.Sow(g.side, choice.Pit)
-				if g.Board.Over() {
-					break
+				for {
+					again := g.Board.Sow(g.side, choice.Pit)
+					if g.Board.Over() {
+						goto over
+					}
+
+					if !again {
+						g.side = !g.side
+					}
+
+					count, last := g.Board.Moves(g.side)
+					if count == 0 {
+						panic("No moves even though game is not over")
+					} else if count == 1 && conf.Game.SkipTriv {
+						// Skip trivial moves
+						choice.Pit = last
+					} else {
+						break
+					}
 				}
 
-				if !again {
-					g.side = !g.side
-				}
+				g.last = g.Current().Send("state", g)
+
+				timer.Reset(time.Duration(conf.Game.Timeout) * time.Second)
 			}
-
-			g.last = g.Current().Send("state", g)
-
-			timer.Reset(time.Duration(conf.Game.Timeout) * time.Second)
 		}
 	}
+over:
+
+	return true
 }

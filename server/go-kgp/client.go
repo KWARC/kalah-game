@@ -180,6 +180,11 @@ func (cli *Client) Pinger(done <-chan struct{}) {
 		// If the timer fired, check the ping flag and
 		// kill the client if it is still set
 		if cli.pinged {
+			// Attempt to send an error message, ignoring errors
+			cli.lock.Lock()
+			fmt.Fprint(cli.rwc, "error \"Pending pong\"\r\n")
+			cli.lock.Unlock()
+
 			log.Printf("%s did not respond to a ping in time", cli)
 			cli.kill()
 			break

@@ -1,15 +1,12 @@
 #!/usr/bin/env python3
 
 import os
-from random import choice
+import random
 
 import kgp
 
 def random_agent(state):
-    try:
-        yield choice(state.legal_moves(kgp.SOUTH))
-    except IndexError:
-        pass
+    yield random.choice(state.legal_moves(kgp.SOUTH))
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-This is a client-side library implementation of the Kalah Game Protocl
+This is a client-side library implementation of the Kalah Game Protocol
 (KGP), written in Python 3[0].  It implements the base protocol, without
 any extensions.  Currently, it assumes the "freeplay" mode.
 
@@ -12,9 +12,13 @@ your local system package manager[2].
 
 Client examples can be found in the examples/ subdirectory.
 
+Pykgp should be compatible with PyPy[3], an alternative and faster
+implementation of Python.
+
 [0] https://www.python.org/
 [1] https://pypi.org/project/websocket-client/
 [2] https://repology.org/project/python:websocket-client/packages,
     https://repology.org/project/websocket-client/packages
+[3] https://www.pypy.org/
 
 Maintainer: Philip Kaludercic <philip.kaludercic@fau.de>

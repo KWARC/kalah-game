@@ -132,6 +132,7 @@ func TestLegal(t *testing.T) {
 
 func TestSow(t *testing.T) {
 	conf.Game.EarlyWin = false
+	conf.Game.SkipTriv = false
 
 	for i, test := range []struct {
 		start, end *Board

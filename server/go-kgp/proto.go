@@ -192,6 +192,7 @@ func (cli *Client) Interpret(input string) error {
 			Pit:    int(pit) - 1,
 			Client: cli,
 			id:     id,
+			ref:    ref,
 		}
 	case "yield":
 		if game == nil || !game.IsCurrent(cli, ref) {

@@ -109,6 +109,10 @@ var fifo Sched = func(queue []*Client) []*Client {
 	north := queue[0]
 	for i, cli := range queue[1:] {
 		i += 1
+		if cli.game != nil || cli.rwc == nil {
+			queue = append(queue[:i], queue[i+1:]...)
+			continue
+		}
 		if !bytes.Equal(cli.token, north.token) || cli.token == nil {
 			south := cli
 			queue[i] = queue[len(queue)-1]
@@ -233,7 +237,16 @@ func schedule(sched Sched) {
 	for {
 		select {
 		case cli := <-enqueue:
-			queue = append(queue, cli)
+			vacant := true
+			for _, c := range queue {
+				if cli == c {
+					vacant = false
+					break
+				}
+			}
+			if vacant {
+				queue = append(queue, cli)
+			}
 		case cli := <-forget:
 			queue = remove(queue, cli)
 		}
