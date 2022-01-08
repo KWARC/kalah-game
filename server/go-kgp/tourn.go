@@ -300,10 +300,10 @@ func (t *Tournament) Match(queue []*Client) []*Client {
 				}
 			}
 
+			atomic.AddInt64(&t.waiting, -1)
+
 			enqueue <- game.North
 			enqueue <- game.South
-
-			atomic.AddInt64(&t.waiting, -1)
 		}(game)
 	}
 

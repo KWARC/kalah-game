@@ -52,7 +52,7 @@ type Client struct {
 	lock    sync.Mutex
 	rid     uint64
 	kill    context.CancelFunc
-	pinged  bool
+	pinged  uint32
 	token   []byte
 	comment string
 	simple  bool
@@ -175,24 +175,30 @@ func (cli *Client) Pinger(done <-chan struct{}) {
 		case <-done:
 			return
 		case <-ticker.C:
+			// If the timer fired, check the ping flag and
+			// kill the client if it is still set
 		}
 
-		// If the timer fired, check the ping flag and
-		// kill the client if it is still set
-		if cli.pinged {
+		// To prevent race conditions, we atomically check and
+		// reset the pinged flag.  In case the old value is
+		// not 0 (indicating it the client was not pinged), we
+		// will not abort the connection.  Otherwise, if we do
+		// manage to reset the flag as expected, we assume the
+		// client has timed out.
+		if atomic.SwapUint32(&cli.pinged, 0) == 1 {
 			// Attempt to send an error message, ignoring errors
 			cli.lock.Lock()
 			fmt.Fprint(cli.rwc, "error \"Pending pong\"\r\n")
 			cli.lock.Unlock()
 
-			log.Printf("%s did not respond to a ping in time", cli)
+			debug.Printf("%s did not respond to a ping in time", cli)
 			cli.kill()
 			break
 		}
+
 		// In case it was not set, ping the client
 		// again and reset the flag
 		cli.Send("ping")
-		cli.pinged = true
 	}
 }
 

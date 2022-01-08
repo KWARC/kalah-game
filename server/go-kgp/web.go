@@ -33,6 +33,7 @@ import (
 	"path"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -83,9 +84,13 @@ var (
 		"now": func() string {
 			return time.Now().Format(time.RFC3339)
 		},
-		"waiting": func() int64 { return waiting },
-		"playing": func() int64 { return playing },
-		"are": func(n int64) string {
+		"waiting": func() uint64 {
+			return atomic.LoadUint64(&waiting)
+		},
+		"playing": func() uint64 {
+			return atomic.LoadUint64(&playing)
+		},
+		"are": func(n uint64) string {
 			if n == 1 {
 				return "is"
 			}

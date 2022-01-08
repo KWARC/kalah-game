@@ -125,7 +125,7 @@ func (g *Game) IsCurrent(cli *Client, ref uint64) bool {
 		return false
 	}
 
-	return g.Current() == cli && (g.last == ref || ref == 0)
+	return g.Current() == cli && (atomic.LoadUint64(&g.last) == ref || ref == 0)
 }
 
 // Other returns the opponent of CLI, or nil if CLI is not playing a
@@ -167,14 +167,14 @@ func (g *Game) Start() bool {
 		g.Outcome = g.Board.Outcome(SideSouth)
 		g.North.game = nil
 		g.South.game = nil
-		atomic.AddInt64(&playing, -2)
+		atomic.AddUint64(&playing, ^uint64(1))
 
 		// Initiate an available slot
 		if slots != nil {
 			slots <- struct{}{}
 		}
 	}()
-	atomic.AddInt64(&playing, 2)
+	atomic.AddUint64(&playing, 2)
 
 	move := make(chan *Move)
 	death := make(chan *Client)
@@ -234,7 +234,7 @@ func (g *Game) Start() bool {
 	}
 
 	g.side = SideSouth
-	g.last = g.South.Send("state", g)
+	atomic.StoreUint64(&g.last, g.South.Send("state", g))
 
 	timer := time.NewTimer(time.Duration(conf.Game.Timeout) * time.Second)
 

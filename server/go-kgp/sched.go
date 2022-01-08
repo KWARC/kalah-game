@@ -27,13 +27,14 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 )
 
 var (
 	enqueue = make(chan *Client) // append a client to the queue
 	forget  = make(chan *Client) // remove a client from the queue
 
-	playing, waiting int64
+	playing, waiting uint64
 )
 
 // A Scheduler updates the waiting queue and manages games
@@ -314,7 +315,7 @@ func schedule(sched Sched) {
 		queue = sched(queue)
 
 		// Update statistics
-		waiting = int64(len(queue))
+		atomic.StoreUint64(&waiting, uint64(len(queue)))
 	}
 }
 

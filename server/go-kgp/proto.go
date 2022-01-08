@@ -214,7 +214,7 @@ func (cli *Client) Interpret(input string) error {
 		// We do not expect the client to confirm or reject anything,
 		// so we can ignore these response messages.
 	case "pong":
-		cli.pinged = false
+		atomic.StoreUint32(&cli.pinged, 0)
 	case "set":
 		// Note that VAL doesn't have to be a string per spec,
 		// but we will parse it as such to keep it in it's
