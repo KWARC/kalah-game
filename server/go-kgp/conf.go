@@ -171,6 +171,7 @@ func (conf *Conf) init() {
 
 	if conf.Debug {
 		debug.SetOutput(os.Stderr)
+		log.SetFlags(log.Flags() | log.Lshortfile)
 	} else {
 		debug.SetOutput(io.Discard)
 	}
