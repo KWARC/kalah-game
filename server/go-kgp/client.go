@@ -28,7 +28,6 @@ import (
 	"io"
 	"log"
 	"net"
-	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -56,7 +55,6 @@ type Client struct {
 	token   []byte
 	comment string
 	simple  bool
-	proc    *os.Process
 	notify  chan<- *Client
 	tourn   bool
 

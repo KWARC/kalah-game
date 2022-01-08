@@ -21,12 +21,14 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"os"
 	"os/exec"
 	"path"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -61,7 +63,7 @@ var roundRobin System = func(t *Tournament) (games []*Game) {
 		j += int(t.round) - 1
 		j %= len(t.participants) - 1
 
-		circle[1+i] = t.participants[1+j]
+		circle[i] = t.participants[1+j]
 	}
 
 	n := len(circle)
@@ -73,7 +75,7 @@ var roundRobin System = func(t *Tournament) (games []*Game) {
 		games = append(games, &Game{
 			Board: makeBoard(size, stones),
 			North: circle[i],
-			South: circle[n-i],
+			South: circle[n-i-1],
 		})
 	}
 
@@ -81,6 +83,7 @@ var roundRobin System = func(t *Tournament) (games []*Game) {
 }
 
 type Tournament struct {
+	sync.Mutex
 	// What tournament system is being used (swiss, round-robin,
 	// single-elimination, ...).
 	system System
@@ -137,14 +140,22 @@ func launch(dir string, c chan<- *Client) {
 
 		// Handle the connection
 		cli.Handle()
+
+		// Attempt to kill the process, if a process exists
+		if run != nil {
+			err = run.Process.Kill()
+			if err != nil {
+				log.Println(err)
+			}
+		}
 	}()
 
 	// Initialise and prepare a command for the client depending
 	// on the requested isolation mechanism.
-	var run *exec.Cmd
 	switch conf.Tourn.Isolation {
 	case "none": // In a regular process, without any isolation
-		build := exec.Command(path.Join(dir, "build.sh"))
+		build := exec.Command("./build.sh")
+		build.Dir = dir
 		err = build.Run()
 		if err != nil && !os.IsNotExist(err) {
 			log.Print("Failed to build", dir)
@@ -152,7 +163,8 @@ func launch(dir string, c chan<- *Client) {
 			return
 		}
 
-		run = exec.Command(path.Join(dir, "run.sh", port))
+		run = exec.Command("./run.sh", port)
+		run.Dir = dir
 	case "guix": // In a Guix shell
 		run = exec.Command("guix", "shell",
 			"--container", "--no-cwd",
@@ -165,12 +177,36 @@ func launch(dir string, c chan<- *Client) {
 		log.Fatal("Unknown isolation system", conf.Tourn.Isolation)
 	}
 
-	// Start the command and remember the client's process
-	err = run.Start()
+	var file *os.File
+	file, err = os.Create(dir + ".stdout")
 	if err != nil {
-		log.Fatal("Failed to start", dir, err)
+		log.Printf("Failed to redirect stdout for %s: %s",
+			dir, err)
+		run.Stdout = io.Discard
+	} else {
+		run.Stdout = file
+		defer file.Close()
 	}
-	cli.proc = run.Process
+	file, err = os.Create(dir + ".stderr")
+	if err != nil {
+		log.Printf("Failed to redirect stderr for %s: %s",
+			dir, err)
+		run.Stderr = io.Discard
+	} else {
+		run.Stderr = file
+		defer file.Close()
+	}
+
+	err = run.Run()
+	if err != nil {
+		log.Printf("Failed to start %v: %s", dir, err)
+	}
+	if cli.kill != nil {
+		// cli.kill is set in Client.Handle, that might not
+		// have been called if the connection failed and the
+		// processed aborted.
+		cli.kill()
+	}
 }
 
 func makeTournament(sys System) Sched {
@@ -195,7 +231,7 @@ func makeTournament(sys System) Sched {
 		}
 
 		// Attempt to launch the client in ent.
-		launch(ent.Name(), clich)
+		go launch(ent.Name(), clich)
 		c++
 	}
 
@@ -236,6 +272,10 @@ func makeTournament(sys System) Sched {
 }
 
 func (t *Tournament) Match(queue []*Client) []*Client {
+	debug.Printf("Ongoing games %d, waiting clients %d", t.waiting, len(queue))
+	if queue == nil {
+		shutdown()
+	}
 	if t.waiting != 0 {
 		return queue
 	}
@@ -258,14 +298,21 @@ func (t *Tournament) Match(queue []*Client) []*Client {
 	games := t.system(t)
 	if games == nil {
 		log.Print("Tournament has finished")
+		shutdown()
 		return nil
 	} else {
-		log.Print("Starting round", t.round)
+		log.Print("Starting round ", t.round)
 	}
 
 	t.waiting = int64(len(games))
 	for _, game := range games {
 		go func(game *Game) {
+			var wait sync.WaitGroup
+			wait.Add(2)
+			dbact <- game.South.updateDatabase(&wait, true)
+			dbact <- game.North.updateDatabase(&wait, true)
+			wait.Wait()
+
 			// Create a second game with reversed positions
 			size := uint(len(game.Board.northPits))
 			emag := &Game{
@@ -277,24 +324,31 @@ func (t *Tournament) Match(queue []*Client) []*Client {
 			game.Start()
 			emag.Start()
 
+			defer t.Unlock()
+			t.Lock()
 			switch game.Outcome {
 			case WIN:
 				if game.Outcome != emag.Outcome {
+					log.Printf("%s was undecided %s", game.South, game.North)
 					break
 				}
+				log.Printf("%s won against %s", game.South, game.North)
 				t.record[game.South] = append(t.record[game.South], game.North)
 				if err := game.updateScore(); err != nil {
 					log.Println(err)
 				}
 			case LOSS:
 				if game.Outcome != emag.Outcome {
+					log.Printf("%s was undecided %s", game.North, game.South)
 					break
 				}
+				log.Printf("%s won against %s", game.North, game.South)
 				t.record[game.North] = append(t.record[game.North], game.South)
 				if err := game.updateScore(); err != nil {
 					log.Println(err)
 				}
 			case DRAW:
+				log.Printf("%s played a draw against %s", game.South, game.North)
 				t.record[game.South] = append(t.record[game.South], game.North)
 				t.record[game.North] = append(t.record[game.North], game.South)
 				if err := game.updateScore(); err != nil {
