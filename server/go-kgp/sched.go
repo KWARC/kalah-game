@@ -24,6 +24,8 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -36,6 +38,9 @@ var (
 
 // A Scheduler updates the waiting queue and manages games
 type Sched func([]*Client) []*Client
+
+// Discard a tournament
+func noop(queue []*Client) []*Client { return nil }
 
 // Compose multiple scheduling systems into one
 func compose(s ...Sched) Sched {
@@ -64,6 +69,60 @@ func limit(s Sched, n uint) Sched {
 
 		return s(queue)
 	}
+}
+
+// Fun FN on every client in the queue and update the database
+func foreach(fn func(*Client)) Sched {
+	return func(queue []*Client) []*Client {
+		var wg sync.WaitGroup
+
+		for _, cli := range queue {
+			wg.Add(1)
+			fn(cli)
+			dbact <- cli.updateDatabase(&wg, false)
+		}
+
+		wg.Done()
+		return queue
+	}
+}
+
+// Reset the score of every client to SCORE
+func reset(score float64) Sched {
+	return foreach(func(cli *Client) {
+		cli.Score = score
+	})
+}
+
+// Split clients into two different schedulers via PRED
+//
+// If PRED returns true for a client, add it to SA, else SB.
+func partition(sa Sched, sb Sched, pred func(*Client) bool) Sched {
+	return func(queue []*Client) []*Client {
+		aqueue := make([]*Client, 0, len(queue))
+		bqueue := make([]*Client, 0, len(queue))
+
+		for _, cli := range queue {
+			if pred(cli) {
+				aqueue = append(aqueue, cli)
+			} else {
+				bqueue = append(bqueue, cli)
+			}
+		}
+
+		return append(sa(aqueue), sb(bqueue)...)
+	}
+}
+
+func filter(s Sched, pred func(*Client) bool) Sched {
+	return partition(s, noop, pred)
+}
+
+// Modify a scheduler to drop everyone with a score below SCORE
+func bound(s Sched, score float64) Sched {
+	return filter(s, func(c *Client) bool {
+		return c.Score >= score
+	})
 }
 
 var random Sched = func(queue []*Client) []*Client {
@@ -257,4 +316,85 @@ func schedule(sched Sched) {
 		// Update statistics
 		waiting = int64(len(queue))
 	}
+}
+
+// Parse a scheduler specification into a scheduler
+//
+// Each specification is a list of tokens operating on a scheduler
+// stack.
+//
+// The simplest case is a single word denoting a primitive scheduler:
+//
+//    "random"
+//    "round-robin"
+//
+// A more complicated example might combine schedulers.  For example
+//
+//    "round-robin random compose"
+//
+// will add a round-robin scheduler to the stack, followed by a random
+// scheduler, then combine these into a sequential scheduler that
+// first executes the random scheduler, then the random scheduler.
+//
+// Some tokens may use arguments, separated by periods, to modify
+// their behaviour (here using the abbreviated syntax):
+//
+//    "rr !.1000 $ |.1 > >"
+//
+// Would start a random scheduler, eliminate all clients that lost a
+// random match (ie. have a score of 0, as opposed to 1), proceed to
+// reset the score for all remaining clients and finally start a
+// round-robin tournament.
+func parseSched(spec string) Sched {
+	var st []Sched
+
+	for i, word := range strings.Split(spec, " ") {
+		parse := strings.Split(word, ".")
+		switch parse[0] {
+		// Scheduler primitives
+		case "fifo":
+			st = append(st, fifo)
+		case "rand", "random", "$":
+			st = append(st, random)
+		case "noop":
+			st = append(st, noop)
+		case "rr", "round-robin":
+			st = append(st, makeTournament(roundRobin))
+
+			// Scheduler combinators
+		case "seq", "compose", "+", ">":
+			if len(st) < 2 {
+				log.Fatal("Stack underflow at", i)
+			}
+			a := st[len(st)-1]
+			b := st[len(st)-2]
+			st = append(st[:len(st)-2], compose(a, b))
+		case "limit", "=":
+			n, err := strconv.Atoi(parse[1])
+			if err != nil || n < 0 {
+				log.Fatal("Invalid limit", parse[1])
+			}
+			s := limit(st[len(st)-1], uint(n))
+			st = append(st[:len(st)-1], s)
+		case "bound", "filter", "|":
+			score, err := strconv.ParseFloat(parse[1], 64)
+			if err != nil || score < 0 {
+				log.Fatal("Invalid score", parse[1])
+			}
+			st = append(st[:len(st)-1], bound(st[len(st)-1], score))
+		case "reset", "!":
+			score, err := strconv.ParseFloat(parse[1], 64)
+			if err != nil || score < 0 {
+				log.Fatal("Invalid score", parse[1])
+			}
+			st = append(st[:len(st)-1], reset(score))
+		default:
+			log.Fatal("Unknown word", word)
+		}
+	}
+
+	if len(st) == 0 {
+		log.Fatal("Failed to parse scheduler spec")
+	}
+	return st[len(st)-1] // Pop top-of-stack
 }

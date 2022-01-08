@@ -92,9 +92,9 @@ func main() {
 	flag.StringVar(&conf.Web.About, "about",
 		conf.Web.About,
 		"A template for the about page")
-	flag.BoolVar(&conf.Tourn.Enabled, "tour",
-		conf.Tourn.Enabled,
-		"Manage a local tournament.")
+	flag.StringVar(&conf.Sched, "sched",
+		conf.Sched,
+		"Set game scheduler.")
 	flag.StringVar(&conf.Tourn.Isolation, "isolate",
 		conf.Tourn.Isolation,
 		"Isolation mechanism used for the tournament.")
@@ -144,18 +144,7 @@ func main() {
 	}
 
 	// Start match scheduler
-	var sched Sched
-	switch conf.Sched {
-	case "fifo":
-		sched = fifo
-	case "rr", "round-robin":
-		sched = makeTournament(roundRobin)
-	case "rand":
-		sched = random
-	default:
-		log.Fatal("Unknown scheduler", conf.Sched)
-	}
-	go schedule(sched)
+	go schedule(parseSched(conf.Sched))
 
 	// Start database manager
 	manageDatabase()
