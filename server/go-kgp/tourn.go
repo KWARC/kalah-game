@@ -228,8 +228,8 @@ func (t *Tournament) Match(queue []*Client) []*Client {
 				South: game.North,
 			}
 
-			game.Start()
-			emag.Start()
+			game.Play()
+			emag.Play()
 
 			defer t.Unlock()
 			t.Lock()

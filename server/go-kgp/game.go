@@ -154,8 +154,8 @@ func (g *Game) Other(cli *Client) *Client {
 // initialised in main according to conf.Game.Slots.
 var slots chan struct{}
 
-// Start manages a game between the north and south client
-func (g *Game) Start() bool {
+// Play manages a game between the north and south client
+func (g *Game) Play() bool {
 	if slots != nil {
 		// Attempt to reserve a slot
 		<-slots

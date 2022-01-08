@@ -143,8 +143,8 @@ var random Sched = func(queue []*Client) []*Client {
 				South: nil,
 			}
 
-			g1.Start()
-			g2.Start()
+			g1.Play()
+			g2.Play()
 
 			o1 := g1.Outcome
 			o2 := g2.Outcome
@@ -191,14 +191,14 @@ var fifo Sched = func(queue []*Client) []*Client {
 					North: north,
 					South: south,
 				}
-				g1.Start()
+				g1.Play()
 
 				g2 := &Game{
 					Board: makeBoard(size, stones),
 					North: south,
 					South: north,
 				}
-				g2.Start()
+				g2.Play()
 
 				o1 := g1.Outcome
 				o2 := g2.Outcome
