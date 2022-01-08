@@ -1,4 +1,4 @@
-// Tournament Systems
+// Tournament Managment
 //
 // Copyright (c) 2022  Philip Kaludercic
 //
@@ -20,11 +20,9 @@
 package main
 
 import (
-	"io"
 	"log"
 	"net"
 	"os"
-	"os/exec"
 	"path"
 	"strings"
 	"sync"
@@ -32,117 +30,12 @@ import (
 	"time"
 )
 
-type System func(*Tournament) []*Game
-
-var roundRobin System = func(t *Tournament) (games []*Game) {
-	// Check of the tournament is over
-	if int(t.round) >= len(t.participants) {
-		return nil
-	}
-
-	// Calculate the size of the board/number of stones for this
-	// round of the tournament
-	r := (float64(t.round) / float64(len(t.participants)))
-	size := conf.Game.Sizes[int(float64(len(conf.Game.Sizes))*r)]
-	stones := conf.Game.Stones[int(float64(len(conf.Game.Stones))*r)]
-
-	// Collect all games for the current round, using the circle
-	// method:
-	// https://en.wikipedia.org/wiki/Round-robin_tournament#Circle_method
-	circle := make([]*Client, len(t.participants))
-	copy(circle, t.participants)
-
-	for i := 1; i < len(t.participants); i++ {
-		// Starting from the current position...
-		j := i
-		// The circle method rotates the 2nd to last
-		// participant by one place for each round.  This
-		// calculates the assignments directly for the nth
-		// round:
-		j += int(t.round) - 1
-		j %= len(t.participants) - 1
-
-		circle[i] = t.participants[1+j]
-	}
-
-	n := len(circle)
-	if n%2 == 1 {
-		// Ensure n is even
-		n--
-	}
-	for i := 0; i < len(circle)/2; i++ {
-		games = append(games, &Game{
-			Board: makeBoard(size, stones),
-			North: circle[i],
-			South: circle[n-i-1],
-		})
-	}
-
-	return
-}
-
 type Isolation interface {
 	Run(port string) error
 	Halt() error
 	Awake()
 	Sleep()
 }
-
-type Plain struct {
-	run *exec.Cmd
-	dir string
-}
-
-func (p *Plain) Run(port string) error {
-	build := exec.Command("./build.sh")
-	build.Dir = p.dir
-	err := build.Run()
-	if err != nil && !os.IsNotExist(err) {
-		log.Print("Failed to build", p.dir)
-		return err
-	}
-
-	p.run = exec.Command("./run.sh", port)
-
-	var file *os.File
-	file, err = os.Create(p.dir + ".stdout")
-	if err != nil {
-		log.Printf("Failed to redirect stdout for %s: %s",
-			p.dir, err)
-		p.run.Stdout = io.Discard
-	} else {
-		p.run.Stdout = file
-		defer file.Close()
-	}
-	file, err = os.Create(p.dir + ".stderr")
-	if err != nil {
-		log.Printf("Failed to redirect stderr for %s: %s",
-			p.dir, err)
-		p.run.Stderr = io.Discard
-	} else {
-		p.run.Stderr = file
-		defer file.Close()
-	}
-	p.run.Dir = p.dir
-
-	err = p.run.Run()
-	if err != nil {
-		log.Printf("Failed to start %v: %s", p.dir, err)
-		return err
-	}
-	return nil
-}
-
-func (p *Plain) Halt() error {
-	if p.run != nil {
-		return p.run.Process.Kill()
-	}
-	return nil
-}
-
-// Plain processes are not paused
-func (Plain) Sleep() {}
-func (Plain) Awake() {}
 
 type Tournament struct {
 	sync.Mutex
