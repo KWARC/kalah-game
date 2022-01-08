@@ -50,7 +50,7 @@ type Client struct {
 	rwc     io.ReadWriteCloser
 	lock    sync.Mutex
 	rid     uint64
-	kill    context.CancelFunc
+	killFn  context.CancelFunc
 	pinged  uint32
 	token   []byte
 	comment string
@@ -61,6 +61,12 @@ type Client struct {
 	// Simple mode state management
 	nyield uint64
 	nstop  uint64
+}
+
+func (cli *Client) kill() {
+	if cli != nil && cli.killFn != nil {
+		cli.killFn()
+	}
 }
 
 func (cli *Client) String() string {
@@ -215,7 +221,7 @@ func (cli *Client) Handle() {
 	defer cli.rwc.Close()
 
 	var ctx context.Context
-	ctx, cli.kill = context.WithCancel(context.Background())
+	ctx, cli.killFn = context.WithCancel(context.Background())
 
 	// Initiate the protocol with the client
 	cli.Send("kgp", majorVersion, minorVersion, patchVersion)
