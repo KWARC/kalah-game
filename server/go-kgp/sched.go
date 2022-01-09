@@ -41,7 +41,12 @@ var (
 type Sched func([]*Client) []*Client
 
 // Discard a tournament
-func noop(queue []*Client) []*Client { return nil }
+func noop(queue []*Client) []*Client {
+	for _, cli := range queue {
+		cli.kill()
+	}
+	return nil
+}
 
 // Compose multiple scheduling systems into one
 func compose(s ...Sched) Sched {
