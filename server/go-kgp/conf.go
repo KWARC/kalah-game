@@ -65,10 +65,11 @@ type TCPConf struct {
 }
 
 type DBConf struct {
-	File    string        `toml:"file"`
-	Threads uint          `toml:"threads"`
-	Mode    string        `toml:"mode"`
-	Timeout time.Duration `toml:"timeout"`
+	File     string        `toml:"file"`
+	Threads  uint          `toml:"threads"`
+	Mode     string        `toml:"mode"`
+	Timeout  time.Duration `toml:"timeout"`
+	Optimise bool          `toml:"optimise"`
 }
 
 type TournConf struct {
@@ -104,9 +105,10 @@ var defaultConfig = Conf{
 		Warmup:    60 * 10,
 	},
 	Database: DBConf{
-		File:    "kalah.sql",
-		Threads: 1,
-		Timeout: 100 * time.Millisecond,
+		File:     "kalah.sql",
+		Threads:  1,
+		Timeout:  100 * time.Millisecond,
+		Optimise: true,
 	},
 	Endless: true,
 	Game: GameConf{

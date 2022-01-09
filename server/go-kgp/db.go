@@ -429,16 +429,18 @@ func manageDatabase() {
 		log.Fatal(err)
 	}
 
-	go func() {
-		for {
-			time.Sleep(8 * time.Hour)
-			// https://www.sqlite.org/pragma.html#pragma_optimize
-			_, err = db.Exec("PRAGMA optimize;")
-			if err != nil {
-				log.Print(err)
+	if conf.Database.Optimise {
+		go func() {
+			for {
+				time.Sleep(8 * time.Hour)
+				// https://www.sqlite.org/pragma.html#pragma_optimize
+				_, err = db.Exec("PRAGMA optimize;")
+				if err != nil {
+					log.Print(err)
+				}
 			}
-		}
-	}()
+		}()
+	}
 
 	var wg sync.WaitGroup
 	for id := uint(0); id < conf.Database.Threads; id++ {
