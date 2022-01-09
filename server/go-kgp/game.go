@@ -210,7 +210,7 @@ func (g *Game) Play() bool {
 		wait.Wait()
 		g.North.Send("set", "game:id", strconv.FormatInt(g.Id, 10))
 		g.South.Send("set", "game:id", strconv.FormatInt(g.Id, 10))
-		if conf.Web.Base != "" {
+		if conf.Web.Enabled && conf.Web.Base != "" {
 			uri := fmt.Sprintf(conf.Web.Base, g.Id)
 			g.North.Send("set", "game:uri", uri)
 			g.South.Send("set", "game:uri", uri)
@@ -218,7 +218,7 @@ func (g *Game) Play() bool {
 	} else {
 		g.North.Send("set", "game:id", "")
 		g.South.Send("set", "game:id", "")
-		if conf.Web.Base != "" {
+		if conf.Web.Enabled && conf.Web.Base != "" {
 			// XXX: If the configuration is reloaded and
 			// the base URL is reset, the game URI will
 			// not be unset at the beginning of the next
