@@ -228,7 +228,9 @@ func (g *Game) Play() bool {
 		}
 	}
 
-	if g.North.isol != nil {
+	// If the client is a being managed locally, we avoid
+	// informing opponents of who they are playing against.
+	if g.North.isol == nil {
 		if g.South.token != nil {
 			g.North.Send("set", "game:opponent",
 				strconv.FormatInt(g.North.Id, 10))
@@ -236,7 +238,7 @@ func (g *Game) Play() bool {
 			g.North.Send("set", "game:opponent", "")
 		}
 	}
-	if g.South.isol != nil {
+	if g.South.isol == nil {
 		if g.North.token != nil {
 			g.South.Send("set", "game:opponent",
 				strconv.FormatInt(g.South.Id, 10))
