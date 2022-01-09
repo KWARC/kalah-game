@@ -222,7 +222,6 @@ func (t *Tournament) Manage() {
 			game.Play()
 			emag.Play()
 
-			defer t.Unlock()
 			t.Lock()
 			switch game.Outcome {
 			case WIN:
@@ -260,6 +259,7 @@ func (t *Tournament) Manage() {
 			t.system.Record(t, game)
 
 		norecord:
+			t.Unlock()
 			enqueue <- game.North
 			enqueue <- game.South
 		}(game)
