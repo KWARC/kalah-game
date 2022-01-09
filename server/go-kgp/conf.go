@@ -72,11 +72,12 @@ type DBConf struct {
 }
 
 type TournConf struct {
-	Directory string `toml:"directory"`
-	Rounds    uint   `toml:"rounds"`
-	System    string `toml:"system"`
-	Isolation string `toml:"isolation"`
-	Warmup    uint   `toml:"warmup"`
+	Directory string   `toml:"directory"`
+	Rounds    uint     `toml:"rounds"`
+	System    string   `toml:"system"`
+	Isolation string   `toml:"isolation"`
+	Warmup    uint     `toml:"warmup"`
+	Names     []string `toml:"names"`
 }
 
 type Conf struct {

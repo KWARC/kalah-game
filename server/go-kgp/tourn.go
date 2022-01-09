@@ -135,27 +135,33 @@ func makeTournament(sys System) Sched {
 		system: sys,
 	}
 
-	dir, err := os.ReadDir(conf.Tourn.Directory)
-	if err != nil {
-		log.Fatal(err)
+	names := conf.Tourn.Names
+	if names == nil {
+		dir, err := os.ReadDir(conf.Tourn.Directory)
+		if err != nil {
+			log.Fatal(err)
+		}
+		for _, ent := range dir {
+			if !ent.IsDir() {
+				continue
+			}
+
+			names = append(names, ent.Name())
+		}
 	}
 
 	var (
+		// response channel (nil for a failed and non-nil for
+		// a successful connection)
 		c = make(chan *Client)
-		// number of known clients, number of successful
-		// connections, number of responses (both failed and
-		// successful connections)
-		n, s, i uint
+		// number of successful connections
+		s uint
+		// connections not yet established
+		w = uint(len(names))
 	)
 
-	for _, ent := range dir {
-		if !ent.IsDir() {
-			continue
-		}
-
-		// Attempt to launch the client in the directory ent.
-		go launch(ent.Name(), c)
-		n++
+	for _, name := range names {
+		go launch(name, c)
 	}
 
 	wait := make(chan struct{})
@@ -175,20 +181,22 @@ func makeTournament(sys System) Sched {
 
 			// Check if we have received a response for every
 			// launch invocation.
-			i++
-			if i == n {
+			w--
+			if w == 0 {
 				break
 			}
 		}
 
-		wait <- struct{}{}
+		close(wait)
 	}()
 
 	select {
 	case <-wait:
-		log.Printf("Tournament successfully initialised (%d/%d)", s, n)
+		log.Printf("Tournament successfully initialised (%d/%d)",
+			s, len(names))
 	case <-time.After(time.Duration(conf.Tourn.Warmup) * time.Second):
-		log.Printf("Tournament warm-up time exceeded (%d/%d/%d)", s, i, n)
+		log.Printf("Tournament warm-up time exceeded (%d/%d/%d)",
+			s, len(names)-int(w), len(names))
 	}
 
 	return t.Match
