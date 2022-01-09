@@ -190,6 +190,12 @@ func (cli *Client) Pinger(done <-chan struct{}) {
 			// kill the client if it is still set
 		}
 
+		if cli.isol != nil {
+			// If we are managing the client, and know
+			// that it is asleep, we do not expect a ping.
+			cli.isol.Await()
+		}
+
 		// To prevent race conditions, we atomically check and
 		// reset the pinged flag.  In case the old value is
 		// not 0 (indicating it the client was not pinged), we

@@ -33,9 +33,9 @@ import (
 type Isolation interface {
 	Run(port string) error
 	Halt() error
-	Asleep() bool
 	Unpause()
 	Pause()
+	Await()
 }
 
 func pause(cli *Client) {
