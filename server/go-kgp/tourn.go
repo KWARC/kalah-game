@@ -26,7 +26,6 @@ import (
 	"path"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -55,19 +54,17 @@ type Tournament struct {
 	// What tournament system is being used (swiss, round-robin,
 	// single-elimination, ...).
 	system System
-	// How many games are we waiting to finish.
-	waiting int64
 	// What are the clients we are expecting to participate in
 	// this tournament.
 	participants []*Client
 	// Record of victories, mapping a winner to a list of looses.
 	record map[*Client][]*Client
-	// What round of the tournament is being played (1-indexed)
-	round uint
+	// Games to start
+	games chan *Game
 }
 
-func launch(dir string, c chan<- *Client) {
-	debug.Println("Launching", dir)
+func launch(name string, c chan<- *Client) {
+	debug.Println("Launching", name)
 
 	// Start a new TCP listener for this client
 	ln, err := net.Listen("tcp", ":0")
@@ -89,19 +86,20 @@ func launch(dir string, c chan<- *Client) {
 	var isol Isolation
 	switch conf.Tourn.Isolation {
 	case "none": // In a regular process, without any isolation
-		isol = &Process{dir: dir}
+		isol = &Process{dir: name}
 	default:
 		log.Fatal("Unknown isolation system", conf.Tourn.Isolation)
 	}
 	// Create a client and wait for an incoming connection
 	cli := &Client{
 		notify: c,
-		token:  []byte(dir),
+		token:  []byte(name),
 		isol:   isol,
 	}
+
 	go func() {
 		var (
-			dir = path.Base(dir)
+			dir = path.Base(name)
 			err error
 		)
 
@@ -199,44 +197,13 @@ func makeTournament(sys System) Sched {
 			s, len(names)-int(w), len(names))
 	}
 
+	t.games = make(chan *Game)
+	go t.Manage()
 	return t.Match
 }
 
-func (t *Tournament) Match(queue []*Client) []*Client {
-	debug.Printf("Ongoing games %d, waiting clients %d", t.waiting, len(queue))
-	if queue == nil {
-		shutdown()
-	}
-	if t.waiting != 0 {
-		return queue
-	}
-
-	clients := make(map[*Client]struct{})
-	for _, c := range queue {
-		clients[c] = struct{}{}
-	}
-
-	for _, c := range t.participants {
-		_, ok := clients[c]
-		if !ok {
-			// If a client still hasn't connected, we will
-			// not start a match
-			return queue
-		}
-	}
-
-	t.round++
-	games := t.system(t)
-	if games == nil {
-		log.Print("Tournament has finished")
-		shutdown()
-		return nil
-	} else {
-		log.Print("Starting round ", t.round)
-	}
-
-	t.waiting = int64(len(games))
-	for _, game := range games {
+func (t *Tournament) Manage() {
+	for game := range t.games {
 		go func(game *Game) {
 			var wait sync.WaitGroup
 			wait.Add(2)
@@ -261,17 +228,18 @@ func (t *Tournament) Match(queue []*Client) []*Client {
 			case WIN:
 				if game.Outcome != emag.Outcome {
 					log.Printf("%s was undecided %s", game.South, game.North)
-					break
+					goto norecord
 				}
 				log.Printf("%s won against %s", game.South, game.North)
 				t.record[game.South] = append(t.record[game.South], game.North)
 				if err := game.updateScore(); err != nil {
 					log.Println(err)
 				}
+
 			case LOSS:
 				if game.Outcome != emag.Outcome {
 					log.Printf("%s was undecided %s", game.North, game.South)
-					break
+					goto norecord
 				}
 				log.Printf("%s won against %s", game.North, game.South)
 				t.record[game.North] = append(t.record[game.North], game.South)
@@ -289,13 +257,22 @@ func (t *Tournament) Match(queue []*Client) []*Client {
 					log.Println(err)
 				}
 			}
+			t.system.Record(t, game)
 
-			atomic.AddInt64(&t.waiting, -1)
-
+		norecord:
 			enqueue <- game.North
 			enqueue <- game.South
 		}(game)
 	}
+}
 
-	return nil
+func (t *Tournament) Match(queue []*Client) ([]*Client, bool) {
+	for _, cli := range queue {
+		t.system.Ready(t, cli)
+	}
+
+	t.Lock()
+	over := t.system.Over(t)
+	t.Unlock()
+	return nil, over
 }

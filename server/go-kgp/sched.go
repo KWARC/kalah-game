@@ -38,27 +38,27 @@ var (
 )
 
 // A Scheduler updates the waiting queue and manages games
-type Sched func([]*Client) []*Client
+type Sched func([]*Client) ([]*Client, bool)
 
 // Discard a tournament
-func noop(queue []*Client) []*Client {
+func noop(queue []*Client) ([]*Client, bool) {
 	for _, cli := range queue {
 		cli.kill()
 	}
-	return nil
+	return nil, false
 }
 
 // Compose multiple scheduling systems into one
 func compose(s ...Sched) Sched {
-	return func(queue []*Client) []*Client {
+	return func(queue []*Client) ([]*Client, bool) {
 		for {
 			if len(s) == 0 {
-				return nil
+				return nil, true
 			}
 
-			step := s[0](queue)
-			if step != nil {
-				return step
+			step, over := s[0](queue)
+			if !over {
+				return step, false
 			}
 			s = s[1:]
 		}
@@ -67,9 +67,9 @@ func compose(s ...Sched) Sched {
 
 // Limit the number of times a scheduler can be used
 func limit(s Sched, n uint) Sched {
-	return func(queue []*Client) []*Client {
+	return func(queue []*Client) ([]*Client, bool) {
 		if n == 0 {
-			return nil
+			return nil, true
 		}
 		n--
 
@@ -79,7 +79,7 @@ func limit(s Sched, n uint) Sched {
 
 // Fun FN on every client in the queue and update the database
 func foreach(fn func(*Client)) Sched {
-	return func(queue []*Client) []*Client {
+	return func(queue []*Client) ([]*Client, bool) {
 		var wg sync.WaitGroup
 
 		for _, cli := range queue {
@@ -89,7 +89,7 @@ func foreach(fn func(*Client)) Sched {
 		}
 
 		wg.Done()
-		return queue
+		return queue, true
 	}
 }
 
@@ -104,7 +104,7 @@ func reset(score float64) Sched {
 //
 // If PRED returns true for a client, add it to SA, else SB.
 func partition(sa Sched, sb Sched, pred func(*Client) bool) Sched {
-	return func(queue []*Client) []*Client {
+	return func(queue []*Client) ([]*Client, bool) {
 		aqueue := make([]*Client, 0, len(queue))
 		bqueue := make([]*Client, 0, len(queue))
 
@@ -116,7 +116,9 @@ func partition(sa Sched, sb Sched, pred func(*Client) bool) Sched {
 			}
 		}
 
-		return append(sa(aqueue), sb(bqueue)...)
+		ra, aover := sa(aqueue)
+		rb, bover := sb(bqueue)
+		return append(ra, rb...), aover && bover
 	}
 }
 
@@ -131,7 +133,7 @@ func bound(s Sched, score float64) Sched {
 	})
 }
 
-var random Sched = func(queue []*Client) []*Client {
+var random Sched = func(queue []*Client) ([]*Client, bool) {
 	for _, cli := range queue {
 		go func(cli *Client) {
 			size := conf.Game.Sizes[rand.Intn(len(conf.Game.Sizes))]
@@ -165,12 +167,12 @@ var random Sched = func(queue []*Client) []*Client {
 			wait.Wait()
 		}(cli)
 	}
-	return nil
+	return nil, false
 }
 
 // The FIFO scheduler minimises the time a client remains in the
 // queue, at the expense of the quality of a pairing.
-var fifo Sched = func(queue []*Client) []*Client {
+var fifo Sched = func(queue []*Client) ([]*Client, bool) {
 	north := queue[0]
 	for i, cli := range queue[1:] {
 		i += 1
@@ -231,7 +233,7 @@ var fifo Sched = func(queue []*Client) []*Client {
 		}
 	}
 
-	return queue
+	return queue, false
 }
 
 func remove(queue []*Client, cli *Client) []*Client {
@@ -318,7 +320,12 @@ func schedule(sched Sched) {
 		}
 
 		// Attempt to organise a match
-		queue = sched(queue)
+		var over bool
+		queue, over = sched(queue)
+		if over {
+			shutdown()
+			return
+		}
 
 		// Update statistics
 		atomic.StoreUint64(&waiting, uint64(len(queue)))
@@ -366,7 +373,7 @@ func parseSched(spec string) Sched {
 		case "noop":
 			st = append(st, noop)
 		case "rr", "round-robin":
-			st = append(st, makeTournament(roundRobin))
+			st = append(st, makeTournament(&roundRobin{}))
 
 			// Scheduler combinators
 		case "seq", "compose", "+", ">":
