@@ -274,5 +274,13 @@ func (t *Tournament) Match(queue []*Client) ([]*Client, bool) {
 	t.Lock()
 	over := t.system.Over(t)
 	t.Unlock()
+	if over {
+		for _, cli := range t.participants {
+			err := cli.isol.Halt()
+			if err != nil {
+				log.Println(err)
+			}
+		}
+	}
 	return nil, over
 }
