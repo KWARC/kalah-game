@@ -1,4 +1,4 @@
-// Tournament handling without isolation
+// Tournament handling via processes
 //
 // Copyright (c) 2022  Philip Kaludercic
 //
@@ -26,13 +26,20 @@ import (
 	"os/exec"
 )
 
-type Plain struct {
-	run *exec.Cmd
-	dir string
+type Process struct {
+	prefix []string
+	run    *exec.Cmd
+	dir    string
 }
 
-func (p *Plain) Run(port string) error {
-	build := exec.Command("./build.sh")
+func (p *Process) Run(port string) error {
+	var build *exec.Cmd
+	if p.prefix != nil {
+		args := append(p.prefix[1:], "./build.sh")
+		build = exec.Command(p.prefix[0], args...)
+	} else {
+		build = exec.Command("./build.sh")
+	}
 	build.Dir = p.dir
 	err := build.Run()
 	if err != nil && !os.IsNotExist(err) {
@@ -40,7 +47,12 @@ func (p *Plain) Run(port string) error {
 		return err
 	}
 
-	p.run = exec.Command("./run.sh", port)
+	if p.prefix != nil {
+		args := append(p.prefix[1:], "./run.sh", port)
+		p.run = exec.Command(p.prefix[0], args...)
+	} else {
+		p.run = exec.Command("./run.sh", port)
+	}
 
 	var file *os.File
 	file, err = os.Create(p.dir + ".stdout")
@@ -71,13 +83,13 @@ func (p *Plain) Run(port string) error {
 	return nil
 }
 
-func (p *Plain) Halt() error {
+func (p *Process) Halt() error {
 	if p.run != nil {
 		return p.run.Process.Kill()
 	}
 	return nil
 }
 
-// Plain processes are not paused
-func (Plain) Sleep() {}
-func (Plain) Awake() {}
+// Process are not paused
+func (Process) Sleep() {}
+func (Process) Awake() {}

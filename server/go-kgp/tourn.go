@@ -76,7 +76,7 @@ func launch(dir string, c chan<- *Client) {
 	var isol Isolation
 	switch conf.Tourn.Isolation {
 	case "none": // In a regular process, without any isolation
-		isol = &Plain{dir: dir}
+		isol = &Process{dir: dir}
 	default:
 		log.Fatal("Unknown isolation system", conf.Tourn.Isolation)
 	}
