@@ -300,7 +300,11 @@ public class ProtocolManager {
 
     // react to ping
     private void reactToPing(Command cmd) throws IOException {
-        sendToServer("pong");
+	if (cmd.args.size() >= 1) {
+	    sendToServer("pong " + toProtocolString(msg.args.get(0)));
+	} else {
+	    sendToServer("pong");
+	}
     }
 
     // react to error
