@@ -185,6 +185,16 @@ public class KalahState {
         int m = move;
         int s = getBoardSize();
 
+        if (housesSouth[m] > 2*s+1) {
+            flipIfWasFlipped(wasFlipped);
+            return false;
+        } else if (housesSouth[m] == 2*s+1) { // last seed in starting pit
+            flipIfWasFlipped(wasFlipped);
+            return true;
+        }
+
+        // now we know that we haven't played around the entire board
+
         // index of pit the last seed will end up in
         // (imagining that the indices would continue in sowing direction after the last southern house)
         int endsUp = (m + housesSouth[move]) % (2 * s + 1);
@@ -205,14 +215,7 @@ public class KalahState {
 
         boolean b;
 
-        // Played one around the board? Then there's no empty pit to capture with
-        b = m + housesSouth[m] <= 2 * s + 1 &&
-
-                // Either the pit where the last seeds drops was empty at the start
-                // or it's the starting pit (which we emptied at the start of our move)
-                (endsUp == m || housesSouth[endsUp] == 0) &&
-                // The opposite pit has to contain at least one seed
-                op != 0;
+        b = housesSouth[endsUp] == 0 && op != 0;
 
         flipIfWasFlipped(wasFlipped);
 
