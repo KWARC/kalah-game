@@ -84,7 +84,7 @@ type Conf struct {
 	Debug    bool      `toml:"debug"`
 	Endless  bool      `toml:"endless"`
 	Database DBConf    `toml:"database"`
-	Tourn    TournConf `tomp:"tournament"`
+	Tourn    TournConf `toml:"tournament"`
 	Game     GameConf  `toml:"game"`
 	Web      WebConf   `toml:"web"`
 	WS       WSConf    `toml:"websocket"`
