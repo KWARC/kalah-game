@@ -167,6 +167,10 @@ func (g *Game) Play() bool {
 		g.South.game = nil
 		atomic.AddUint64(&playing, ^uint64(1))
 
+		// Suspend both clients as soon as the game is over
+		sleep(g.South)
+		sleep(g.North)
+
 		// Initiate an available slot
 		if slots != nil {
 			slots <- struct{}{}
@@ -263,13 +267,8 @@ func (g *Game) Play() bool {
 			continue
 		}
 
-		if g.Current().isol != nil {
-			g.Current().isol.Awake()
-		}
-		other := g.Other(g.Current())
-		if other.isol != nil {
-			other.isol.Sleep()
-		}
+		awake(g.Current())
+		sleep(g.Other(g.Current()))
 
 		select {
 		case m := <-move:

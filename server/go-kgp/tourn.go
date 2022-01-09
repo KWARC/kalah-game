@@ -35,6 +35,19 @@ type Isolation interface {
 	Halt() error
 	Awake()
 	Sleep()
+	Asleep() bool
+}
+
+func sleep(cli *Client) {
+	if cli != nil && cli.isol != nil {
+		cli.isol.Sleep()
+	}
+}
+
+func awake(cli *Client) {
+	if cli != nil && cli.isol != nil {
+		cli.isol.Awake()
+	}
 }
 
 type Tournament struct {
