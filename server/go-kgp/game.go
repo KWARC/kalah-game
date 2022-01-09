@@ -154,8 +154,11 @@ func (g *Game) Other(cli *Client) *Client {
 // initialised in main according to conf.Game.Slots.
 var slots chan struct{}
 
+var ongoing sync.WaitGroup
+
 // Play manages a game between the north and south client
 func (g *Game) Play() bool {
+	ongoing.Add(1)
 	if slots != nil {
 		// Attempt to reserve a slot
 		<-slots
@@ -175,6 +178,7 @@ func (g *Game) Play() bool {
 		if slots != nil {
 			slots <- struct{}{}
 		}
+		ongoing.Done()
 	}()
 	atomic.AddUint64(&playing, 2)
 

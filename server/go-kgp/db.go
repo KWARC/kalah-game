@@ -376,7 +376,7 @@ func manageDatabase() {
 		// The first interrupt signals the database managers to stop
 		// accepting more requests
 		<-intr
-		shutdown()
+		go shutdown()
 
 		// The second interrupt force-exits the process
 		<-intr
@@ -449,15 +449,14 @@ func manageDatabase() {
 }
 
 // Initiate a database shutdown
-//
-// The database action queue is replaced with a dummy queue, while the
-// remaining actions are given time to finish.  As soon as this is
-// done, the database managers will finish, leading to the successful
-// termination of the entire program.
 func shutdown() {
-	time.Sleep(conf.Database.Timeout / 2)
-	old := dbact
-	dbact = make(chan DBAction)
-	time.Sleep(conf.Database.Timeout / 2)
-	close(old)
+	// Wait for ongoing games to finish
+	ongoing.Wait()
+
+	// Wait for the actual queue to empty itself, then terminate
+	// the database managers
+	for len(dbact) > 0 {
+		time.Sleep(conf.Database.Timeout)
+	}
+	close(dbact)
 }
