@@ -297,7 +297,7 @@ func schedule(sched Sched) {
 	for {
 		select {
 		case cli := <-enqueue:
-			sleep(cli)
+			pause(cli)
 			vacant := true
 			for _, c := range queue {
 				if cli == c {

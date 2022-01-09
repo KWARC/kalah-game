@@ -91,6 +91,6 @@ func (p *Process) Halt() error {
 }
 
 // Process are not paused
-func (Process) Sleep()       {}
-func (Process) Awake()       {}
-func (Process) Asleep() bool { return false }
+func (Process) Pause()   {}
+func (Process) Unpause() {}
+func (Process) Await()   {}

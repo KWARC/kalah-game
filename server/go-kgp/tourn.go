@@ -33,20 +33,20 @@ import (
 type Isolation interface {
 	Run(port string) error
 	Halt() error
-	Awake()
-	Sleep()
 	Asleep() bool
+	Unpause()
+	Pause()
 }
 
-func sleep(cli *Client) {
+func pause(cli *Client) {
 	if cli != nil && cli.isol != nil {
-		cli.isol.Sleep()
+		cli.isol.Pause()
 	}
 }
 
-func awake(cli *Client) {
+func unpause(cli *Client) {
 	if cli != nil && cli.isol != nil {
-		cli.isol.Awake()
+		cli.isol.Unpause()
 	}
 }
 
