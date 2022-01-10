@@ -266,6 +266,7 @@ func (g *Game) Play() bool {
 			choice = &Move{Pit: g.Board.Random(g.side)}
 			g.Moves = append(g.Moves, choice)
 
+			dbact <- choice.updateDatabase(g)
 			if !g.Board.Sow(g.side, choice.Pit) {
 				g.side = !g.side
 			}
@@ -338,6 +339,7 @@ func (g *Game) Play() bool {
 			}
 
 			for {
+				dbact <- choice.updateDatabase(g)
 				again := g.Board.Sow(g.side, choice.Pit)
 				if g.Board.Over() {
 					goto over
