@@ -207,7 +207,7 @@ func (cli *Client) Pinger(done <-chan struct{}) {
 		if atomic.SwapUint32(&cli.pinged, 0) == 1 {
 			// Attempt to send an error message, ignoring errors
 			cli.lock.Lock()
-			fmt.Fprint(cli.rwc, "error \"Pending pong\"\r\n")
+			fmt.Fprint(cli.rwc, "error \"Received no pong\"\r\n")
 			cli.lock.Unlock()
 
 			debug.Printf("%s did not respond to a ping in time", cli)
