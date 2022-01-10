@@ -55,10 +55,19 @@ func (g *Game) updateScore() (err error) {
 		return nil
 	}
 
-	outcome := g.Board.Outcome(SideSouth)
-	g.South.Score += K * (OutcomeToPoints[outcome] - ea)
+	if g.Outcome == RESIGN {
+		if g.Current() != g.North {
+			g.South.Score += K * ea
+			g.North.Score += K * -eb
+		} else {
+			g.South.Score += K * -ea
+			g.North.Score += K * eb
+		}
+	} else {
+		g.South.Score += K * (OutcomeToPoints[g.Outcome] - ea)
+		g.North.Score += K * (1 - OutcomeToPoints[g.Outcome] - eb)
+	}
 	g.South.Score = math.Max(0, g.South.Score)
-	g.North.Score += K * (1 - OutcomeToPoints[outcome] - eb)
 	g.North.Score = math.Max(0, g.North.Score)
 
 	// Send database manager a request to update the entry
