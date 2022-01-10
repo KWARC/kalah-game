@@ -40,6 +40,8 @@ type Agent struct {
 	Author string
 	Descr  string
 	Score  float64
+	Games  int64
+	Rank   int64
 	Id     int64
 }
 

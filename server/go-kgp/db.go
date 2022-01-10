@@ -23,6 +23,7 @@ import (
 	"context"
 	"database/sql"
 	"embed"
+	"fmt"
 	"io/fs"
 	"log"
 	"os"
@@ -160,6 +161,21 @@ func (cli *Client) updateDatabase(wait *sync.WaitGroup, query bool) DBAction {
 		)
 		defer wait.Done()
 
+		res, err := queries["insert-agent"].ExecContext(ctx,
+			cli.token,
+			cli.Name,
+			cli.Descr,
+			cli.Author,
+			cli.Score)
+		if err != nil {
+			log.Print(err)
+			return
+		}
+		cli.Id, err = res.LastInsertId()
+		if err != nil {
+			log.Print(err)
+		}
+
 		if query {
 			err = queries["select-agent-token"].QueryRowContext(ctx, cli.token).Scan(
 				&cli.Id, &name, &descr, &score)
@@ -176,17 +192,6 @@ func (cli *Client) updateDatabase(wait *sync.WaitGroup, query bool) DBAction {
 			if score != nil {
 				cli.Score = *score
 			}
-		}
-
-		_, err = queries["insert-agent"].ExecContext(ctx,
-			cli.token,
-			cli.Name,
-			cli.Descr,
-			cli.Author,
-			cli.Score)
-		if err != nil {
-			log.Print(err)
-			return
 		}
 
 		return
@@ -238,25 +243,38 @@ func queryGame(gid int, c chan<- *Game) DBAction {
 			return err
 		}
 
+		expected := SideSouth
 		for rows.Next() {
 			var (
 				aid  int64
 				comm string
 				move int
-
-				side = SideSouth
+				side Side
 			)
 
-			err = rows.Scan(&aid, &side, &comm, &move)
+			err = rows.Scan(&aid, &comm, &move)
 			if err != nil {
 				log.Print(err)
 				return err
+			}
+			switch aid {
+			case game.North.Id:
+				side = SideNorth
+			case game.South.Id:
+				side = SideSouth
+			default:
+				panic("Unknown ID")
+			}
+			if side != expected {
+				panic(fmt.Sprintf("Unexpected side (%v, got %v)", expected, side))
 			}
 
 			// TODO Ensure the next move is on the right
 			// side, by checking the return value in the
 			// next iteration.
-			game.Board.Sow(side, move)
+			if !game.Board.Sow(side, move) {
+				expected = !expected
+			}
 
 			game.Moves = append(game.Moves, &Move{
 				Pit:     move,
@@ -277,7 +295,7 @@ func scanGame(ctx context.Context, scan func(dest ...interface{}) error) (*Game,
 	var (
 		game         Game
 		north, south Agent
-		outcome      *uint8
+		outcome      Outcome
 		size, init   uint
 	)
 
@@ -286,14 +304,13 @@ func scanGame(ctx context.Context, scan func(dest ...interface{}) error) (*Game,
 		&size, &init,
 		&north.Id,
 		&south.Id,
-		&outcome)
+		&outcome,
+		&game.MoveCount)
 	if err != nil {
 		return nil, err
 	}
 
 	game.Board = makeBoard(size, init)
-	game.Outcome = Outcome(*outcome)
-
 	err = queries["select-agent-id"].QueryRowContext(ctx, north.Id).Scan(
 		&north.Name,
 		&north.Descr,
@@ -317,16 +334,13 @@ func scanGame(ctx context.Context, scan func(dest ...interface{}) error) (*Game,
 	return &game, nil
 }
 
-func queryGames(c chan<- *Game, page int, aid *int) DBAction {
+func queryGames(aid int, c chan<- *Game, page int) DBAction {
 	return func(db *sql.DB, ctx context.Context) (err error) {
-		var rows *sql.Rows
-
 		defer close(c)
-		if aid == nil {
-			rows, err = queries["select-games"].QueryContext(ctx, page, conf.Web.Limit)
-		} else {
-			rows, err = queries["select-games-by"].QueryContext(ctx, *aid, page)
-		}
+
+		var rows *sql.Rows
+		rows, err = queries["select-games-by"].QueryContext(ctx,
+			aid, page)
 		if err != nil {
 			if err != sql.ErrNoRows {
 				log.Print(err)
@@ -335,14 +349,13 @@ func queryGames(c chan<- *Game, page int, aid *int) DBAction {
 		}
 		defer rows.Close()
 
-		var game *Game
 		for rows.Next() {
-			game, err = scanGame(ctx, rows.Scan)
+			game, err := scanGame(ctx, rows.Scan)
 			if err != nil {
 				if err != sql.ErrNoRows {
 					log.Print(err)
 				}
-				return
+				return err
 			}
 			c <- game
 		}
@@ -369,7 +382,13 @@ func queryAgents(c chan<- *Agent, page int) DBAction {
 		for rows.Next() {
 			var agent Agent
 
-			err = rows.Scan(&agent.Id, &agent.Name, &agent.Author, &agent.Score)
+			err = rows.Scan(
+				&agent.Rank,
+				&agent.Id,
+				&agent.Name,
+				&agent.Author,
+				&agent.Score,
+				&agent.Games)
 			if err != nil {
 				log.Fatal(err)
 				return err
@@ -399,7 +418,7 @@ func databaseManager(id uint, db *sql.DB, wg *sync.WaitGroup) {
 			continue
 		}
 
-		context, cancel := context.WithTimeout(context.Background(), time.Millisecond*10000)
+		context, cancel := context.WithTimeout(context.Background(), conf.Database.Timeout*10000)
 		act(db, context)
 		if err := context.Err(); err != nil {
 			log.Println(err)
@@ -467,7 +486,7 @@ func manageDatabase() {
 			queries[strings.TrimSuffix(base, ".sql")], err = db.Prepare(string(data))
 		}
 		if err != nil {
-			log.Fatal(err)
+			log.Fatal(file, ": ", err)
 		}
 		return nil
 	})
@@ -500,7 +519,7 @@ var shutdown sync.Once
 
 // Initiate a database shutdown
 func closeDB() {
-	time.Sleep(conf.Database.Timeout)
+	time.Sleep(conf.Database.Timeout * 2)
 
 	// Remove pseudo-entry to prevent ongoing from reaching 0
 	// before the shutdown is initiated.

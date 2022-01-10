@@ -49,9 +49,6 @@ var (
 		"dec": func(i int) int {
 			return i - 1
 		},
-		"isOver": func(g Game) bool {
-			return g.IsOver()
-		},
 		"timefmt": func(t time.Time) string {
 			return t.Format(time.Stamp)
 		},
@@ -95,6 +92,11 @@ var (
 				return "is"
 			}
 			return "are"
+		},
+		"board": func(b *Board) string {
+			size := len(b.northPits)
+			init := b.init
+			return fmt.Sprintf("(%d, %d)", size, init)
 		},
 	}
 )
@@ -148,6 +150,7 @@ func (wc *WebConf) init() {
 	// Install HTTP handlers
 	mux.HandleFunc("/", index)
 	mux.HandleFunc("/agent/", showAgent)
+	mux.HandleFunc("/game/", showGame)
 	mux.HandleFunc("/about", about)
 	mux.Handle("/static/", http.StripPrefix("/static/", static))
 
@@ -171,7 +174,7 @@ func (wc *WebConf) init() {
 	}
 
 	addr := fmt.Sprintf("%s:%d", conf.Web.Host, conf.Web.Port)
-	log.Printf("Listening via HTTP on %s", addr)
+	debug.Printf("Listening via HTTP on %s", addr)
 	wc.server = &http.Server{Addr: addr, Handler: mux}
 	err = wc.server.ListenAndServe()
 	if err != nil {
@@ -230,14 +233,34 @@ func showAgent(w http.ResponseWriter, r *http.Request) {
 		page = 1
 	}
 
-	c := make(chan *Agent)
-	dbact <- queryAgent(id, c)
+	ac := make(chan *Agent)
+	gc := make(chan *Game)
+	dbact <- queryAgent(id, ac)
+	dbact <- queryGames(id, gc, page-1)
 
 	w.Header().Add("Content-Type", "text/html")
 	err = T.ExecuteTemplate(w, "show-agent.tmpl", struct {
 		Agent chan *Agent
+		Games chan *Game
 		Page  int
-	}{c, page})
+	}{ac, gc, page})
+	if err != nil {
+		log.Print(err)
+	}
+}
+
+func showGame(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(path.Base(r.URL.Path))
+	if err != nil {
+		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		return
+	}
+
+	c := make(chan *Game)
+	dbact <- queryGame(id, c)
+
+	w.Header().Add("Content-Type", "text/html")
+	err = T.ExecuteTemplate(w, "show-game.tmpl", <-c)
 	if err != nil {
 		log.Print(err)
 	}

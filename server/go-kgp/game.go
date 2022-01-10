@@ -71,9 +71,10 @@ type Game struct {
 	//
 	// These fields are usually empty, unless a Game object has
 	// been queried from the database and passed on to a template.
-	Id      int64
-	Moves   []*Move
-	Outcome Outcome // For south
+	Id        int64
+	Moves     []*Move
+	Outcome   Outcome // For south
+	MoveCount int64
 }
 
 // String generates a KGP board representation for the current player

@@ -30,6 +30,8 @@
 	<td>
 	{{ with $m.Comment }}
 	{{ . }}
+	{{ else}}
+	<em>No comment</em>
 	{{ end }}
     {{ else }}
        <tr><td colspan="4"><em>No moves</em></td></tr>

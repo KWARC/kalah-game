@@ -3,14 +3,17 @@
 <table class="list">
     <thead>
 	<tr>
+	    <td>Rank #</td>
 	    <td>Name</td>
 	    <td>Rating (<a href="https://en.wikipedia.org/wiki/Elo_rating_system">ELO</a>)</td>
 	    <td>Author</td>
+	    <td>Games</td>
 	</tr>
     </thead>
     <tbody>
 	{{ range $i, $a := .Agents }}
 	    <tr>
+	        <td>{{ .Rank }}</td>
 		<td>
 		<a href="/agent/{{ $a.Id }}">
 		{{ with $a.Name }}
@@ -22,6 +25,7 @@
 		</td>
 		<td>{{ printf "%.f" $a.Score }}</td>
 		<td>{{ with $a.Author }}{{ . }}{{ else }}<em>anonymous</em>{{ end }}</td>
+		<td>{{ .Games }}</td>
 	    </tr>
 	    {{ $n = $i }}
 	{{ else }}

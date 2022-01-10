@@ -2,8 +2,12 @@
 
 <!-- TODO: Generate a proper game overview. -->
 
+{{ with . }}
 <pre>{{ . }}</pre>
 
 {{ template "move-table.tmpl" .Moves }}
+{{ else }}
+<p>Unknown game.</p>
+{{ end }}
 
 {{ template "footer.tmpl" }}

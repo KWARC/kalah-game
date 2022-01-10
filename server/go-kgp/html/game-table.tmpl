@@ -2,15 +2,18 @@
   <thead>
       <tr>
 	  <td>Id</td>
+	  <td>(<abbr title="pits per side">m</abbr>,<abbr title="stones per pit">n</abbr>)</td>
 	  <td>North</td>
 	  <td>South</td>
 	  <td>Result</td>
+	  <td>Moves #</td>
       </tr>
   </thead>
   <tbody>
     {{ range .Games }}
       <tr>
 	<td><a href="/game/{{ .Id }}">{{ .Id }}</a></td>
+	<td>{{ board .Board }}</td>
 	<td>
 	{{ with .North }}
 	  {{ if ne .Id 0 }}
@@ -44,9 +47,12 @@
 	<td>
 	  {{ result .Outcome }}
 	</td>
+	<td>
+	  {{ .MoveCount }}
+	</td>
       </tr>
     {{ else }}
-       <tr><td colspan="6"><em>No games for the query</em></td></tr>
+       <tr><td colspan="7"><em>No games for the query</em></td></tr>
     {{ end }}
   </tbody>
 </table>

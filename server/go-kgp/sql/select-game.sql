@@ -1,5 +1,6 @@
 -- -*- sql-product: sqlite; -*-
 
-SELECT id, size, init, north, south, outcome, start, end
-FROM game
-WHERE id = ?;
+SELECT game.id, game.size, game.init, game.north, game.south, game.outcome,
+       COUNT(move.game)
+FROM game INNER JOIN move ON game.id = move.game
+WHERE game.id = ?;
