@@ -143,8 +143,15 @@ func main() {
 		}
 	}
 
-	// Start match scheduler
-	go schedule(parseSched(conf.Sched))
+	// Generate match scheduler from the scheduler specification
+	// and start it is a separate goroutine.
+	//
+	// Note that the scheduler specification must already be
+	// prepared in this new goroutine, as arguments to a function
+	// are evaluated in the initial goroutine.  If the scheduler
+	// depends on the database (as it does for tournament
+	// schedulers), the program would deadlock.
+	go func() { schedule(parseSched(conf.Sched)) }()
 
 	// Start database manager
 	manageDatabase()

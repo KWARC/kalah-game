@@ -123,6 +123,11 @@ func launch(name string, c chan<- *Client) {
 		}
 	}()
 
+	var wait sync.WaitGroup
+	wait.Add(1)
+	dbact <- cli.updateDatabase(&wait, true)
+	wait.Wait()
+
 	isol.Run(port)
 	cli.kill()
 }
@@ -205,12 +210,6 @@ func makeTournament(sys System) Sched {
 func (t *Tournament) Manage() {
 	for game := range t.games {
 		go func(game *Game) {
-			var wait sync.WaitGroup
-			wait.Add(2)
-			dbact <- game.South.updateDatabase(&wait, true)
-			dbact <- game.North.updateDatabase(&wait, true)
-			wait.Wait()
-
 			// Create a second game with reversed positions
 			size := uint(len(game.Board.northPits))
 			emag := &Game{
@@ -260,6 +259,7 @@ func (t *Tournament) Manage() {
 
 		norecord:
 			t.Unlock()
+
 			enqueue <- game.North
 			enqueue <- game.South
 		}(game)
