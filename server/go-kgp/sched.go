@@ -159,6 +159,10 @@ var random Sched = func(queue []*Client) ([]*Client, bool) {
 // The FIFO scheduler minimises the time a client remains in the
 // queue, at the expense of the quality of a pairing.
 var fifo Sched = func(queue []*Client) ([]*Client, bool) {
+	if len(queue) < 2 {
+		return queue, false
+	}
+
 	north := queue[0]
 	for i, cli := range queue[1:] {
 		i += 1
