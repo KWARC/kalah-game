@@ -77,6 +77,10 @@ func (p *Process) Run(port string) error {
 
 	err = p.run.Run()
 	if err != nil {
+		if err.Error() == "signal: killed" {
+			log.Printf("%s was killed", p.dir)
+			return nil
+		}
 		log.Printf("Failed to start %v: %s", p.dir, err)
 		return err
 	}
