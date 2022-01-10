@@ -339,7 +339,7 @@ func parseSched(spec string) Sched {
 			if err != nil || n < 0 {
 				log.Fatal("Invalid size", parse[1])
 			}
-			rr := makeTournament(&roundRobin{})
+			rr := makeTournament(&roundRobin{size: uint(n)})
 			scheds = append(scheds, rr)
 		case "bound":
 			score, err := strconv.ParseFloat(parse[1], 64)

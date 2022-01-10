@@ -21,7 +21,6 @@ package main
 
 import (
 	"log"
-	"math"
 )
 
 // A tournament system decides what games to play, and records results
@@ -39,7 +38,7 @@ type System interface {
 
 // roundRobin tournaments let every participant play with every other
 // participant.
-type roundRobin struct{ round, ready int }
+type roundRobin struct{ size, round, ready uint }
 
 // Notify that a client is ready
 func (rr *roundRobin) Ready(t *Tournament, _ *Client) {
@@ -54,7 +53,7 @@ func (rr *roundRobin) Ready(t *Tournament, _ *Client) {
 	// P, b ∈ P, a ≠ b}) a priori, then starting games from this
 	// schedule as soon as all the necessary participants for a
 	// game are ready.
-	if rr.ready == len(t.participants) {
+	if rr.ready == uint(len(t.participants)) {
 		rr.nextRound(t)
 
 		// If we have an odd number of participants, one will
@@ -76,7 +75,7 @@ func (*roundRobin) Record(*Tournament, *Game) {}
 // game against every other participant.  For n participants, this
 // means every one has had n-1 games, ie. there have been n-1 rounds.
 func (rr *roundRobin) Over(t *Tournament) bool {
-	return rr.round >= len(t.participants)
+	return rr.round >= uint(len(t.participants))
 }
 
 func (rr *roundRobin) nextRound(t *Tournament) {
@@ -89,9 +88,6 @@ func (rr *roundRobin) nextRound(t *Tournament) {
 
 	// Calculate the size of the board/number of stones for this
 	// round of the tournament
-	r := math.Floor(float64(rr.round) / float64(len(t.participants)-1))
-	size := conf.Game.Sizes[int(float64(len(conf.Game.Sizes)-1)*r)]
-	stones := conf.Game.Stones[int(float64(len(conf.Game.Stones)-1)*r)]
 
 	// Collect all games for the current round, using the circle
 	// method:
@@ -120,7 +116,7 @@ func (rr *roundRobin) nextRound(t *Tournament) {
 
 	for i := 0; i < len(circle)/2; i++ {
 		t.games <- &Game{
-			Board: makeBoard(size, stones),
+			Board: makeBoard(rr.size, rr.size),
 			North: circle[i],
 			South: circle[n-i-1],
 		}
