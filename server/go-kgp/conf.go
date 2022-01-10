@@ -73,12 +73,20 @@ type DBConf struct {
 }
 
 type TournConf struct {
-	Directory string   `toml:"directory"`
-	Rounds    uint     `toml:"rounds"`
-	System    string   `toml:"system"`
-	Isolation string   `toml:"isolation"`
-	Warmup    uint     `toml:"warmup"`
-	Names     []string `toml:"names"`
+	Directory string     `toml:"directory"`
+	Rounds    uint       `toml:"rounds"`
+	System    string     `toml:"system"`
+	Isolation string     `toml:"isolation"`
+	Warmup    uint       `toml:"warmup"`
+	Names     []string   `toml:"names"`
+	Docker    DockerConf `toml:"docker"`
+}
+
+type DockerConf struct {
+	Memory  uint   `toml:"memory"`
+	Swap    uint   `toml:"swap"`
+	CPUs    uint   `toml:"cpus"`
+	Network string `toml:"network"`
 }
 
 type Conf struct {
@@ -103,6 +111,12 @@ var defaultConfig = Conf{
 		System:    "round-robin",
 		Isolation: "none",
 		Warmup:    60 * 10,
+		Docker: DockerConf{
+			CPUs:    1,
+			Memory:  1 << 30, // 1GiB
+			Swap:    1 << 30, // 1GiB
+			Network: "none",
+		},
 	},
 	Database: DBConf{
 		File:     "kalah.sql",

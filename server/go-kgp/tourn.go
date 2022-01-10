@@ -87,6 +87,8 @@ func launch(name string, c chan<- *Client) {
 	switch conf.Tourn.Isolation {
 	case "none": // In a regular process, without any isolation
 		isol = &Process{dir: name}
+	case "docker": // In a docker container
+		isol = &Docker{name: name}
 	default:
 		log.Fatal("Unknown isolation system", conf.Tourn.Isolation)
 	}
