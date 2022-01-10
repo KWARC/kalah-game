@@ -476,6 +476,12 @@ var shutdown sync.Once
 
 // Initiate a database shutdown
 func closeDB() {
+	time.Sleep(conf.Database.Timeout)
+
+	// Remove pseudo-entry to prevent ongoing from reaching 0
+	// before the shutdown is initiated.
+	ongoing.Done()
+
 	// Wait for ongoing games to finish
 	ongoing.Wait()
 
