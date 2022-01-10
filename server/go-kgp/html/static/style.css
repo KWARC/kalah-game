@@ -51,10 +51,20 @@ table.list {
     margin: auto;
 }
 
-table.list td {
+table.list tr {
     border-bottom: 1px solid grey;
     overflow-x: auto;
 }
+
+table.list.move tr {
+    border-bottom-width: 0;
+}
+
+table.list.move tr:nth-child(even), 
+table.list.move thead {
+    border-bottom: 1px solid grey;
+}
+
 
 thead {
     font-weight: bold;

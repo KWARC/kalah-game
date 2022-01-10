@@ -280,6 +280,7 @@ func queryGame(gid int, c chan<- *Game) DBAction {
 				Pit:     move,
 				Client:  game.Player(side),
 				Comment: comm,
+				State:   game.Board.Copy(),
 			})
 		}
 		if err = rows.Err(); err != nil {

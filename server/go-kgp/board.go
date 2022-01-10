@@ -307,3 +307,22 @@ func (b *Board) Collect() {
 	b.north += north
 	b.south += south
 }
+
+// Deep copy of the board
+func (b *Board) Copy() *Board {
+	north := make([]uint, len(b.southPits))
+	south := make([]uint, len(b.northPits))
+	if copy(north, b.northPits) != len(b.northPits) {
+		panic("Illegal board state")
+	}
+	if copy(south, b.southPits) != len(b.southPits) {
+		panic("Illegal board state")
+	}
+	return &Board{
+		north:     b.north,
+		south:     b.south,
+		northPits: north,
+		southPits: south,
+		init:      b.init,
+	}
+}

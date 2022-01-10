@@ -46,6 +46,7 @@ type Move struct {
 	Yield   bool
 	id, ref uint64
 	when    time.Time
+	State   *Board
 }
 
 // Game represents a game between two players

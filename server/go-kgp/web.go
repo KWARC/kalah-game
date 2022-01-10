@@ -98,6 +98,58 @@ var (
 			init := b.init
 			return fmt.Sprintf("(%d, %d)", size, init)
 		},
+		"draw": func(m *Move, g *Game) template.HTML {
+			var (
+				buf  bytes.Buffer
+				B    = &buf
+				b    = m.State
+				size = len(b.northPits)
+				u    = 50.0
+				w    = (u*2 + u*float64(size))
+			)
+
+			circle := func(x, y float64, n uint, hl bool) {
+				// https://developer.mozilla.org/en-US/docs/Web/SVG/Element/circle
+				if x < 0 {
+					x = float64(size) - x
+				}
+				color := "sienna"
+				if hl {
+					color = "seagreen"
+				}
+				fmt.Fprintf(B, `<circle fill="%s" cx="%g" cy="%g" r="%g" />`,
+					color, u*x+u/2, u*y+u/2, u*0.8/2)
+				// https://developer.mozilla.org/en-US/docs/Web/SVG/Element/text
+				d := u * .4
+				if n >= 10 {
+					d = u * 0.3
+				} else if n >= 100 {
+					d = u * 0.2
+				}
+				fmt.Fprintf(B, `<text x="%g" y="%g">%d</text>`,
+					u*x+d, 0.4*u+u*y+u*.2, n)
+			}
+
+			fmt.Fprintf(B, `<svg width="%g" height="%g">`, w, 2*u)
+
+			// https://developer.mozilla.org/en-US/docs/Web/SVG/Element/rect
+			fmt.Fprintf(B, `<rect x="0" y="0" rx="10" ry="10" width="%g" height="%g" fill="burlywood" />`,
+				w, 2*u)
+			for i, n := range b.northPits {
+				hl := g.North == m.Client && m.Pit == i
+				circle(float64(1+i), 0, n, hl)
+			}
+			for i, s := range b.southPits {
+				hl := g.South == m.Client && m.Pit == i
+				circle(float64(1+i), 1, s, hl)
+			}
+			circle(0.1, 0.5, b.north, false)
+			circle(-0.9, 0.5, b.south, false)
+
+			fmt.Fprintf(B, `</svg>`)
+
+			return template.HTML(buf.String())
+		},
 	}
 )
 
@@ -260,6 +312,7 @@ func showGame(w http.ResponseWriter, r *http.Request) {
 	dbact <- queryGame(id, c)
 
 	w.Header().Add("Content-Type", "text/html")
+	w.Header().Add("Cache-Control", "max-age=604800")
 	err = T.ExecuteTemplate(w, "show-game.tmpl", <-c)
 	if err != nil {
 		log.Print(err)
