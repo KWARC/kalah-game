@@ -323,7 +323,7 @@ func schedule(sched Sched) {
 		var over bool
 		queue, over = sched(queue)
 		if over {
-			shutdown()
+			shutdown.Do(closeDB)
 			return
 		}
 

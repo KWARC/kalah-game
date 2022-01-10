@@ -398,7 +398,7 @@ func manageDatabase() {
 		// The first interrupt signals the database managers to stop
 		// accepting more requests
 		<-intr
-		go shutdown()
+		go shutdown.Do(closeDB)
 
 		// The second interrupt force-exits the process
 		<-intr
@@ -472,8 +472,10 @@ func manageDatabase() {
 	wg.Wait()
 }
 
+var shutdown sync.Once
+
 // Initiate a database shutdown
-func shutdown() {
+func closeDB() {
 	// Wait for ongoing games to finish
 	ongoing.Wait()
 
