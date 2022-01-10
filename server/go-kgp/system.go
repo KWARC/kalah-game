@@ -20,6 +20,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 )
 
@@ -28,6 +29,7 @@ import (
 // All methods are called in a synchronised context, and do not have
 // to be thread-safe.
 type System interface {
+	fmt.Stringer
 	// Register a client as ready
 	Ready(*Tournament, *Client)
 	// Record the outcome of a game
@@ -39,6 +41,10 @@ type System interface {
 // roundRobin tournaments let every participant play with every other
 // participant.
 type roundRobin struct{ size, round, ready uint }
+
+func (rr *roundRobin) String() string {
+	return fmt.Sprintf("round-robin-%d", rr.size)
+}
 
 // Notify that a client is ready
 func (rr *roundRobin) Ready(t *Tournament, _ *Client) {

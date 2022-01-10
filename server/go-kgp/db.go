@@ -128,6 +128,30 @@ func (game *Game) updateDatabase(wait *sync.WaitGroup) DBAction {
 	}
 }
 
+func registerTournament(name string, c chan<- int64) DBAction {
+	return func(db *sql.DB, ctx context.Context) error {
+		defer close(c)
+		res, err := queries["insert-tournament"].ExecContext(ctx, name)
+		if err == nil {
+			id, err := res.LastInsertId()
+			if err != nil {
+				log.Print(err)
+			} else {
+				c <- id
+			}
+		}
+		return err
+	}
+}
+
+func (cli *Client) recordScore(game *Game, tid int64, score float64) DBAction {
+	return func(db *sql.DB, ctx context.Context) (err error) {
+		_, err = queries["insert-score"].ExecContext(ctx,
+			cli.Id, game.Id, tid, score)
+		return
+	}
+}
+
 func (cli *Client) updateDatabase(wait *sync.WaitGroup, query bool) DBAction {
 	return func(db *sql.DB, ctx context.Context) (err error) {
 		var (

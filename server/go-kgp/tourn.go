@@ -210,6 +210,10 @@ func makeTournament(sys System) Sched {
 }
 
 func (t *Tournament) Manage() {
+	c := make(chan int64)
+	dbact <- registerTournament(t.system.String(), c)
+	id := <-c
+
 	for game := range t.games {
 		go func(game *Game) {
 			// Create a second game with reversed positions
@@ -232,10 +236,8 @@ func (t *Tournament) Manage() {
 				}
 				log.Printf("%s won against %s", game.South, game.North)
 				t.record[game.South] = append(t.record[game.South], game.North)
-				if err := game.updateScore(); err != nil {
-					log.Println(err)
-				}
-
+				dbact <- game.South.recordScore(game, id, 1)
+				dbact <- game.North.recordScore(game, id, -1)
 			case LOSS:
 				if game.Outcome != emag.Outcome {
 					log.Printf("%s was undecided %s", game.North, game.South)
@@ -243,19 +245,14 @@ func (t *Tournament) Manage() {
 				}
 				log.Printf("%s won against %s", game.North, game.South)
 				t.record[game.North] = append(t.record[game.North], game.South)
-				if err := game.updateScore(); err != nil {
-					log.Println(err)
-				}
+				dbact <- game.South.recordScore(game, id, -1)
+				dbact <- game.North.recordScore(game, id, 1)
 			case DRAW:
 				log.Printf("%s played a draw against %s", game.South, game.North)
 				t.record[game.South] = append(t.record[game.South], game.North)
 				t.record[game.North] = append(t.record[game.North], game.South)
-				if err := game.updateScore(); err != nil {
-					log.Println(err)
-				}
-				if err := emag.updateScore(); err != nil {
-					log.Println(err)
-				}
+				dbact <- game.South.recordScore(game, id, 0)
+				dbact <- game.North.recordScore(game, id, 0)
 			}
 			t.system.Record(t, game)
 
