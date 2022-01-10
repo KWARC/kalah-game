@@ -180,8 +180,8 @@ func (cli *Client) Pinger(done <-chan struct{}) {
 		}
 		// In case it was not set, ping the client
 		// again and reset the flag
-		cli.Send("ping")
 		cli.pinged = true
+		cli.Send("ping")
 	}
 }
 
