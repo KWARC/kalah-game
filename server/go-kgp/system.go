@@ -21,7 +21,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 )
 
 // A tournament system decides what games to play, and records results
@@ -40,38 +39,70 @@ type System interface {
 
 // roundRobin tournaments let every participant play with every other
 // participant.
-type roundRobin struct{ size, round, ready uint }
+type roundRobin struct {
+	// Board size for this tournament
+	size uint
+	// Set of games that we are expecting to play
+	games map[*Game]struct{}
+	// Set of clients that are ready to play a game
+	ready []*Client
+}
 
+func (rr *roundRobin) init() {
+
+}
+
+// Generate a name for the current tournament
 func (rr *roundRobin) String() string {
 	return fmt.Sprintf("round-robin-%d", rr.size)
 }
 
-// Notify that a client is ready
-func (rr *roundRobin) Ready(t *Tournament, _ *Client) {
-	rr.ready++
+// Mark a client as ready and attempt to start a game
+func (rr *roundRobin) Ready(t *Tournament, cli *Client) {
+	if rr.games == nil {
+		rr.games = make(map[*Game]struct{})
+		for _, a := range t.participants {
+			for _, b := range t.participants {
+				if a == b {
+					continue
+				}
+				rr.games[&Game{
+					Board: makeBoard(rr.size, rr.size),
+					North: a,
+					South: b,
+				}] = struct{}{}
+			}
+		}
+	}
 
-	// If everyone is done, proceed to the next round
-	//
-	// FIXME: We do not need to wait for everyone to finish before
-	// organising the next round.  Tournaments can be accelerated
-	// by allowing clients to play as soon as they are done.  This
-	// could be done by scheduling all matches ({ game(a, b) | a ∈
-	// P, b ∈ P, a ≠ b}) a priori, then starting games from this
-	// schedule as soon as all the necessary participants for a
-	// game are ready.
-	if rr.ready == uint(len(t.participants)) {
-		rr.nextRound(t)
+	// Loop over all the ready clients to check if we still need
+	// to organise a game between the new client and someone else.
+	for i, ilc := range rr.ready {
+		for game := range rr.games {
+			b1 := game.North == cli && game.South == ilc
+			b2 := game.North == ilc && game.South == cli
 
-		// If we have an odd number of participants, one will
-		// not be able to play.  He is always regarded as
-		// ready.
-		if len(t.participants)%2 == 1 {
-			rr.ready = 1
-		} else {
-			rr.ready = 1
+			// In case the new client and an existing
+			// client both still have to play a game, we
+			// will remove the waiting client from the
+			// ready list and start the game
+			if b1 || b2 {
+				// Slice trick: "Delete without
+				// preserving order (GC)"
+				rr.ready[i] = rr.ready[len(rr.ready)-1]
+				rr.ready[len(rr.ready)-1] = nil
+				rr.ready = rr.ready[:len(rr.ready)]
+
+				t.games <- game
+				return
+			}
 		}
 
 	}
+
+	// If the client didn't find a match, mark it as ready and do
+	// nothing more.
+	rr.ready = append(rr.ready, cli)
 }
 
 // The result of a game is not relevant for round robin
@@ -81,50 +112,5 @@ func (*roundRobin) Record(*Tournament, *Game) {}
 // game against every other participant.  For n participants, this
 // means every one has had n-1 games, ie. there have been n-1 rounds.
 func (rr *roundRobin) Over(t *Tournament) bool {
-	return rr.round >= uint(len(t.participants))
-}
-
-func (rr *roundRobin) nextRound(t *Tournament) {
-	if rr.Over(t) {
-		log.Printf("[%p] Finished round robin tournament", rr)
-		return
-	}
-	rr.round++
-	log.Printf("[%p] Start round robin round %d", rr, rr.round)
-
-	// Calculate the size of the board/number of stones for this
-	// round of the tournament
-
-	// Collect all games for the current round, using the circle
-	// method:
-	// https://en.wikipedia.org/wiki/Round-robin_tournament#Circle_method
-	circle := make([]*Client, len(t.participants))
-	copy(circle, t.participants)
-
-	for i := 1; i < len(t.participants); i++ {
-		// Starting from the current position...
-		j := i
-		// The circle method rotates the 2nd to last
-		// participant by one place for each round.  This
-		// calculates the assignments directly for the nth
-		// round:
-		j += int(rr.round) - 1
-		j %= len(t.participants) - 1
-
-		circle[i] = t.participants[1+j]
-	}
-
-	n := len(circle)
-	if n%2 == 1 {
-		// Ensure n is even
-		n--
-	}
-
-	for i := 0; i < len(circle)/2; i++ {
-		t.games <- &Game{
-			Board: makeBoard(rr.size, rr.size),
-			North: circle[i],
-			South: circle[n-i-1],
-		}
-	}
+	return rr.games != nil && len(rr.games) == 0
 }
