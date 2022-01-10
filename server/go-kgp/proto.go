@@ -209,6 +209,7 @@ func (cli *Client) Interpret(input string) error {
 			Yield:  true,
 			Client: cli,
 			id:     id,
+			ref:    ref,
 		}
 	case "ok", "error":
 		// We do not expect the client to confirm or reject anything,

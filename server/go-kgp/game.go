@@ -279,10 +279,10 @@ func (g *Game) Play() bool {
 
 		select {
 		case m := <-move:
+			if g.IsCurrent(m.Client, m.ref) {
+				break
+			}
 			if m.Yield {
-				if m.Client != g.Current() {
-					break
-				}
 				// The client has indicated it does not intend
 				// to use the remaining time.
 				next = true
