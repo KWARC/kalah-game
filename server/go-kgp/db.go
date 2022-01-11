@@ -431,7 +431,7 @@ func databaseManager(id uint, db *sql.DB, wg *sync.WaitGroup) {
 func manageDatabase() {
 	db, err := sql.Open("sqlite3", conf.Database.File+"?mode=rwc")
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(err, ": ", conf.Database.File)
 	}
 	defer db.Close()
 
