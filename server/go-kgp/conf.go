@@ -75,7 +75,6 @@ type DBConf struct {
 type TournConf struct {
 	Directory string     `toml:"directory"`
 	Rounds    uint       `toml:"rounds"`
-	System    string     `toml:"system"`
 	Isolation string     `toml:"isolation"`
 	Warmup    uint       `toml:"warmup"`
 	Names     []string   `toml:"names"`
@@ -108,7 +107,6 @@ var defaultConfig = Conf{
 	Tourn: TournConf{
 		Directory: ".",
 		Rounds:    1,
-		System:    "round-robin",
 		Isolation: "none",
 		Warmup:    60 * 10,
 		Docker: DockerConf{
