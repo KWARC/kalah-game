@@ -59,16 +59,18 @@ public class ProtocolManager {
     private volatile boolean running;
     private ConnectionType conType;
 
-    private Set<String> running_ids; // Never deleted, but should be fine I hope
+    private Set<Long> running_state_refs;
     private LinkedBlockingQueue<Job> jobs;
 
     private final Job POISON_PILL_JOB = new Job(null, null);
+    
+    private long id;
 
     class Job {
         KalahState ks;
-        String id;
+        Long id;
 
-        Job(KalahState ks, String id) {
+        Job(KalahState ks, Long id) {
             this.ks = ks;
             this.id = id;
         }
@@ -106,7 +108,7 @@ public class ProtocolManager {
             opClock = null;
             serverName = null;
 
-            running_ids = Collections.synchronizedSet(new HashSet<>());
+            running_state_refs = Collections.synchronizedSet(new HashSet<>());
             jobs = new LinkedBlockingQueue<>();
 
             state = ProtocolState.WAITING_FOR_VERSION;
@@ -123,6 +125,8 @@ public class ProtocolManager {
             }
 
             LinkedBlockingQueue<Event> events = new LinkedBlockingQueue<>();
+
+	    id = 1L;
 
             // network thread
             new Thread(
@@ -144,7 +148,7 @@ public class ProtocolManager {
             new Thread(
                     () -> {
                         while (running) {
-                            String id = null;
+                            Long id = null;
                             try {
                                 Job job = jobs.take();
                                 if (job == POISON_PILL_JOB) {
@@ -153,9 +157,11 @@ public class ProtocolManager {
                                 id = job.id;
                                 agent.do_search(job.ks, job.id);
                                 events.add(new AgentFinished(null, id));
-                                running_ids.remove(id);
-                            } catch (Exception e) {
+                                running_state_refs.remove(id);
+                            } catch (IOException e) {
                                 events.add(new AgentFinished(e, id));
+                            } catch (InterruptedException e) {
+                            	e.printStackTrace();
                             }
                         }
                     }).start();
@@ -174,7 +180,12 @@ public class ProtocolManager {
 
                     if (event instanceof AgentFinished) { // agent stopped/yielded
                         AgentFinished af = (AgentFinished) event;
-                        sendYield(af.id);
+                        
+                        if (af.exception != null) {
+                        	throw af.exception;
+                        }
+                        
+                        sendYield(af.ref);
 
                     } else if (event instanceof NetworkThreadException) {
                         // throw on whatever happened in network thread
@@ -213,7 +224,7 @@ public class ProtocolManager {
                                     }
 
                                     // supported version, reply with mode
-                                    sendToServer("mode freeplay");
+                                    sendToServer("mode freeplay", null);
 
                                     state = ProtocolState.MAIN;
                                 }
@@ -252,7 +263,7 @@ public class ProtocolManager {
 
                             if (ks.numberOfMoves() > 1) {
                                 jobs.add(new Job(ks, cmd.id));
-                                running_ids.add(cmd.id);
+                                running_state_refs.add(cmd.id);
                             } else {
                                 // Play the only move
                                 sendMove(ks.getMoves().get(0) + 1, cmd.id);
@@ -260,7 +271,7 @@ public class ProtocolManager {
                             }
 
                         } else if ("stop".equals(cmd.name)) {
-                            running_ids.remove(cmd.ref);
+                            running_state_refs.remove(cmd.ref);
                         } else if ("set".equals(cmd.name)) {
                             reactToSet(cmd);
                         } else {
@@ -283,7 +294,7 @@ public class ProtocolManager {
                 jobs.add(POISON_PILL_JOB);
 
                 // agent thread (if agent isn't broken) escapes via fake stop:
-                running_ids.clear();
+                running_state_refs.clear();
 
                 // or it's hung up in the barrier
                 bar.reset();
@@ -294,13 +305,14 @@ public class ProtocolManager {
         }
     }
 
-    private void sendYield(String id) throws IOException {
-        sendToServer("@" + id + " yield");
+    private void sendYield(Long ref) throws IOException {
+        assert ref != null;
+        sendToServer("yield", ref);
     }
 
     // react to ping
     private void reactToPing(Command cmd) throws IOException {
-        sendToServer("pong");
+        sendToServer("pong", cmd.id);
     }
 
     // react to error
@@ -410,7 +422,7 @@ public class ProtocolManager {
     private void sendOption(String option, String value) throws IOException {
         // no need to check, only library is using this function
         // so option and value have to be correct
-        sendToServer("set " + option + " " + value);
+        sendToServer("set " + option + " " + value, null);
     }
 
     // send comment to server, check comment for quotation marks
@@ -443,8 +455,8 @@ public class ProtocolManager {
     }
 
     // see documentation of onState(...)
-    boolean shouldStop(String id) {
-        return !running_ids.contains(id);
+    boolean shouldStop(Long ref) {
+        return !running_state_refs.contains(ref);
     }
 
     // see documentation of onState(...)
@@ -452,17 +464,19 @@ public class ProtocolManager {
     // but the Kalah implementation uses 0, 1, 2, ..., board_size - 1
     // because of array indexing, so you have to add +1 to your move
     // before calling this function
-    void sendMove(int move, String id) throws IOException {
+    void sendMove(int move, Long ref) throws IOException {
+    	assert ref != null;
+        
         if (move <= 0) {
             throw new IllegalArgumentException("Move cannot be negative");
         }
 
-        sendToServer("@" + id + " move " + move);
+        sendToServer("move " + move, ref);
     }
 
     private void sendGoodbyeAndCloseConnection() throws IOException {
         try {
-            sendToServer("goodbye");
+            sendToServer("goodbye", null);
         } catch (SocketException se) {
             // socket already closed, but we don't care since we wanted to close the connection anyway
         }
@@ -476,13 +490,20 @@ public class ProtocolManager {
 
     // sends command to server, adds \r\n, flushes
     // also acts as callback for logging etc.
-    private void sendToServer(String msg) throws IOException {
-        connection.send(msg);
+    private void sendToServer(String msg, Long ref) throws IOException {
+    	String msg2 = id + (ref == null ? "" : "@" + ref) + " " + msg;
+    
+    	connection.send(msg2);
+    	
+    	id += 2;
+    	if (id < 0) { // Overflow
+    	    throw new ProtocolException("Client side ID overflowed Long (64bit signed integer)");
+    	}
 
         // logging
         if (debugStream != null) {
             Timestamp t = new Timestamp(System.currentTimeMillis());
-            debugStream.println("["+t+"] Client: " + msg);
+            debugStream.println("["+t+"] Client: " + msg2);
         }
     }
 
@@ -509,8 +530,21 @@ public class ProtocolManager {
             throw new ProtocolException("Malformed input: " + line);
         }
 
-        String id = mat.group(1);
-        String ref = mat.group(2);
+
+	Long id;
+	if (mat.group(1) == null) {
+	    id = null;
+	} else {
+	    id = idStringToLong(mat.group(1));
+	}
+	
+        Long ref;
+        if (mat.group(2) == null) {
+	    ref = null;
+	} else {
+	    ref = idStringToLong(mat.group(2));
+	}
+        
         String name = mat.group(3);
         List<String> args = new LinkedList<>();
 
@@ -529,9 +563,23 @@ public class ProtocolManager {
                 args);
     }
 
+    private static Long idStringToLong(String ref) throws IOException {
+        assert ref != null;
+        
+        Long r = null;
+        
+        try {
+            r = Long.parseLong(ref);
+        } catch (NumberFormatException e) {
+            throw new IOException("Unable to parse ref to Long (signed 64 bit integer): " + ref);
+        }
+        
+        return r;
+    }
+
     // sends error command to server
-    private void sendError(String msg) throws IOException {
-        sendToServer("error " + toProtocolString(msg));
+    private void sendError(String msg, Long ref) throws IOException {
+        sendToServer("error " + toProtocolString(msg), ref);
     }
 
     // checks whether a command is a correct error command
@@ -631,10 +679,11 @@ public class ProtocolManager {
 
     private static class Command extends Event {
 
-        String original, id, ref, name;
+        String original, name;
+        Long id, ref;
         List<String> args;
 
-        Command(String original, String id, String ref, String name, List<String> args) {
+        Command(String original, Long id, Long ref, String name, List<String> args) {
             super();
             this.original = original;
             this.id = id;
@@ -651,13 +700,13 @@ public class ProtocolManager {
 
     private static class AgentFinished extends Event {
 
-        Exception exception; // the exception agent through during search or null if there was none
-        String id;
+        IOException exception; // the exception agent through during search or null if there was none
+        Long ref; // ref of the state for which the computation finished
 
-        AgentFinished(Exception exception, String id) {
+        AgentFinished(IOException exception, Long ref) {
             super();
             this.exception = exception;
-            this.id = id;
+            this.ref = ref;
         }
     }
 

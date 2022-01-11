@@ -91,6 +91,7 @@ public class KalahState {
      */
 
     public boolean isLegalMove(int move) {
+        assert move >= 0 && move < housesSouth.length;
         if (playerToMove == Player.SOUTH) {
             return housesSouth[move] != 0;
         } else {

@@ -10,7 +10,7 @@ public abstract class Agent {
 
     private ProtocolManager com;
     private final String name, authors, description, token;
-    private String id;
+    private Long ref;
     private KalahState ks;
     private final AtomicBoolean running;
 
@@ -39,8 +39,8 @@ public abstract class Agent {
         this.running = new AtomicBoolean(false);
     }
 
-    // This is called to hide the setting of id and state and to silently ensure the sequential execution
-    final void do_search(KalahState ks, String id) throws IOException {
+    // This is called to hide the setting of ref and state and to silently ensure the sequential execution
+    final void do_search(KalahState ks, Long ref) throws IOException {
 
         // Already running?
         boolean isRunning = running.getAndSet(true);
@@ -48,16 +48,16 @@ public abstract class Agent {
             throw new IOException("Attempt to call Agent.search() in parallel, use multiple Agent instances instead");
         }
 
-        assert this.id == null;
+        assert this.ref == null;
         assert this.ks == null;
 
         // To ensure that the agent is sending the right id for the right states
         // Note that this cannot be called in parallel
 
-        this.id = id;
+        this.ref = ref;
         this.ks = new KalahState(ks);
         this.search(ks);
-        this.id = null;
+        this.ref = null;
         this.ks = null;
 
         // Is this thread-safe? I think and hope so
@@ -108,14 +108,14 @@ public abstract class Agent {
      * @throws IOException If something goes wrong with I/O
      */
     protected final void submitMove(int move) throws IOException {
-        assert this.id != null;
+        assert this.ref != null;
         assert this.ks != null;
         assert this.ks.isLegalMove(move);
 
-        if (!this.ks.isLegalMove(move)) {
-            throw new IOException("Agent tried to send illegal move " + (move+1) + " on this board:\n"+ks);
+        if (move < 0 || move >= ks.getBoardSize() || !this.ks.isLegalMove(move)) {
+            throw new IOException("Agent tried to send illegal move " + (move+1) + " for the following KalahState:\n"+ks);
         }
-        com.sendMove(move + 1, this.id);
+        com.sendMove(move + 1, this.ref);
     }
 
     /**
@@ -128,7 +128,7 @@ public abstract class Agent {
      * @return True after the server told the client to stop searching
      */
     protected final boolean shouldStop() {
-        return com.shouldStop(this.id);
+        return com.shouldStop(this.ref);
     }
 
     /**
