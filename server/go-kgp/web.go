@@ -25,7 +25,6 @@ import (
 	"embed"
 	"fmt"
 	"html/template"
-	"io"
 	"io/fs"
 	"log"
 	"net/http"
@@ -160,9 +159,6 @@ var (
 	// A lock to synchronise the restarting of a web server on
 	// configuration reload
 	weblock sync.Mutex
-
-	// The cached state of the front-page
-	indexPage []byte
 )
 
 func init() {
@@ -171,19 +167,6 @@ func init() {
 		log.Fatal(err)
 	}
 	static = http.FileServer(http.FS(staticfs))
-
-	go func() {
-		time.Sleep(10 * time.Second)
-		var buf bytes.Buffer
-		err := genIndex(0, &buf)
-		if err != nil {
-			log.Println(err)
-		} else {
-			indexPage = buf.Bytes()
-		}
-
-		time.Sleep(10 * time.Minute)
-	}()
 }
 
 func (wc *WebConf) init() {
@@ -234,16 +217,6 @@ func (wc *WebConf) init() {
 	}
 }
 
-func genIndex(page int, w io.Writer) error {
-	c := make(chan *Agent)
-	dbact <- queryAgents(c, page-1)
-	err := T.ExecuteTemplate(w, "index.tmpl", struct {
-		Agents chan *Agent
-		Page   int
-	}{c, page})
-	return err
-}
-
 func index(w http.ResponseWriter, r *http.Request) {
 	page, err := strconv.Atoi(r.URL.Query().Get("page"))
 	if err != nil {
@@ -252,11 +225,12 @@ func index(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Add("Content-Type", "text/html")
 	w.Header().Add("Cache-Control", "max-age=60")
-	if conf.Web.Cache && page == 1 {
-		_, err = w.Write(indexPage)
-	} else {
-		err = genIndex(page, w)
-	}
+	c := make(chan *Agent)
+	dbact <- queryAgents(c, page-1)
+	err = T.ExecuteTemplate(w, "index.tmpl", struct {
+		Agents chan *Agent
+		Page   int
+	}{c, page})
 	if err != nil {
 		log.Print(err)
 	}
