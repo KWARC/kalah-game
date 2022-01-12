@@ -19,9 +19,7 @@
 
 package main
 
-import (
-	"fmt"
-)
+import "fmt"
 
 // A tournament system decides what games to play, and records results
 //
@@ -46,10 +44,6 @@ type roundRobin struct {
 	games map[*Game]struct{}
 	// Set of clients that are ready to play a game
 	ready []*Client
-}
-
-func (rr *roundRobin) init() {
-
 }
 
 // Generate a name for the current tournament
@@ -97,7 +91,6 @@ func (rr *roundRobin) Ready(t *Tournament, cli *Client) {
 				return
 			}
 		}
-
 	}
 
 	// If the client didn't find a match, mark it as ready and do

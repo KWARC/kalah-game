@@ -37,6 +37,7 @@ var (
 	dSync sync.Mutex
 )
 
+// Docker isolates a client within a docker container
 type Docker struct {
 	id    string
 	name  string
@@ -44,6 +45,7 @@ type Docker struct {
 	awake chan struct{}
 }
 
+// Start an isolating docker container and connect to PORT
 func (d *Docker) Run(port string) error {
 	d.awake = make(chan struct{})
 
@@ -101,6 +103,7 @@ func (d *Docker) Run(port string) error {
 	}
 }
 
+// Kill the isolating Docker container
 func (d *Docker) Halt() error {
 	ctx := context.Background()
 	err := dCli.ContainerKill(ctx, d.id, "SIGKILL")
@@ -110,6 +113,7 @@ func (d *Docker) Halt() error {
 	return err
 }
 
+// Pause the execution of an isolating docker container
 func (d *Docker) Pause() {
 	// Indicate that the container will be paused
 	atomic.StoreUint32(&d.pause, 1)
@@ -122,8 +126,12 @@ func (d *Docker) Pause() {
 	}
 }
 
-// Unpause the container
+// Unpause a paused docker container
 func (d *Docker) Unpause() {
+	if atomic.LoadUint32(&d.pause) == 0 {
+		return
+	}
+
 	ctx := context.Background()
 	err := dCli.ContainerUnpause(ctx, d.id)
 	if err != nil {
@@ -134,7 +142,9 @@ func (d *Docker) Unpause() {
 	close(d.awake)
 }
 
-// Block until the container is running
+// Block until the isolating docker container was unpaused
+//
+// If the docker container was not paused, do nothing
 func (d *Docker) Await() {
 	// We don't need to block anything if the container is
 	// running.  Otherwise we await that the container is

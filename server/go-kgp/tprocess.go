@@ -26,12 +26,16 @@ import (
 	"os/exec"
 )
 
+//
 type Process struct {
 	prefix []string
 	run    *exec.Cmd
 	dir    string
 }
 
+// Run a process by calling "run.sh" and connect to PORT
+//
+// The output is redirected to a file.
 func (p *Process) Run(port string) error {
 	var build *exec.Cmd
 	if p.prefix != nil {
@@ -87,6 +91,7 @@ func (p *Process) Run(port string) error {
 	return nil
 }
 
+// Halt a process by killing it
 func (p *Process) Halt() error {
 	if p.run != nil {
 		return p.run.Process.Kill()
@@ -94,7 +99,11 @@ func (p *Process) Halt() error {
 	return nil
 }
 
-// Process are not paused
-func (Process) Pause()   {}
+// Process is not paused
+func (Process) Pause() {}
+
+// Process is not unpaused
 func (Process) Unpause() {}
-func (Process) Await()   {}
+
+// Process cannot be awaited, as it cannot be paused
+func (Process) Await() {}

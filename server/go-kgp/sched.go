@@ -31,9 +31,12 @@ import (
 )
 
 var (
-	enqueue = make(chan *Client) // append a client to the queue
-	forget  = make(chan *Client) // remove a client from the queue
+	// Channel to append a client to the queue
+	enqueue = make(chan *Client)
+	// Channel to remove client from the queue
+	forget = make(chan *Client)
 
+	// Number of clients playing and waiting to play
 	playing, waiting uint64
 )
 
@@ -99,7 +102,7 @@ func bound(score float64) Sched {
 	})
 }
 
-//
+// Filter out worse than the best COUNT clients
 func skim(count int) Sched {
 	return func(queue []*Client) ([]*Client, bool) {
 		if len(queue) < count {
@@ -118,6 +121,7 @@ func skim(count int) Sched {
 	}
 }
 
+// The random scheduler has everyone play two games against a random agent
 var random Sched = func(queue []*Client) ([]*Client, bool) {
 	for _, cli := range queue {
 		go func(cli *Client) {
@@ -199,10 +203,10 @@ var fifo Sched = func(queue []*Client) ([]*Client, bool) {
 				o1 := g1.Outcome
 				o2 := g2.Outcome
 				if o1 != o2 || o1 == DRAW {
-					if err := g1.updateScore(); err != nil {
+					if err := g1.updateElo(); err != nil {
 						log.Print(err)
 					}
-					if err := g2.updateScore(); err != nil {
+					if err := g2.updateElo(); err != nil {
 						log.Print(err)
 					}
 				}
@@ -214,8 +218,8 @@ var fifo Sched = func(queue []*Client) ([]*Client, bool) {
 					enqueue <- north
 					enqueue <- south
 				} else {
-					north.kill()
-					south.kill()
+					north.Kill()
+					south.Kill()
 				}
 			}()
 			break

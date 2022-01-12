@@ -22,7 +22,6 @@ package main
 import (
 	"io"
 	"log"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -32,81 +31,123 @@ import (
 )
 
 type GameConf struct {
-	Sizes    []uint `toml:"sizes"`
-	Stones   []uint `toml:"stones"`
-	Timeout  uint   `toml:"timeout"`
-	EarlyWin bool   `toml:"earlywin"`
-	Slots    uint   `toml:"slots"`
-	SkipTriv bool   `toml:"skiptriv"`
+	// A list of game sizes that can be randomly chosen
+	Sizes []uint `toml:"sizes"`
+	// A list of initial stones that can be randomly chosen
+	Stones []uint `toml:"stones"`
+	// Time granted to make a move or yield
+	Timeout uint `toml:"timeout"`
+	// Should games end if there is no possibility for one side to
+	// win (i.e. one side has already collected more than half the
+	// stones in their store)
+	EarlyWin bool `toml:"earlywin"`
+	// Number of concurrent games (0 if no limit)
+	Slots uint `toml:"slots"`
+	// Should trivial moves (where there is only one choice) be
+	// made for the client, without an additional query.
+	SkipTriv bool `toml:"skiptriv"`
 }
 
 type WSConf struct {
+	// Enable WebSocket support
 	Enabled bool `toml:"enabled"`
 }
 
 type WebConf struct {
-	Enabled bool   `toml:"enabled"`
-	Host    string `toml:"host"`
-	Port    uint   `toml:"port"`
-	Limit   uint   `toml:"limit"`
-	About   string `toml:"about"`
-	Cache   bool   `toml:"cache"`
-	Base    string `toml:"base"`
-	server  *http.Server
+	// Is the web interface enabled
+	Enabled bool `toml:"enabled"`
+	// Hostname of the public server the website is accessible
+	// over (just the domain)
+	Host string `toml:"host"`
+	// Port to bind the the webserver
+	Port uint `toml:"port"`
+	// Limit is the number of entries any table may list
+	Limit uint `toml:"limit"`
+	// Path to the about template.  If an empty string, no about
+	// page will be generated.
+	About string `toml:"about"`
 }
 
 type TCPConf struct {
-	Enabled bool   `toml:"enabled"`
-	Host    string `toml:"host"`
-	Port    uint   `toml:"port"`
-	Ping    bool   `toml:"ping"`
-	Timeout uint   `toml:"timeout"`
-	Retries uint   `toml:"retries"`
+	// Enable the public TCP server
+	Enabled bool `toml:"enabled"`
+	// Hostname to bind the TCP server to
+	Host string `toml:"host"`
+	// Port used for the public TCP server
+	Port uint `toml:"port"`
+	// Enabled keepalive checks via "ping"
+	Ping bool `toml:"ping"`
+	// Number of seconds until a "ping" expires, and the
+	// connection is regarded to be dead
+	Timeout uint `toml:"timeout"`
+	// Number of retries to resend a message via TCP
+	Retries uint `toml:"retries"`
 }
 
 type DBConf struct {
-	File     string        `toml:"file"`
-	Threads  uint          `toml:"threads"`
-	Mode     string        `toml:"mode"`
-	Timeout  time.Duration `toml:"timeout"`
-	Optimise bool          `toml:"optimise"`
+	// Path to the SQLite database
+	File string `toml:"file"`
+	// Number of database managers
+	Threads uint `toml:"threads"`
+	// Timeout to execute a database action
+	Timeout time.Duration `toml:"timeout"`
+	// Periodically optimise the database
+	Optimise bool `toml:"optimise"`
 }
 
 type TournConf struct {
-	Directory string     `toml:"directory"`
-	Rounds    uint       `toml:"rounds"`
-	Isolation string     `toml:"isolation"`
-	Warmup    uint       `toml:"warmup"`
-	Names     []string   `toml:"names"`
-	Docker    DockerConf `toml:"docker"`
+	// Directory containing participants
+	Directory string `toml:"directory"`
+	// Isolation mechanism used to start a client
+	Isolation string `toml:"isolation"`
+	// Number of seconds allowed for clients to connect
+	Warmup uint `toml:"warmup"`
+	// List of participant names
+	Names []string `toml:"names"`
+	// Configuration for Docker isolation
+	Docker DockerConf `toml:"docker"`
 }
 
 type DockerConf struct {
-	Memory  uint   `toml:"memory"`
-	Swap    uint   `toml:"swap"`
-	CPUs    uint   `toml:"cpus"`
+	// Bytes in bytes of memory to grant a Docker container
+	Memory uint `toml:"memory"`
+	// Bytes in bytes of swap to grant a Docker container
+	Swap uint `toml:"swap"`
+	// Number of CPUs to grant a Docker container
+	CPUs uint `toml:"cpus"`
+	// Name of the Docker network to connect the container to
 	Network string `toml:"network"`
 }
 
 type Conf struct {
-	Sched    string    `toml:"sched"`
-	Debug    bool      `toml:"debug"`
-	Endless  bool      `toml:"endless"`
-	Database DBConf    `toml:"database"`
-	Tourn    TournConf `toml:"tournament"`
-	Game     GameConf  `toml:"game"`
-	Web      WebConf   `toml:"web"`
-	WS       WSConf    `toml:"websocket"`
-	TCP      TCPConf   `toml:"tcp"`
-	file     string
+	// Scheduler specification
+	Sched string `toml:"sched"`
+	// Enable debug logging
+	Debug bool `toml:"debug"`
+	// Enable "endless" mode
+	Endless bool `toml:"endless"`
+	// Database configuration
+	Database DBConf `toml:"database"`
+	// Tournament configuration
+	Tourn TournConf `toml:"tournament"`
+	// General Game confiugration
+	Game GameConf `toml:"game"`
+	// Web interface configuration
+	Web WebConf `toml:"web"`
+	// WebSocket configuration
+	WS WSConf `toml:"websocket"`
+	// TCP (public server) configuration
+	TCP TCPConf `toml:"tcp"`
+	// File from which the configuration was loaded
+	file string
 }
 
+// Configuration object used by default
 var defaultConfig = Conf{
 	Debug: false,
 	Sched: "fifo",
 	Tourn: TournConf{
 		Directory: ".",
-		Rounds:    1,
 		Isolation: "none",
 		Warmup:    60 * 10,
 		Docker: DockerConf{
@@ -133,12 +174,10 @@ var defaultConfig = Conf{
 	},
 	Web: WebConf{
 		Enabled: true,
-		Host:    "0.0.0.0",
+		Host:    "",
 		Port:    8080,
 		Limit:   50,
 		About:   "",
-		Cache:   false,
-		Base:    "",
 	},
 	WS: WSConf{
 		Enabled: false,
@@ -194,11 +233,13 @@ func (conf *Conf) init() {
 	go conf.Web.init()
 }
 
+// Parse a configuration from R into CONF
 func parseConf(r io.Reader, conf *Conf) error {
 	_, err := toml.NewDecoder(r).Decode(conf)
 	return err
 }
 
+// Open a configuration file and return it
 func openConf(name string) (*Conf, error) {
 	var conf Conf
 

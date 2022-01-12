@@ -32,10 +32,13 @@ import (
 )
 
 var (
+	// Regular expression to destruct a command
 	parser = regexp.MustCompile(`^[[:space:]]*` +
 		`(?:([[:digit:]]*)(?:@([[:digit:]]+))?[[:space:]]+)?` +
 		`([[:alnum:]]+)(?:[[:space:]]+(.*))?` +
 		`[[:space:]]*$`)
+
+	// Error to return if a message couldn't be parsed
 	errArgumentMismatch = errors.New("argument mismatch")
 )
 
@@ -202,7 +205,7 @@ func (cli *Client) Interpret(input string) error {
 		new := atomic.AddUint64(&cli.nyield, 1)
 		if cli.simple && new-1 > cli.nstop {
 			cli.Error(id, "Preemptive yield")
-			cli.kill()
+			cli.Kill()
 		}
 
 		game.move <- &Move{
@@ -229,7 +232,7 @@ func (cli *Client) Interpret(input string) error {
 
 		return cli.Set(key, val)
 	case "goodbye":
-		cli.kill()
+		cli.Kill()
 	}
 
 	return nil

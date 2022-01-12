@@ -35,29 +35,17 @@ const (
 	minorVersion = 0
 	patchVersion = 0
 
+	// Default file name for the configuration file
 	defConfName = "server.toml"
 )
 
 var (
+	// Active configuration object
 	conf *Conf = &defaultConfig
 
+	// Logger used for debug output
 	debug = log.New(io.Discard, "[debug] ", log.Ltime|log.Lshortfile|log.Lmicroseconds)
-
-	version string
 )
-
-func listen(ln net.Listener) {
-	for {
-		conn, err := ln.Accept()
-		if err != nil {
-			log.Print(err)
-			continue
-		}
-
-		log.Printf("New connection from %s", conn.RemoteAddr())
-		go (&Client{rwc: conn}).Handle()
-	}
-}
 
 func main() {
 	var (
@@ -129,8 +117,20 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
+
 		debug.Printf("Listening on TCP %s", tcp)
-		go listen(plain)
+		go func() {
+			for {
+				conn, err := plain.Accept()
+				if err != nil {
+					log.Print(err)
+					continue
+				}
+
+				log.Printf("New connection from %s", conn.RemoteAddr())
+				go (&Client{rwc: conn}).Handle()
+			}
+		}()
 	}
 
 	// In case an upper bound of concurrent games has been

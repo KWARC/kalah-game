@@ -40,7 +40,10 @@ import (
 var html embed.FS
 
 var (
-	T     *template.Template
+	// Template manager
+	T *template.Template
+
+	// Custom template functions
 	funcs = template.FuncMap{
 		"inc": func(i int) int {
 			return i + 1
@@ -67,12 +70,6 @@ var (
 		},
 		"hasAbout": func() bool {
 			return conf.Web.About != ""
-		},
-		"version": func() string {
-			if version == "" {
-				return "unknown"
-			}
-			return version
 		},
 		"hasMore": func(i int) bool {
 			return i%int(conf.Web.Limit) != 0
@@ -150,9 +147,10 @@ var (
 			return template.HTML(buf.String())
 		},
 	}
-)
 
-var (
+	// Current active server
+	server *http.Server
+
 	// The static file system as a HTTP Handler
 	static http.Handler
 
@@ -161,6 +159,7 @@ var (
 	weblock sync.Mutex
 )
 
+// Parse the embedded file system and create a HTTP file system
 func init() {
 	staticfs, err := fs.Sub(html, "html/static")
 	if err != nil {
@@ -169,13 +168,16 @@ func init() {
 	static = http.FileServer(http.FS(staticfs))
 }
 
+// Initialise the web server
+//
+// If a web server was already running, wait for it to be killed.
 func (wc *WebConf) init() {
 	if !wc.Enabled {
 		return
 	}
 
-	if wc.server != nil {
-		wc.server.Shutdown(context.Background())
+	if server != nil {
+		server.Shutdown(context.Background())
 	}
 
 	mux := http.NewServeMux()
@@ -208,15 +210,16 @@ func (wc *WebConf) init() {
 		}
 	}
 
-	addr := fmt.Sprintf("%s:%d", conf.Web.Host, conf.Web.Port)
+	addr := fmt.Sprintf(":%d", conf.Web.Port)
 	debug.Printf("Listening via HTTP on %s", addr)
-	wc.server = &http.Server{Addr: addr, Handler: mux}
-	err = wc.server.ListenAndServe()
+	server = &http.Server{Addr: addr, Handler: mux}
+	err = server.ListenAndServe()
 	if err != nil {
 		log.Print(err)
 	}
 }
 
+// Generate the index page
 func index(w http.ResponseWriter, r *http.Request) {
 	page, err := strconv.Atoi(r.URL.Query().Get("page"))
 	if err != nil {
@@ -236,6 +239,7 @@ func index(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Generate the about page
 func about(w http.ResponseWriter, r *http.Request) {
 	if conf.Web.About == "" {
 		http.Error(w, "No about page", http.StatusNoContent)
@@ -247,6 +251,7 @@ func about(w http.ResponseWriter, r *http.Request) {
 	T.ExecuteTemplate(w, "footer.tmpl", nil)
 }
 
+// Generate a website to display an agent
 func showAgent(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(path.Base(r.URL.Path))
 	if err != nil {
@@ -275,6 +280,7 @@ func showAgent(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Generate a website to display a game
 func showGame(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(path.Base(r.URL.Path))
 	if err != nil {

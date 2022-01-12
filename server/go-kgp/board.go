@@ -45,10 +45,14 @@ func (b Side) String() string {
 
 // Board represents a Kalah game
 type Board struct {
+	// The north and south store
 	north, south uint
-	northPits    []uint
-	southPits    []uint
-	init         uint
+	// The northern pits (from right to left)
+	northPits []uint
+	// The southern pits (from left to right)
+	southPits []uint
+	// The initial board size
+	init uint
 }
 
 // create a new board with SIZE pits, each with INIT stones
@@ -104,7 +108,7 @@ func (b *Board) Legal(side Side, pit int) bool {
 	return b.southPits[pit] > 0
 }
 
-func (b *Board) Moves(side Side) (count int, last int) {
+func (b *Board) Moves(side Side) (count, last int) {
 	for i := 0; i < len(b.northPits); i++ {
 		if b.Legal(side, i) {
 			last = i
@@ -251,6 +255,7 @@ func (b *Board) Over() bool {
 	return b.OverFor(SideNorth) || b.OverFor(SideSouth)
 }
 
+// Calculate the outcome for SIDE
 func (b *Board) Outcome(side Side) Outcome {
 	var north, south uint
 

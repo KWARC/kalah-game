@@ -37,18 +37,21 @@ type Isolation interface {
 	Await()
 }
 
+// Helper function to pause an isolated client
 func pause(cli *Client) {
 	if cli != nil && cli.isol != nil {
 		cli.isol.Pause()
 	}
 }
 
+// Helper function to unpause an isolated client
 func unpause(cli *Client) {
 	if cli != nil && cli.isol != nil {
 		cli.isol.Unpause()
 	}
 }
 
+// A tournament is a scheduler that matches participants via a system
 type Tournament struct {
 	sync.Mutex
 	// What tournament system is being used (swiss, round-robin,
@@ -63,6 +66,10 @@ type Tournament struct {
 	games chan *Game
 }
 
+// Helper function to launch a client with NAME
+//
+// The function starts a separate server, creates an isolated client,
+// and returns the client via the passed channel
 func launch(name string, c chan<- *Client) {
 	debug.Println("Launching", name)
 
@@ -92,6 +99,7 @@ func launch(name string, c chan<- *Client) {
 	default:
 		log.Fatal("Unknown isolation system", conf.Tourn.Isolation)
 	}
+
 	// Create a client and wait for an incoming connection
 	cli := &Client{
 		notify: c,
@@ -131,9 +139,10 @@ func launch(name string, c chan<- *Client) {
 	wait.Wait()
 
 	isol.Run(port)
-	cli.kill()
+	cli.Kill()
 }
 
+// Convert a tournament system into a scheduler
 func makeTournament(sys System) Sched {
 	t := &Tournament{
 		record: make(map[*Client][]*Client),
@@ -206,9 +215,10 @@ func makeTournament(sys System) Sched {
 
 	t.games = make(chan *Game)
 	go t.Manage()
-	return t.Match
+	return t.Schedule
 }
 
+// A scheduler adaptor for a tournament
 func (t *Tournament) Manage() {
 	c := make(chan int64)
 	dbact <- registerTournament(t.system.String(), c)
@@ -265,7 +275,7 @@ func (t *Tournament) Manage() {
 	}
 }
 
-func (t *Tournament) Match(queue []*Client) ([]*Client, bool) {
+func (t *Tournament) Schedule(queue []*Client) ([]*Client, bool) {
 	for _, cli := range queue {
 		t.system.Ready(t, cli)
 	}

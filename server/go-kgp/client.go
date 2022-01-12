@@ -34,7 +34,7 @@ import (
 	"time"
 )
 
-// An Agent
+// An Agent is the core of a Client, as stored in the database
 type Agent struct {
 	Name   string
 	Author string
@@ -67,12 +67,15 @@ type Client struct {
 	nstop  uint64
 }
 
-func (cli *Client) kill() {
+// Kill will try to close the connection for a client
+func (cli *Client) Kill() {
 	if cli != nil && cli.killFn != nil {
 		cli.killFn()
 	}
 }
 
+// String will return a string representation for a client for
+// internal use
 func (cli *Client) String() string {
 	if cli == nil {
 		return "RND"
@@ -92,16 +95,23 @@ func (cli *Client) String() string {
 	return fmt.Sprintf("%p (%q)", cli, hash)
 }
 
-// Send forwards an unreferenced message to the client
+// Send is a shorthand to respond without a reference
 func (cli *Client) Send(command string, args ...interface{}) uint64 {
 	return cli.Respond(0, command, args...)
 }
 
+// Error is a shorthand to respond with an error message
 func (cli *Client) Error(to uint64, args ...interface{}) {
 	cli.Respond(to, "error", args...)
 }
 
 // Respond forwards a referenced message to the client
+//
+// Each element in ARGS is handled as an argument to COMMAND, and will
+// use the concrete datatype for formatting.  Respond does not check
+// if the arguments have the right types for COMMAND.
+//
+// If TO is 0, no reference will be added.
 func (cli *Client) Respond(to uint64, command string, args ...interface{}) uint64 {
 	if cli == nil {
 		return 0
@@ -169,14 +179,15 @@ retry:
 			goto retry
 		} else {
 			log.Print(cli, err)
-			cli.kill()
+			cli.Kill()
 		}
 	}
 
 	return id
 }
 
-func (cli *Client) Pinger(done <-chan struct{}) {
+// Pinger regularly sends out a ping and checks if a pong was received.
+func (cli *Client) Pinger(ctx context.Context) {
 	if conf.TCP.Timeout == 0 {
 		panic("TCP Timeout must be greater than 0")
 	}
@@ -185,7 +196,7 @@ func (cli *Client) Pinger(done <-chan struct{}) {
 
 	for {
 		select {
-		case <-done:
+		case <-ctx.Done():
 			return
 		case <-ticker.C:
 			// If the timer fired, check the ping flag and
@@ -211,7 +222,7 @@ func (cli *Client) Pinger(done <-chan struct{}) {
 			cli.lock.Unlock()
 
 			debug.Printf("%s did not respond to a ping in time", cli)
-			cli.kill()
+			cli.Kill()
 			break
 		}
 
@@ -221,7 +232,11 @@ func (cli *Client) Pinger(done <-chan struct{}) {
 	}
 }
 
-// Handle controls a connection and reads user input
+// Handle coordinates a client
+//
+// It will start a ping thread (if the configuration requires it), a
+// goroutine to handle and interpret input and then wait for the
+// client to be killed.
 func (cli *Client) Handle() {
 	// Ensure that the client has a channel that is being
 	// communicated upon.
@@ -238,10 +253,11 @@ func (cli *Client) Handle() {
 
 	// Optionally start a thread to periodically send ping
 	// requests to the client
-	var done chan struct{}
+	var done context.CancelFunc
 	if conf.TCP.Ping {
-		done = make(chan (struct{}))
-		go cli.Pinger(done)
+		var pCtx context.Context
+		pCtx, done = context.WithCancel(context.Background())
+		go cli.Pinger(pCtx)
 	}
 
 	// Start a thread to read the user input from rwc
@@ -273,7 +289,7 @@ func (cli *Client) Handle() {
 		if err != nil && !strings.Contains(err.Error(), "use of closed network connection") {
 			log.Print(err)
 		}
-		cli.kill()
+		cli.Kill()
 	}()
 
 	// When the client is killed (a game has finished, the client
@@ -298,7 +314,7 @@ func (cli *Client) Handle() {
 
 	// Kill ping thread if requested for the connection
 	if done != nil {
-		close(done)
+		done()
 	}
 
 	// Unset the ReadWriteCloser

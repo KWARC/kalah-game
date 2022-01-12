@@ -406,6 +406,7 @@ func queryAgents(c chan<- *Agent, page int) DBAction {
 	}
 }
 
+// Thread pool worker for database actions
 func databaseManager(id uint, db *sql.DB, wg *sync.WaitGroup) {
 	defer wg.Done()
 
@@ -428,6 +429,7 @@ func databaseManager(id uint, db *sql.DB, wg *sync.WaitGroup) {
 	}
 }
 
+// Initialise the database and database managers
 func manageDatabase() {
 	db, err := sql.Open("sqlite3", conf.Database.File+"?mode=rwc")
 	if err != nil {
@@ -461,6 +463,7 @@ func manageDatabase() {
 		// https://www.sqlite.org/pragma.html#pragma_foreign_keys
 		"foreign_keys = on",
 	} {
+		debug.Printf("Run PRAGMA %v", pragma)
 		_, err = db.Exec("PRAGMA " + pragma + ";")
 		if err != nil {
 			log.Fatal(err)
@@ -482,8 +485,10 @@ func manageDatabase() {
 		}
 
 		if strings.HasPrefix(base, "create-") {
+			debug.Printf("Execute %v", base)
 			_, err = db.Exec(string(data))
 		} else {
+			debug.Printf("Prepare %v", base)
 			queries[strings.TrimSuffix(base, ".sql")], err = db.Prepare(string(data))
 		}
 		if err != nil {
@@ -516,6 +521,9 @@ func manageDatabase() {
 	wg.Wait()
 }
 
+// Shutdown synchronisation object
+//
+// When the program is shutdown, use this to call closeDB.
 var shutdown sync.Once
 
 // Initiate a database shutdown

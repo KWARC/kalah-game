@@ -31,13 +31,8 @@ const (
 	K        = 20
 )
 
-var OutcomeToPoints = map[Outcome]float64{
-	WIN:  1.0,
-	DRAW: 0.5,
-	LOSS: 0.0,
-}
-
-func (g *Game) updateScore() (err error) {
+// Update the score of clients in game using the Elo system
+func (g *Game) updateElo() (err error) {
 	if g.North.token == nil || g.South.token == nil {
 		return nil
 	}
@@ -64,8 +59,19 @@ func (g *Game) updateScore() (err error) {
 			g.North.Score += K * eb
 		}
 	} else {
-		g.South.Score += K * (OutcomeToPoints[g.Outcome] - ea)
-		g.North.Score += K * (1 - OutcomeToPoints[g.Outcome] - eb)
+		var points float64
+
+		switch g.Outcome {
+		case WIN:
+			points = 1.0
+		case DRAW:
+			points = 0.5
+		case LOSS:
+			points = 0.0
+		}
+
+		g.South.Score += K * (points - ea)
+		g.North.Score += K * (1 - points - eb)
 	}
 	g.South.Score = math.Max(0, g.South.Score)
 	g.North.Score = math.Max(0, g.North.Score)

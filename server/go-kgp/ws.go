@@ -27,14 +27,13 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-}
-
+// Upgrade a HTTP connection to a WebSocket and handle it
 func listenUpgrade(w http.ResponseWriter, r *http.Request) {
 	// upgrade to websocket or bail out
-	conn, err := upgrader.Upgrade(w, r, nil)
+	conn, err := (&websocket.Upgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+	}).Upgrade(w, r, nil)
 	if err != nil {
 		log.Printf("Unable to upgrade connection: %s", err)
 		w.WriteHeader(400)
@@ -54,6 +53,7 @@ type wsrwc struct {
 	r io.Reader
 }
 
+// Convert a write call to a Websocket message
 func (c *wsrwc) Write(p []byte) (int, error) {
 	err := c.WriteMessage(websocket.TextMessage, p)
 	if err != nil {
@@ -62,6 +62,7 @@ func (c *wsrwc) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
+// Convert a read call into a Websocket query
 func (c *wsrwc) Read(p []byte) (int, error) {
 	for {
 		if c.r == nil {

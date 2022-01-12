@@ -60,7 +60,7 @@ type Game struct {
 	// move.  See .North and .South.
 	side Side
 	// The control channel that is used to send actions like move
-	// or yield.  These are processed in .Start().
+	// or yield.  These are processed in .Play().
 	move  chan<- *Move
 	death chan<- *Client
 	// The two clients
@@ -72,9 +72,13 @@ type Game struct {
 	//
 	// These fields are usually empty, unless a Game object has
 	// been queried from the database and passed on to a template.
-	Id        int64
-	Moves     []*Move
-	Outcome   Outcome // For south
+	Id int64
+	// List of moves made in a game, in order of occurance
+	Moves []*Move
+	// The result of the game (from south's perspective)
+	Outcome Outcome
+	// Number of moves made in a game (used only for database
+	// queries, otherwise Moves is used)
 	MoveCount int64
 }
 
@@ -86,6 +90,7 @@ func (g *Game) String() string {
 	return g.Board.String()
 }
 
+// IsOver checks if the current board is in a final state
 func (g *Game) IsOver() bool {
 	return g.Board.Over()
 }
@@ -102,6 +107,7 @@ func (g *Game) Player(side Side) *Client {
 	}
 }
 
+// Return the side CLI is playing as
 func (g *Game) Side(cli *Client) Side {
 	switch cli {
 	case g.North:
@@ -156,6 +162,7 @@ func (g *Game) Other(cli *Client) *Client {
 // initialised in main according to conf.Game.Slots.
 var slots chan struct{}
 
+// Used wait for all ongoing games to finished
 var ongoing sync.WaitGroup
 
 // Play manages a game between the north and south client
@@ -212,15 +219,15 @@ func (g *Game) Play() bool {
 		wait.Wait()
 		g.North.Send("set", "game:id", strconv.FormatInt(g.Id, 10))
 		g.South.Send("set", "game:id", strconv.FormatInt(g.Id, 10))
-		if conf.Web.Enabled && conf.Web.Base != "" {
-			uri := fmt.Sprintf(conf.Web.Base, g.Id)
+		if conf.Web.Enabled && conf.Web.Host != "" {
+			uri := fmt.Sprintf("https://%s/game/%d", conf.Web.Host, g.Id)
 			g.North.Send("set", "game:uri", uri)
 			g.South.Send("set", "game:uri", uri)
 		}
 	} else {
 		g.North.Send("set", "game:id", "")
 		g.South.Send("set", "game:id", "")
-		if conf.Web.Enabled && conf.Web.Base != "" {
+		if conf.Web.Enabled && conf.Web.Host != "" {
 			// XXX: If the configuration is reloaded and
 			// the base URL is reset, the game URI will
 			// not be unset at the beginning of the next
