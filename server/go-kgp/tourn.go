@@ -138,7 +138,10 @@ func launch(name string, c chan<- *Client) {
 	dbact <- cli.updateDatabase(&wait, false)
 	wait.Wait()
 
-	isol.Run(port)
+	err = isol.Run(port)
+	if err != nil {
+		log.Fatal(err)
+	}
 	cli.Kill()
 }
 
