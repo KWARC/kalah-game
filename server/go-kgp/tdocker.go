@@ -22,6 +22,7 @@ package main
 import (
 	"context"
 	"log"
+	"os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -29,13 +30,23 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
-	"github.com/docker/go-connections/nat"
 )
 
 var (
 	dCli  *client.Client
 	dSync sync.Mutex
+
+	// Hostname of the current system
+	hostname string
 )
+
+func init() {
+	var err error
+	hostname, err = os.Hostname()
+	if err != nil {
+		panic(err)
+	}
+}
 
 // Docker isolates a client within a docker container
 type Docker struct {
@@ -65,8 +76,8 @@ func (d *Docker) Run(port string) error {
 	// https://docs.docker.com/engine/api/v1.41/#operation/ContainerCreate
 	ctx := context.Background()
 	resp, err := dCli.ContainerCreate(ctx, &container.Config{
-		NetworkDisabled: true,
-		Image:           d.name,
+		Image: d.name,
+		Cmd:   []string{hostname, port},
 	}, &container.HostConfig{
 		Resources: container.Resources{
 			CPUCount:   int64(conf.Tourn.Docker.CPUs),
@@ -74,22 +85,16 @@ func (d *Docker) Run(port string) error {
 			MemorySwap: int64(conf.Tourn.Docker.Swap),
 		},
 		ReadonlyRootfs: true,
-		PortBindings: map[nat.Port][]nat.PortBinding{
-			"2671/tcp": {{
-				HostIP:   "localhost",
-				HostPort: port,
-			}},
-		},
-		NetworkMode: container.NetworkMode(conf.Tourn.Docker.Network),
+		NetworkMode:    container.NetworkMode(conf.Tourn.Docker.Network),
 	}, nil, nil, d.name)
 	if err != nil {
-		log.Print("Failed to create container ", d.name)
+		log.Fatal("Failed to create container ", d.name, ": ", err)
 		return err
 	}
 
 	d.id = resp.ID
 	if err := dCli.ContainerStart(ctx, d.id, types.ContainerStartOptions{}); err != nil {
-		log.Print("Failed to start container ", d.name)
+		log.Fatal("Failed to start container ", d.name, ": ", err)
 		return err
 	}
 
