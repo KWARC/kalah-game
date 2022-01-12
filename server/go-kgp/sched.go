@@ -206,9 +206,6 @@ var fifo Sched = func(queue []*Client) ([]*Client, bool) {
 					if err := g1.updateElo(); err != nil {
 						log.Print(err)
 					}
-					if err := g2.updateElo(); err != nil {
-						log.Print(err)
-					}
 				}
 
 				if conf.Endless {
