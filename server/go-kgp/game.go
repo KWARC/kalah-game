@@ -217,43 +217,6 @@ func (g *Game) Play() bool {
 		wait.Add(1)
 		dbact <- g.updateDatabase(&wait)
 		wait.Wait()
-		g.North.Send("set", "game:id", strconv.FormatInt(g.Id, 10))
-		g.South.Send("set", "game:id", strconv.FormatInt(g.Id, 10))
-		if conf.Web.Enabled && conf.Web.Host != "" {
-			uri := fmt.Sprintf("https://%s/game/%d", conf.Web.Host, g.Id)
-			g.North.Send("set", "game:uri", uri)
-			g.South.Send("set", "game:uri", uri)
-		}
-	} else {
-		g.North.Send("set", "game:id", "")
-		g.South.Send("set", "game:id", "")
-		if conf.Web.Enabled && conf.Web.Host != "" {
-			// XXX: If the configuration is reloaded and
-			// the base URL is reset, the game URI will
-			// not be unset at the beginning of the next
-			// game.
-			g.North.Send("set", "game:uri", "")
-			g.South.Send("set", "game:uri", "")
-		}
-	}
-
-	// If the client is a being managed locally, we avoid
-	// informing opponents of who they are playing against.
-	if g.North.isol == nil {
-		if g.South.token != nil {
-			g.North.Send("set", "game:opponent",
-				strconv.FormatInt(g.North.Id, 10))
-		} else {
-			g.North.Send("set", "game:opponent", "")
-		}
-	}
-	if g.South.isol == nil {
-		if g.North.token != nil {
-			g.South.Send("set", "game:opponent",
-				strconv.FormatInt(g.South.Id, 10))
-		} else {
-			g.South.Send("set", "game:opponent", "")
-		}
 	}
 
 	g.side = SideSouth
