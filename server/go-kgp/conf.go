@@ -23,8 +23,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/BurntSushi/toml"
@@ -138,8 +136,6 @@ type Conf struct {
 	WS WSConf `toml:"websocket"`
 	// TCP (public server) configuration
 	TCP TCPConf `toml:"tcp"`
-	// File from which the configuration was loaded
-	file string
 }
 
 // Configuration object used by default
@@ -193,36 +189,6 @@ var defaultConfig = Conf{
 }
 
 func (conf *Conf) init() {
-	go func() {
-		var (
-			rc  io.ReadCloser
-			err error
-		)
-
-		c := make(chan os.Signal, 1)
-		signal.Notify(c, syscall.SIGUSR1)
-
-		for range c {
-			if conf.file == "" {
-				goto init
-			}
-			rc, err = os.Open(conf.file)
-			if err != nil {
-				log.Print(err)
-				continue
-			}
-
-			err = parseConf(rc, conf)
-			if err != nil {
-				log.Print(err)
-			}
-			rc.Close()
-
-		init:
-			go conf.Web.init()
-		}
-	}()
-
 	if conf.Debug {
 		debug.SetOutput(os.Stderr)
 		log.SetFlags(log.Flags() | log.Lshortfile)
@@ -249,6 +215,5 @@ func openConf(name string) (*Conf, error) {
 	}
 	defer file.Close()
 
-	conf.file = name
 	return &conf, parseConf(file, &conf)
 }
