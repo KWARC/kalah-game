@@ -21,7 +21,6 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"embed"
 	"fmt"
 	"html/template"
@@ -148,9 +147,6 @@ var (
 		},
 	}
 
-	// Current active server
-	server *http.Server
-
 	// The static file system as a HTTP Handler
 	static http.Handler
 
@@ -172,29 +168,15 @@ func init() {
 //
 // If a web server was already running, wait for it to be killed.
 func (wc *WebConf) init() {
-	if !wc.Enabled {
-		return
-	}
-
-	if server != nil {
-		server.Shutdown(context.Background())
-	}
-
-	mux := http.NewServeMux()
 	weblock.Lock()
 	defer weblock.Unlock()
 
 	// Install HTTP handlers
-	mux.HandleFunc("/", index)
-	mux.HandleFunc("/agent/", showAgent)
-	mux.HandleFunc("/game/", showGame)
-	mux.HandleFunc("/about", about)
-	mux.Handle("/static/", http.StripPrefix("/static/", static))
-
-	if conf.WS.Enabled {
-		mux.HandleFunc("/socket", listenUpgrade)
-		debug.Print("Handling websocket on /socket")
-	}
+	http.HandleFunc("/", index)
+	http.HandleFunc("/agent/", showAgent)
+	http.HandleFunc("/game/", showGame)
+	http.HandleFunc("/about", about)
+	http.Handle("/static/", http.StripPrefix("/static/", static))
 
 	// Parse templates
 	var err error
@@ -212,8 +194,7 @@ func (wc *WebConf) init() {
 
 	addr := fmt.Sprintf(":%d", conf.Web.Port)
 	debug.Printf("Listening via HTTP on %s", addr)
-	server = &http.Server{Addr: addr, Handler: mux}
-	err = server.ListenAndServe()
+	err = http.ListenAndServe(addr, nil)
 	if err != nil {
 		log.Print(err)
 	}

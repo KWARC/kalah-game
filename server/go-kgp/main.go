@@ -25,6 +25,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"net/http"
 	"os"
 
 	"github.com/BurntSushi/toml"
@@ -46,6 +47,28 @@ var (
 	// Logger used for debug output
 	debug = log.New(io.Discard, "[debug] ", log.Ltime|log.Lshortfile|log.Lmicroseconds)
 )
+
+func listen(port uint) {
+	tcp := fmt.Sprintf(":%d", port)
+	plain, err := net.Listen("tcp", tcp)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	debug.Printf("Listening on TCP %s", tcp)
+	go func() {
+		for {
+			conn, err := plain.Accept()
+			if err != nil {
+				log.Print(err)
+				continue
+			}
+
+			log.Printf("New connection from %s", conn.RemoteAddr())
+			go (&Client{rwc: conn}).Handle()
+		}
+	}()
+}
 
 func main() {
 	var (
@@ -111,28 +134,6 @@ func main() {
 	}
 	conf.init()
 
-	if conf.TCP.Enabled {
-		tcp := fmt.Sprintf("%s:%d", conf.TCP.Host, conf.TCP.Port)
-		plain, err := net.Listen("tcp", tcp)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		debug.Printf("Listening on TCP %s", tcp)
-		go func() {
-			for {
-				conn, err := plain.Accept()
-				if err != nil {
-					log.Print(err)
-					continue
-				}
-
-				log.Printf("New connection from %s", conn.RemoteAddr())
-				go (&Client{rwc: conn}).Handle()
-			}
-		}()
-	}
-
 	// In case an upper bound of concurrent games has been
 	// specified, we prepare the "slots" channel to be used as a
 	// semaphore.
@@ -161,7 +162,20 @@ func main() {
 	// are evaluated in the initial goroutine.  If the scheduler
 	// depends on the database (as it does for tournament
 	// schedulers), the program would deadlock.
-	go func() { schedule(parseSched(conf.Sched)) }()
+	go func() {
+		sched := parseSched(conf.Sched)
+		switch &sched {
+		case &fifo:
+			fc := conf.Schedulers.FIFO
+			listen(fc.Port)
+			if fc.WebSocket {
+				http.HandleFunc("/socket", listenUpgrade)
+				debug.Print("Handling websocket on /socket")
+			}
+		case &random:
+		}
+		schedule(sched)
+	}()
 
 	// Start database manager
 	manageDatabase()

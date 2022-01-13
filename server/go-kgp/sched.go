@@ -125,8 +125,10 @@ func skim(count int) Sched {
 var random Sched = func(queue []*Client) ([]*Client, bool) {
 	for _, cli := range queue {
 		go func(cli *Client) {
-			size := conf.Game.Sizes[rand.Intn(len(conf.Game.Sizes))]
-			stones := conf.Game.Stones[rand.Intn(len(conf.Game.Stones))]
+			var (
+				size   = conf.Schedulers.Random.Size
+				stones = conf.Schedulers.Random.Stones
+			)
 
 			g1 := &Game{
 				Board: makeBoard(size, stones),
@@ -183,8 +185,8 @@ var fifo Sched = func(queue []*Client) ([]*Client, bool) {
 			}
 
 			go func() {
-				size := conf.Game.Sizes[rand.Intn(len(conf.Game.Sizes))]
-				stones := conf.Game.Stones[rand.Intn(len(conf.Game.Stones))]
+				size := conf.Schedulers.FIFO.Sizes[rand.Intn(len(conf.Schedulers.FIFO.Sizes))]
+				stones := conf.Schedulers.FIFO.Stones[rand.Intn(len(conf.Schedulers.FIFO.Stones))]
 
 				g1 := &Game{
 					Board: makeBoard(size, stones),
@@ -208,7 +210,7 @@ var fifo Sched = func(queue []*Client) ([]*Client, bool) {
 					}
 				}
 
-				if conf.Endless {
+				if conf.Schedulers.FIFO.Endless {
 					// In the "endless" mode, the client is just
 					// added back to the waiting queue as soon as
 					// the game is over.
