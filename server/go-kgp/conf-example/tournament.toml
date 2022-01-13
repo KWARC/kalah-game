@@ -1,0 +1,27 @@
+sched = "rr.4 skim.40 !.0 rr.8 skim.20 !.0 rr.12"
+
+[database]
+  file = "kalah.sql"
+  threads = 1
+  timeout = 1000000000
+
+[tournament]
+  names = [ "alpha", "beta", "gamma" ] # add more names here
+  isolation = "docker"
+  warmup = 600
+  [tournament.docker]
+    memory = 1073741824
+    swap = 1073741824
+    cpus = 1
+    network = "tournament"
+
+[game]
+  timeout = 5
+  earlywin = true
+  slots = 16
+  skiptriv = true
+
+[tcp]
+  ping = true
+  timeout = 10
+  retries = 8

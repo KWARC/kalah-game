@@ -71,46 +71,9 @@ func listen(port uint) {
 }
 
 func main() {
-	var (
-		confFile = flag.String("conf", defConfName, "Name of configuration file")
-		dumpConf = flag.Bool("dump-config", false, "Dump default configuration")
-	)
-
-	flag.UintVar(&conf.TCP.Port, "port",
-		conf.TCP.Port,
-		"Port for TCP connections")
-	flag.StringVar(&conf.TCP.Host, "host",
-		conf.TCP.Host,
-		"Host for TCP connections")
-	flag.UintVar(&conf.Web.Port, "webport",
-		conf.Web.Port,
-		"Port for HTTP connections")
-	flag.StringVar(&conf.Web.Host, "webhost",
-		conf.Web.Host,
-		"Host for HTTP connections")
-	flag.BoolVar(&conf.WS.Enabled, "websocket",
-		conf.WS.Enabled,
-		"Listen for websocket upgrades only")
-	flag.StringVar(&conf.Database.File, "db",
-		conf.Database.File,
-		"Path to SQLite database")
-	flag.UintVar(&conf.Game.Timeout, "timeout",
-		conf.Game.Timeout,
-		"Seconds to wait for a move to be made")
-	flag.BoolVar(&conf.Debug, "debug",
-		conf.Debug,
-		"Print all network I/O")
-	flag.StringVar(&conf.Web.About, "about",
-		conf.Web.About,
-		"A template for the about page")
-	flag.StringVar(&conf.Sched, "sched",
-		conf.Sched,
-		"Set game scheduler.")
-	flag.StringVar(&conf.Tourn.Isolation, "isolate",
-		conf.Tourn.Isolation,
-		"Isolation mechanism used for the tournament.")
+	confFile := flag.String("conf", defConfName, "Name of configuration file")
+	dumpConf := flag.Bool("dump-config", false, "Dump default configuration")
 	flag.Parse()
-
 	if flag.NArg() != 0 {
 		flag.Usage()
 		os.Exit(1)
@@ -173,6 +136,12 @@ func main() {
 				debug.Print("Handling websocket on /socket")
 			}
 		case &random:
+			rc := conf.Schedulers.Random
+			listen(rc.Port)
+			if rc.WebSocket {
+				http.HandleFunc("/socket", listenUpgrade)
+				debug.Print("Handling websocket on /socket")
+			}
 		}
 		schedule(sched)
 	}()

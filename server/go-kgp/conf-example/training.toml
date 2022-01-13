@@ -1,0 +1,33 @@
+sched = "fifo"
+
+[schedulers]
+  [schedulers.fifo]
+    endless = true
+    port = 2671
+    websocket = true
+    sizes = [4, 5, 6, 7, 8, 9, 10, 11, 12]
+    stones = [4, 5, 6, 7, 8, 9, 10, 11, 12]
+
+[database]
+  file = "kalah.sql"
+  threads = 4
+  timeout = 100000000
+  optimise = true
+
+[game]
+  timeout = 5
+  earlywin = true
+  slots = 0
+  skiptriv = true
+
+[web]
+  enabled = true
+  host = ""
+  port = 8080
+  limit = 50
+  about = ""
+
+[tcp]
+  ping = true
+  timeout = 10
+  retries = 4

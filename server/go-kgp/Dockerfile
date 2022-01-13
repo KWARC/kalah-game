@@ -33,4 +33,4 @@ COPY --from=builder /app/go-kgp /go-kgp
 EXPOSE 8080
 EXPOSE 2671
 USER www-data:www-data
-CMD ["/go-kgp", "-db", "/data/kalah.sql", "-webhost", "0.0.0.0", "-webport", "8080", "-host", "0.0.0.0", "-port", "2671"]
+CMD ["/go-kgp", "-conf", "conf-example/training.toml"]
