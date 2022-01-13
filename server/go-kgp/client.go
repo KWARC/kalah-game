@@ -48,21 +48,23 @@ type Agent struct {
 // Client wraps a network connection into a player
 type Client struct {
 	Agent
-	game    *Game
+	games   map[uint64]*Game
 	rwc     io.ReadWriteCloser
 	lock    sync.Mutex
+	iolock  sync.Mutex
 	rid     uint64
 	killFn  context.CancelFunc
 	pinged  uint32
 	token   []byte
 	comment string
-	simple  bool
 	notify  chan<- *Client
 
 	// Tournament isolation
 	isol Isolation
 
 	// Simple mode state management
+	simple bool
+	game   *Game
 	nyield uint64
 	nstop  uint64
 }
@@ -146,8 +148,8 @@ func (cli *Client) Respond(to uint64, command string, args ...interface{}) uint6
 	}
 
 	// attempt to send this message before any other message is sent
-	defer cli.lock.Unlock()
-	cli.lock.Lock()
+	defer cli.iolock.Unlock()
+	cli.iolock.Lock()
 
 	if cli.rwc == nil {
 		return 0
@@ -186,6 +188,33 @@ retry:
 	return id
 }
 
+// Check if the client cannot play a game
+func (cli *Client) Occupied() bool {
+	// Only simple mode clients can be occupied, as they are
+	// limited to only play one game at a time
+	return cli.simple && cli.game != nil
+}
+
+// Remove all of CLIs references to GAME
+func (cli *Client) Forget(game *Game) {
+	defer cli.lock.Unlock()
+	cli.lock.Lock()
+
+	if cli.simple {
+		if cli.game == game {
+			cli.game = nil
+		} else {
+			panic("Forgetting wrong game")
+		}
+	} else {
+		for id, g := range cli.games {
+			if g == game {
+				delete(cli.games, id)
+			}
+		}
+	}
+}
+
 // Pinger regularly sends out a ping and checks if a pong was received.
 func (cli *Client) Pinger(ctx context.Context) {
 	if conf.TCP.Timeout == 0 {
@@ -217,9 +246,9 @@ func (cli *Client) Pinger(ctx context.Context) {
 		// client has timed out.
 		if atomic.SwapUint32(&cli.pinged, 0) == 1 {
 			// Attempt to send an error message, ignoring errors
-			cli.lock.Lock()
+			cli.iolock.Lock()
 			fmt.Fprint(cli.rwc, "error \"Received no pong\"\r\n")
-			cli.lock.Unlock()
+			cli.iolock.Unlock()
 
 			debug.Printf("%s did not respond to a ping in time", cli)
 			cli.Kill()
@@ -300,14 +329,11 @@ func (cli *Client) Handle() {
 	// Request for the client to be removed from the queue
 	forget <- cli
 
-	// To avoid concurrency issues, the client lock is reserved
-	// for the rest of the function/goroutine's lifetime
-	cli.lock.Lock()
-	defer cli.lock.Unlock()
-
 	// Send a simple goodbye, ignoring errors if the network
 	// connection was broken
+	cli.iolock.Lock()
 	fmt.Fprint(cli.rwc, "goodbye\r\n")
+	cli.iolock.Unlock()
 
 	// Kill input processing thread
 	dead = true
@@ -323,8 +349,8 @@ func (cli *Client) Handle() {
 	// If the client was currently playing a game, we have to
 	// consider what our opponent is doing.  We notify the game
 	// that the client is gone.
-	if cli.game != nil {
-		cli.game.death <- cli
+	for _, game := range cli.games {
+		game.death <- cli
 	}
 
 	debug.Print("Closed connection to ", cli)

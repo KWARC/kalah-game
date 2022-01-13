@@ -171,7 +171,7 @@ var fifo Sched = func(queue []*Client) ([]*Client, bool) {
 	north := queue[0]
 	for i, cli := range queue[1:] {
 		i += 1
-		if cli.game != nil || cli.rwc == nil {
+		if !cli.Occupied() && cli.rwc == nil {
 			queue = append(queue[:i], queue[i+1:]...)
 			continue
 		}

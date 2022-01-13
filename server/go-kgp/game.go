@@ -22,7 +22,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -142,14 +141,8 @@ func (g *Game) Other(cli *Client) *Client {
 	}
 	switch cli {
 	case g.North:
-		if g.North.game == nil {
-			return nil
-		}
 		return g.South
 	case g.South:
-		if g.South.game == nil {
-			return nil
-		}
 		return g.North
 	default:
 		panic(fmt.Sprintf("%s is not part of %s", cli, g))
@@ -165,6 +158,14 @@ var slots chan struct{}
 // Used wait for all ongoing games to finished
 var ongoing sync.WaitGroup
 
+// Send the current side a state command
+func (g *Game) SendState() {
+	g.last = g.Current().Send("state", g)
+	g.Current().lock.Lock()
+	g.Current().games[g.last] = g
+	g.Current().lock.Unlock()
+}
+
 // Play manages a game between the north and south client
 func (g *Game) Play() bool {
 	ongoing.Add(1)
@@ -175,8 +176,8 @@ func (g *Game) Play() bool {
 
 	defer func() {
 		g.Outcome = g.Board.Outcome(SideSouth)
-		g.North.game = nil
-		g.South.game = nil
+		g.North.Forget(g)
+		g.South.Forget(g)
 		atomic.AddUint64(&playing, ^uint64(1))
 
 		// Suspend both clients as soon as the game is over
@@ -196,20 +197,24 @@ func (g *Game) Play() bool {
 	g.move = move
 	g.death = death
 
-	if g.North.game != nil {
-		panic(fmt.Sprintf("Already %s part of game %s (%s, %s) while entering %s (%s, %s)",
-			g.North,
-			g.North.game, g.North.game.South, g.North.game.North,
-			g, g.South, g.North))
+	if g.North.simple {
+		if g.North.game != nil {
+			panic(fmt.Sprintf("Already %s part of game %s (%s, %s) while entering %s (%s, %s)",
+				g.North,
+				g.North.game, g.North.game.South, g.North.game.North,
+				g, g.South, g.North))
+		}
+		g.North.game = g
 	}
-	g.North.game = g
-	if g.South.game != nil {
-		panic(fmt.Sprintf("Already %s part of game %s (%s, %s) while entering %s (%s, %s)",
-			g.South,
-			g.South.game, g.South.game.South, g.South.game.South,
-			g, g.South, g.North))
+	if g.South.simple {
+		if g.South.game != nil {
+			panic(fmt.Sprintf("Already %s part of game %s (%s, %s) while entering %s (%s, %s)",
+				g.South,
+				g.South.game, g.South.game.South, g.South.game.South,
+				g, g.South, g.North))
+		}
+		g.South.game = g
 	}
-	g.South.game = g
 
 	if g.North.token != nil && g.South.token != nil {
 		g.logged = true
@@ -220,7 +225,7 @@ func (g *Game) Play() bool {
 	}
 
 	g.side = SideSouth
-	atomic.StoreUint64(&g.last, g.South.Send("state", g))
+	g.SendState()
 
 	timer := time.NewTimer(time.Duration(conf.Game.Timeout) * time.Second)
 
@@ -338,8 +343,7 @@ func (g *Game) Play() bool {
 				}
 			}
 
-			g.last = g.Current().Send("state", g)
-
+			g.SendState()
 			timer.Reset(time.Duration(conf.Game.Timeout) * time.Second)
 		}
 	}

@@ -140,7 +140,7 @@ func (cli *Client) Interpret(input string) error {
 
 		cmd  = matches[3]
 		args = matches[4]
-		game = cli.game
+		game *Game
 	)
 	if matches[1] != "" {
 		id, err = strconv.ParseUint(matches[1], 10, 64)
@@ -152,6 +152,12 @@ func (cli *Client) Interpret(input string) error {
 		ref, err = strconv.ParseUint(matches[2], 10, 64)
 		if err != nil {
 			return nil
+		}
+
+		if cli.simple {
+			game = cli.game
+		} else {
+			game = cli.games[ref]
 		}
 	}
 
