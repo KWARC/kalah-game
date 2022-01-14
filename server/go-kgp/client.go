@@ -239,12 +239,13 @@ func (cli *Client) Pinger(ctx context.Context) {
 		}
 
 		// To prevent race conditions, we atomically check and
-		// reset the pinged flag.  In case the old value is
-		// not 0 (indicating it the client was not pinged), we
-		// will not abort the connection.  Otherwise, if we do
-		// manage to reset the flag as expected, we assume the
-		// client has timed out.
-		if atomic.SwapUint32(&cli.pinged, 0) == 1 {
+		// reset the pinged flag.  We try to set the flag, but
+		// will fail if it is already set.  Failure will lead
+		// to us aborting the connection.  Otherwise we send
+		// the client a ping request.
+		if atomic.CompareAndSwapUint32(&cli.pinged, 0, 1) {
+			cli.Send("ping")
+		} else {
 			// Attempt to send an error message, ignoring errors
 			cli.iolock.Lock()
 			fmt.Fprint(cli.rwc, "error \"Received no pong\"\r\n")
@@ -254,10 +255,6 @@ func (cli *Client) Pinger(ctx context.Context) {
 			cli.Kill()
 			break
 		}
-
-		// In case it was not set, ping the client
-		// again and reset the flag
-		cli.Send("ping")
 	}
 }
 
