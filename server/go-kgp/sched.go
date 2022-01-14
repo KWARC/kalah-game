@@ -272,11 +272,19 @@ func schedule(sched Sched) {
 // Parse a scheduler specification into a scheduler
 //
 // The scheduler specification is described in the manual.
-func parseSched(spec string) Sched {
+func parseSched(spec interface{}) Sched {
+	var parts []string
+	switch v := spec.(type) {
+	case []string:
+		parts = v
+	case string:
+		parts = []string{v}
+	}
+
 	var scheds []Sched
 
-	for _, word := range strings.Split(spec, " ") {
-		parse := strings.Split(word, ".")
+	for _, word := range parts {
+		parse := strings.Split(word, " ")
 		switch parse[0] {
 		case "fifo":
 			scheds = append(scheds, fifo)

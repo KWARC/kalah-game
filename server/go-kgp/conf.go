@@ -135,7 +135,7 @@ type TCPConf struct {
 
 type Conf struct {
 	// Scheduler specification
-	Sched string `toml:"sched"`
+	Sched interface{} `toml:"sched"`
 	// Enable debug logging
 	Debug bool `toml:"debug"`
 	// Scheduler configuration
