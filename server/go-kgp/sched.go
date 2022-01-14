@@ -288,20 +288,20 @@ func parseSched(spec string) Sched {
 			}
 			n, err := strconv.Atoi(parse[1])
 			if err != nil || n < 0 {
-				log.Fatal("Invalid size", parse[1])
+				log.Fatal("Invalid size ", parse[1])
 			}
 			rr := makeTournament(&roundRobin{size: uint(n)})
 			scheds = append(scheds, rr)
 		case "bound":
 			score, err := strconv.ParseFloat(parse[1], 64)
 			if err != nil || score < 0 {
-				log.Fatal("Invalid score", parse[1])
+				log.Fatal("Invalid score ", parse[1])
 			}
 			scheds = append(scheds, bound(score))
 		case "skim":
 			count, err := strconv.Atoi(parse[1])
 			if err != nil || count <= 0 {
-				log.Fatal("Invalid count", parse[1])
+				log.Fatal("Invalid count ", parse[1])
 			}
 			scheds = append(scheds, skim(count))
 		case "reset", "!":
@@ -310,11 +310,11 @@ func parseSched(spec string) Sched {
 			}
 			score, err := strconv.ParseFloat(parse[1], 64)
 			if err != nil || score < 0 {
-				log.Fatal("Invalid score", parse[1])
+				log.Fatal("Invalid score ", parse[1])
 			}
 			scheds = append(scheds, reset(score))
 		default:
-			log.Fatal("Unknown word", word)
+			log.Fatal("Unknown word ", word)
 		}
 	}
 

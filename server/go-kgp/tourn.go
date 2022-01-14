@@ -71,7 +71,7 @@ type Tournament struct {
 // The function starts a separate server, creates an isolated client,
 // and returns the client via the passed channel
 func launch(name string, c chan<- *Client) {
-	debug.Println("Launching", name)
+	debug.Println("Launching ", name)
 
 	// Start a new TCP listener for this client
 	ln, err := net.Listen("tcp", ":0")
@@ -84,7 +84,7 @@ func launch(name string, c chan<- *Client) {
 	addr := ln.Addr().String()
 	i := strings.LastIndexByte(addr, ':')
 	if i == -1 && i+1 == len(addr) {
-		log.Fatal("Invalid address", addr)
+		log.Fatal("Invalid address ", addr)
 	}
 	port := addr[i+1:]
 
@@ -97,7 +97,7 @@ func launch(name string, c chan<- *Client) {
 	case "docker": // In a docker container
 		isol = &Docker{name: name}
 	default:
-		log.Fatal("Unknown isolation system", conf.Tourn.Isolation)
+		log.Fatal("Unknown isolation system ", conf.Tourn.Isolation)
 	}
 
 	// Create a client and wait for an incoming connection
@@ -116,11 +116,11 @@ func launch(name string, c chan<- *Client) {
 		// Wait for the client to connect
 		cli.rwc, err = ln.Accept()
 		if err != nil {
-			log.Print("Failed to connect to", dir)
+			log.Print("Failed to connect to ", dir)
 			c <- nil
 			return
 		}
-		debug.Println("Connected to", dir)
+		debug.Println("Connected to ", dir)
 
 		// Handle the connection
 		cli.Handle()
