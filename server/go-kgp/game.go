@@ -239,18 +239,16 @@ func (g *Game) Play() bool {
 
 	timer := time.NewTimer(time.Duration(conf.Game.Timeout) * time.Second)
 
+	var choice *Move
 	for !g.Board.Over() {
-		var (
-			choice *Move
-			next   bool
-		)
+		var next bool
 
 		// Random move generator
 		//
 		// If a client is nil, we interpret it as a random
 		// move client.
 		if g.Current() == nil {
-			choice = &Move{Pit: g.Board.Random(g.side)}
+			choice := &Move{Pit: g.Board.Random(g.side)}
 			g.Moves = append(g.Moves, choice)
 
 			dbact <- choice.updateDatabase(g)
@@ -317,6 +315,7 @@ func (g *Game) Play() bool {
 					Pit:    g.Board.Random(g.side),
 					when:   time.Now(),
 				}
+				debug.Printf("%s made no move, randomly chose %d", g.Current(), choice.Pit)
 			}
 
 			for {
@@ -349,6 +348,7 @@ func (g *Game) Play() bool {
 
 			g.SendState()
 			timer.Reset(time.Duration(conf.Game.Timeout) * time.Second)
+			choice = nil
 		}
 	}
 over:

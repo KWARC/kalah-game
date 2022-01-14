@@ -187,6 +187,7 @@ func (cli *Client) Interpret(input string) error {
 		}
 	case "move":
 		if game == nil || !game.IsCurrent(cli, ref) {
+			debug.Printf("%s ignored move (ref: %d, game: %s)", cli, ref, game)
 			return nil
 		}
 
@@ -204,6 +205,7 @@ func (cli *Client) Interpret(input string) error {
 		}
 	case "yield":
 		if game == nil || !game.IsCurrent(cli, ref) {
+			debug.Printf("%s ignored yield (ref: %d, game: %s)", cli, ref, game)
 			return nil
 		}
 
