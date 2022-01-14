@@ -153,12 +153,11 @@ func (cli *Client) Interpret(input string) error {
 		if err != nil {
 			return nil
 		}
-
-		if cli.simple {
-			game = cli.game
-		} else {
-			game = cli.games[ref]
-		}
+	}
+	if cli.simple {
+		game = cli.game
+	} else {
+		game = cli.games[ref]
 	}
 
 	switch cmd {
