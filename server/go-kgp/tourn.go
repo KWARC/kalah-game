@@ -135,7 +135,7 @@ func launch(name string, c chan<- *Client) {
 
 	var wait sync.WaitGroup
 	wait.Add(1)
-	dbact <- cli.updateDatabase(&wait, false)
+	dbact <- cli.updateDatabase(&wait, true)
 	wait.Wait()
 
 	err = isol.Run(port)
