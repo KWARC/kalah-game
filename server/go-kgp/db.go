@@ -31,6 +31,7 @@ import (
 	"path"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -528,14 +529,13 @@ var shutdown sync.Once
 
 // Initiate a database shutdown
 func closeDB() {
+	debug.Print("Shutting down...")
 	time.Sleep(conf.Database.Timeout * 2)
 
-	// Remove pseudo-entry to prevent ongoing from reaching 0
-	// before the shutdown is initiated.
-	ongoing.Done()
-
 	// Wait for ongoing games to finish
-	ongoing.Wait()
+	for atomic.LoadUint64(&playing) > 0 {
+		time.Sleep(time.Second)
+	}
 
 	// Wait for the actual queue to empty itself, then terminate
 	// the database managers

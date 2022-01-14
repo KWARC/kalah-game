@@ -165,9 +165,6 @@ func (g *Game) Other(cli *Client) *Client {
 // initialised in main according to conf.Game.Slots.
 var slots chan struct{}
 
-// Used wait for all ongoing games to finished
-var ongoing sync.WaitGroup
-
 // Send the current side a state command
 func (g *Game) SendState() {
 	g.last = g.Current().Send("state", g)
@@ -178,29 +175,32 @@ func (g *Game) SendState() {
 
 // Play manages a game between the north and south client
 func (g *Game) Play() bool {
-	ongoing.Add(1)
+	atomic.AddUint64(&playing, 2)
 	if slots != nil {
 		// Attempt to reserve a slot
 		<-slots
 	}
 
 	defer func() {
-		g.Outcome = g.Board.Outcome(SideSouth)
-		g.North.Forget(g)
-		g.South.Forget(g)
-		atomic.AddUint64(&playing, ^uint64(1))
-
 		// Suspend both clients as soon as the game is over
 		pause(g.South)
 		pause(g.North)
 
-		// Initiate an available slot
+		// Indicate an available slot
 		if slots != nil {
 			slots <- struct{}{}
 		}
-		ongoing.Done()
+
+		// Update game data
+		g.Outcome = g.Board.Outcome(SideSouth)
+
+		// Remove all ID references from both clients
+		g.North.Forget(g)
+		g.South.Forget(g)
+
+		// Decrement the number of active games
+		atomic.AddUint64(&playing, ^uint64(1))
 	}()
-	atomic.AddUint64(&playing, 2)
 
 	move := make(chan *Move)
 	death := make(chan *Client)

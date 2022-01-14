@@ -107,16 +107,6 @@ func main() {
 		}
 	}
 
-	// The ongoing WaitGroup coordinates the number of active
-	// games.  Before terminating the program, we want to ensure
-	// that all games have finished.  WaitGroups have the
-	// constraint that they are not allowed to reach a value of
-	// "0" more than once (else triggering a "WaitGroup is reused
-	// before previous Wait has returned" panic).  To prevent
-	// this, a pseudo-Add is called before the rest of the program
-	// is starts, that will be undone in the function closeDB.
-	ongoing.Add(1)
-
 	// Generate match scheduler from the scheduler specification
 	// and start it is a separate goroutine.
 	//
@@ -148,4 +138,5 @@ func main() {
 
 	// Start database manager
 	manageDatabase()
+	debug.Print("Terminating")
 }
