@@ -274,6 +274,8 @@ func (cli *Client) Handle() {
 	}
 	defer cli.rwc.Close()
 
+	cli.games = make(map[uint64]*Game)
+
 	var ctx context.Context
 	ctx, cli.killFn = context.WithCancel(context.Background())
 
