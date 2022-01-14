@@ -86,11 +86,13 @@ func (d *Docker) Run(port string) error {
 		},
 		ReadonlyRootfs: true,
 		NetworkMode:    container.NetworkMode(conf.Tourn.Docker.Network),
+		AutoRemove:     true,
 	}, nil, nil, d.name)
 	if err != nil {
 		log.Fatal("Failed to create container ", d.name, ": ", err)
 		return err
 	}
+	defer d.Halt()
 
 	d.id = resp.ID
 	if err := dCli.ContainerStart(ctx, d.id, types.ContainerStartOptions{}); err != nil {
@@ -113,7 +115,7 @@ func (d *Docker) Halt() error {
 	ctx := context.Background()
 	err := dCli.ContainerKill(ctx, d.id, "SIGKILL")
 	if err != nil {
-		log.Print("Failed to start container ", d.name)
+		log.Print("Failed to kill container ", d.name)
 	}
 	return err
 }
