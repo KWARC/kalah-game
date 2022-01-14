@@ -237,7 +237,9 @@ func (t *Tournament) Manage() {
 				South: game.North,
 			}
 
+			log.Printf("Start %s vs. %s (%s)", game.South, game.North, game)
 			game.Play()
+			log.Printf("Start %s vs. %s (%s, rev)", emag.South, emag.North, emag)
 			emag.Play()
 
 			t.Lock()
