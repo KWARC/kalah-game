@@ -129,8 +129,18 @@ func (g *Game) IsCurrent(cli *Client, ref uint64) bool {
 	if g == nil {
 		return false
 	}
-
-	return g.Current() == cli && (atomic.LoadUint64(&g.last) == ref || ref == 0)
+	if cli.simple && cli.nstop != cli.nyield {
+		// If the client has sent us a move even
+		// though he has not responded to a previous
+		// "stop" command via "yield" we must conclude
+		// that the client has misunderstood the
+		// communication or is too slow.
+		return false
+	}
+	if g.Current() != cli {
+		return false
+	}
+	return atomic.LoadUint64(&g.last) == ref || ref == 0
 }
 
 // Other returns the opponent of CLI, or nil if CLI is not playing a
@@ -256,19 +266,13 @@ func (g *Game) Play() bool {
 
 		select {
 		case m := <-move:
-			if g.IsCurrent(m.Client, m.ref) {
+			if !g.IsCurrent(m.Client, m.ref) {
 				break
 			}
 			if m.Yield {
 				// The client has indicated it does not intend
 				// to use the remaining time.
 				next = true
-			} else if m.Client.simple && m.Client.nstop != m.Client.nyield {
-				// If the client has sent us a move even
-				// though he has not responded to a previous
-				// "stop" command via "yield" we must conclude
-				// that the client has misunderstood the
-				// communication or is too slow.
 			} else if !g.Board.Legal(g.side, m.Pit) {
 				m.Client.Error(m.id, fmt.Sprintf("Illegal move %d", m.Pit+1))
 			} else {
