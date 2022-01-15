@@ -30,7 +30,6 @@ import (
 	"os"
 	"path"
 	"strconv"
-	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -150,10 +149,6 @@ var (
 
 	// The static file system as a HTTP Handler
 	static http.Handler
-
-	// A lock to synchronise the restarting of a web server on
-	// configuration reload
-	weblock sync.Mutex
 )
 
 // Parse the embedded file system and create a HTTP file system
@@ -169,9 +164,6 @@ func init() {
 //
 // If a web server was already running, wait for it to be killed.
 func (wc *WebConf) init() {
-	weblock.Lock()
-	defer weblock.Unlock()
-
 	// Install HTTP handlers
 	http.HandleFunc("/", index)
 	http.HandleFunc("/agent/", showAgent)
