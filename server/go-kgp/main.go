@@ -25,7 +25,6 @@ import (
 	"io"
 	"log"
 	"net"
-	"net/http"
 	"os"
 
 	"github.com/BurntSushi/toml"
@@ -115,26 +114,7 @@ func main() {
 	// are evaluated in the initial goroutine.  If the scheduler
 	// depends on the database (as it does for tournament
 	// schedulers), the program would deadlock.
-	go func() {
-		sched := parseSched(conf.Sched)
-		switch &sched {
-		case &fifo:
-			fc := conf.Schedulers.FIFO
-			listen(fc.Port)
-			if fc.WebSocket {
-				http.HandleFunc("/socket", listenUpgrade)
-				debug.Print("Handling websocket on /socket")
-			}
-		case &random:
-			rc := conf.Schedulers.Random
-			listen(rc.Port)
-			if rc.WebSocket {
-				http.HandleFunc("/socket", listenUpgrade)
-				debug.Print("Handling websocket on /socket")
-			}
-		}
-		schedule(sched)
-	}()
+	go func() { schedule(parseSched(conf.Sched)) }()
 
 	// Start database manager
 	manageDatabase()

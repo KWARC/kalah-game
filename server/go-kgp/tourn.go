@@ -63,7 +63,11 @@ type Tournament struct {
 	// Record of victories, mapping a winner to a list of looses.
 	record map[*Client][]*Client
 	// Games to start
-	games chan *Game
+	start chan *Game
+	// List of active games
+	active map[*Game]struct{}
+	// Scheduler to use when this one is done
+	next Sched
 }
 
 // Helper function to launch a client with NAME
@@ -216,19 +220,24 @@ func makeTournament(sys System) Sched {
 			s, len(names)-int(w), len(names))
 	}
 
-	t.games = make(chan *Game)
-	go t.Manage()
-	return t.Schedule
+	t.start = make(chan *Game)
+	return t
 }
 
-// A scheduler adaptor for a tournament
+// Start and manage games
 func (t *Tournament) Manage() {
 	c := make(chan int64)
 	dbact <- registerTournament(t.system.String(), c)
 	id := <-c
 
-	for game := range t.games {
+	for game := range t.start {
+		t.Lock()
+		t.active[game] = struct{}{}
+		t.Unlock()
+
 		go func(game *Game) {
+			var died *Client
+
 			// Create a second game with reversed positions
 			size := uint(len(game.Board.northPits))
 			emag := &Game{
@@ -238,9 +247,21 @@ func (t *Tournament) Manage() {
 			}
 
 			log.Printf("Start %s vs. %s (%s)", game.South, game.North, game)
-			game.Play()
+			died = game.Play()
+			if died != nil {
+				log.Printf("Cancelled %s vs. %s (%s)", game.South, game.North, game)
+				enqueue <- emag.Other(died)
+				return
+			}
+
 			log.Printf("Start %s vs. %s (%s, rev)", emag.South, emag.North, emag)
 			emag.Play()
+			died = game.Play()
+			if died != nil {
+				log.Printf("Cancelled %s vs. %s (%s, rev)", emag.South, emag.North, emag)
+				enqueue <- emag.Other(died)
+				return
+			}
 
 			t.Lock()
 			switch game.Outcome {
@@ -280,21 +301,43 @@ func (t *Tournament) Manage() {
 	}
 }
 
-func (t *Tournament) Schedule(queue []*Client) ([]*Client, bool) {
-	for _, cli := range queue {
-		t.system.Ready(t, cli)
-	}
+func (t *Tournament) Init() error {
+	go t.Manage()
+	return nil
+}
 
+func (t *Tournament) Add(cli *Client) {
+	defer t.Unlock()
 	t.Lock()
-	over := t.system.Over(t)
-	t.Unlock()
-	if over {
-		for _, cli := range t.participants {
-			err := cli.isol.Halt()
-			if err != nil {
-				log.Println(err)
-			}
+	t.system.Ready(t, cli)
+}
+
+func (t *Tournament) Remove(cli *Client) {
+	defer t.Unlock()
+	t.Lock()
+	for i, c := range t.participants {
+		for c == cli {
+			t.participants[i] = t.participants[len(t.participants)-1]
+			t.participants = t.participants[:len(t.participants)-1]
 		}
 	}
-	return nil, over
+	for game := range t.active {
+		if game.North == cli || game.South == cli {
+			game.death <- cli
+		}
+	}
+}
+
+func (t *Tournament) Done() bool {
+	defer t.Unlock()
+	t.Lock()
+	return t.system.Over(t) && (t.next == nil || t.next.Done())
+}
+
+func (t *Tournament) Chain(s Sched) {
+	if t.next == nil {
+		t.next = s
+	} else {
+		t.next.Chain(s)
+	}
 }

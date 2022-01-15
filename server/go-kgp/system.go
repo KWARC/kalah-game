@@ -29,6 +29,8 @@ type System interface {
 	fmt.Stringer
 	// Register a client as ready
 	Ready(*Tournament, *Client)
+	// Mark a client as dead
+	Forget(*Tournament, *Client)
 	// Record the outcome of a game
 	Record(*Tournament, *Game)
 	// Check if a tournament is over
@@ -88,7 +90,7 @@ func (rr *roundRobin) Ready(t *Tournament, cli *Client) {
 				rr.ready = rr.ready[:len(rr.ready)]
 				delete(rr.games, game)
 
-				t.games <- game
+				t.start <- game
 				return
 			}
 		}
@@ -97,6 +99,15 @@ func (rr *roundRobin) Ready(t *Tournament, cli *Client) {
 	// If the client didn't find a match, mark it as ready and do
 	// nothing more.
 	rr.ready = append(rr.ready, cli)
+}
+
+// Remove all games that CLI should have participated in
+func (rr roundRobin) Forget(_ *Tournament, cli *Client) {
+	for game := range rr.games {
+		if game.North == cli || game.South == cli {
+			delete(rr.games, game)
+		}
+	}
 }
 
 // The result of a game is not relevant for round robin

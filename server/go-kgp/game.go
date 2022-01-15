@@ -174,7 +174,10 @@ func (g *Game) SendState() {
 }
 
 // Play manages a game between the north and south client
-func (g *Game) Play() bool {
+//
+// If the return value is non-nil, it returns the client that died or
+// resigned, leading to a premature end of the game.
+func (g *Game) Play() *Client {
 	atomic.AddUint64(&playing, 2)
 	if slots != nil {
 		// Attempt to reserve a slot
@@ -280,7 +283,7 @@ func (g *Game) Play() bool {
 		case cli := <-death:
 			if g.North != cli && g.South != cli {
 				log.Print("Unrelated death")
-				return false
+				return cli
 			}
 			opp := g.Other(cli)
 
@@ -292,7 +295,7 @@ func (g *Game) Play() bool {
 			if g.Current() == opp {
 				opp.Respond(g.last, "stop")
 			}
-			return false
+			return cli
 		case <-timer.C:
 			// The time allocated for the current player
 			// is over, and we proceed to the next round.
@@ -353,5 +356,5 @@ func (g *Game) Play() bool {
 	}
 over:
 
-	return true
+	return nil
 }

@@ -21,10 +21,10 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"log"
 	"math/rand"
-	"sort"
-	"strconv"
+	"net/http"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -41,88 +41,71 @@ var (
 )
 
 // A Scheduler updates the waiting queue and manages games
-type Sched func([]*Client) ([]*Client, bool)
+type Sched interface {
+	// Initialise the scheduler
+	Init() error
+	// Notify the scheduler of a new client
+	Add(*Client)
+	// Notify the scheduler a client has died
+	Remove(*Client)
+	// Indicate if the scheduler will not schedule any more games
+	Done() bool
+	// Append a scheduler to use after this one is done
+	Chain(Sched)
+}
 
-// Compose multiple scheduling systems into one
-func compose(s []Sched) Sched {
-	return func(queue []*Client) ([]*Client, bool) {
-		for {
-			if len(s) == 0 {
-				return nil, true
-			}
+type QueueSched struct {
+	init  func()
+	impl  func([]*Client) []*Client
+	queue []*Client
+}
 
-			step, over := s[0](queue)
-			if !over {
-				return step, false
-			}
-			s = s[1:]
+// A queue scheduler might have a special initialisation, but must
+// have a logic function
+func (qs *QueueSched) Init() error {
+	if qs.init != nil {
+		qs.init()
+	}
+	if qs.impl == nil {
+		return errors.New("Queue Scheduler without an implementation")
+	}
+	return nil
+}
+
+// Add a client to the queue, unless it is already waiting
+func (qs *QueueSched) Add(cli *Client) {
+	for _, c := range qs.queue {
+		if c == cli {
+			return
+		}
+	}
+	qs.queue = append(qs.queue, cli)
+
+	qs.queue = qs.impl(qs.queue)
+}
+
+// Remove all clients from the queue
+func (qs *QueueSched) Remove(cli *Client) {
+	for i := 0; i < len(qs.queue); i++ {
+		if qs.queue[i] == cli {
+			qs.queue[i] = qs.queue[len(qs.queue)-1]
+			qs.queue[len(qs.queue)-1] = nil
+			qs.queue = qs.queue[:len(qs.queue)-1]
 		}
 	}
 }
 
-// Fun FN on every client in the queue and update the database
-func foreach(fn func(*Client)) Sched {
-	return func(queue []*Client) ([]*Client, bool) {
-		var wg sync.WaitGroup
-
-		for _, cli := range queue {
-			wg.Add(1)
-			fn(cli)
-			dbact <- cli.updateDatabase(&wg, false)
-		}
-
-		wg.Done()
-		return queue, true
-	}
+// A Queue Scheduler never ends
+func (qs *QueueSched) Done() bool {
+	return false
 }
 
-// Reset the score of every client to SCORE
-func reset(score float64) Sched {
-	return foreach(func(cli *Client) {
-		cli.Score = score
-	})
-}
-
-// Filter out all predicates that don't satisfy PRED
-func filter(pred func(*Client) bool) Sched {
-	return func(queue []*Client) (new []*Client, _ bool) {
-		for _, cli := range queue {
-			if pred(cli) {
-				new = append(new, cli)
-			}
-		}
-		return new, true
-	}
-}
-
-// Modify a scheduler to drop everyone with a score below SCORE
-func bound(score float64) Sched {
-	return filter(func(c *Client) bool {
-		return c.Score >= score
-	})
-}
-
-// Filter out worse than the best COUNT clients
-func skim(count int) Sched {
-	return func(queue []*Client) ([]*Client, bool) {
-		if len(queue) < count {
-			return queue, true
-		}
-
-		sort.Slice(queue, func(i, j int) bool {
-			return queue[i].Score > queue[j].Score
-		})
-
-		n := count
-		for n < len(queue) && queue[count-1].Score == queue[n].Score {
-			n++
-		}
-		return queue[:n], true
-	}
+func (QueueSched) Chain(Sched) {
+	log.Fatal("Queue schedulers cannot be chained")
 }
 
 // The random scheduler has everyone play two games against a random agent
-var random Sched = func(queue []*Client) ([]*Client, bool) {
+func random(queue []*Client) []*Client {
 	for _, cli := range queue {
 		go func(cli *Client) {
 			var (
@@ -158,14 +141,14 @@ var random Sched = func(queue []*Client) ([]*Client, bool) {
 			wait.Wait()
 		}(cli)
 	}
-	return nil, false
+	return nil
 }
 
 // The FIFO scheduler minimises the time a client remains in the
 // queue, at the expense of the quality of a pairing.
-var fifo Sched = func(queue []*Client) ([]*Client, bool) {
+func fifo(queue []*Client) []*Client {
 	if len(queue) < 2 {
-		return queue, false
+		return queue
 	}
 
 	north := queue[0]
@@ -225,47 +208,34 @@ var fifo Sched = func(queue []*Client) ([]*Client, bool) {
 		}
 	}
 
-	return queue, false
+	return queue
 }
 
 // Using a scheduler, handle incoming events (requests to add and
 // remove clients from the queue), to start games.
 func schedule(sched Sched) {
-	var queue []*Client
+	sched.Init()
 
 	for {
 		select {
 		case cli := <-enqueue:
 			pause(cli)
-			vacant := true
-			for _, c := range queue {
-				if cli == c {
-					vacant = false
-					break
-				}
-			}
-			if vacant {
-				queue = append(queue, cli)
-			}
+			sched.Add(cli)
 		case cli := <-forget:
-			for i, c := range queue {
-				if cli == c {
-					queue = append(queue[:i], queue[i+1:]...)
-					break
-				}
-			}
+			sched.Remove(cli)
 		}
 
-		// Attempt to organise a match
-		var over bool
-		queue, over = sched(queue)
-		if over {
+		if sched.Done() {
 			shutdown.Do(closeDB)
 			return
 		}
 
-		// Update statistics
-		atomic.StoreUint64(&waiting, uint64(len(queue)))
+		// Update statistics (if using a queue scheduler)
+		if qs, ok := sched.(*QueueSched); ok {
+			w := uint64(len(qs.queue))
+			atomic.StoreUint64(&waiting, w)
+		}
+
 	}
 }
 
@@ -273,70 +243,63 @@ func schedule(sched Sched) {
 //
 // The scheduler specification is described in the manual.
 func parseSched(spec interface{}) Sched {
-	var parts []string
+	var specs []string
 	switch v := spec.(type) {
-	case []string:
-		parts = v
 	case string:
-		parts = []string{v}
+		// For the sake of convenience, the scheduler can also
+		// just be a single string.
+		specs = []string{v}
+	case []string:
+		specs = v
 	}
 
 	var scheds []Sched
+	for _, spec := range specs {
+		var sched Sched
 
-	for _, word := range parts {
-		parse := strings.Split(word, " ")
-		switch parse[0] {
+		parts := strings.SplitN(spec, " ", 1)
+		fn := parts[0]
+		switch fn {
 		case "fifo":
-			scheds = append(scheds, fifo)
+			sched = &QueueSched{
+				init: func() {
+					fc := conf.Schedulers.FIFO
+					listen(fc.Port)
+					if fc.WebSocket {
+						http.HandleFunc("/socket", listenUpgrade)
+						debug.Print("Handling websocket on /socket")
+					}
+				},
+				impl: fifo,
+			}
 		case "rand", "random":
-			scheds = append(scheds, random)
+			sched = &QueueSched{
+				init: func() {
+					fc := conf.Schedulers.FIFO
+					listen(fc.Port)
+					if fc.WebSocket {
+						http.HandleFunc("/socket", listenUpgrade)
+						debug.Print("Handling websocket on /socket")
+					}
+				},
+				impl: fifo,
+			}
 		case "rr", "round-robin":
-			if len(parse) != 2 {
-				log.Fatal("Round robin requires a board sizes")
+			var n uint64
+			if err := parse(parts[1], &n); err != nil {
+				log.Fatal("Invalid ")
 			}
-			n, err := strconv.Atoi(parse[1])
-			if err != nil || n < 0 {
-				log.Fatal("Invalid size ", parse[1])
-			}
-			rr := makeTournament(&roundRobin{size: uint(n)})
-			scheds = append(scheds, rr)
-		case "bound":
-			score, err := strconv.ParseFloat(parse[1], 64)
-			if err != nil || score < 0 {
-				log.Fatal("Invalid score ", parse[1])
-			}
-			scheds = append(scheds, bound(score))
-		case "skim":
-			count, err := strconv.Atoi(parse[1])
-			if err != nil || count <= 0 {
-				log.Fatal("Invalid count ", parse[1])
-			}
-			scheds = append(scheds, skim(count))
-		case "reset", "!":
-			if len(parse) != 2 {
-				log.Fatal("reset requires an argument")
-			}
-			score, err := strconv.ParseFloat(parse[1], 64)
-			if err != nil || score < 0 {
-				log.Fatal("Invalid score ", parse[1])
-			}
-			scheds = append(scheds, reset(score))
+			sched = makeTournament(&roundRobin{size: uint(n)})
 		default:
-			log.Fatal("Unknown word ", word)
+			log.Fatal("Unknown scheduler", fn)
 		}
+
+		scheds = append(scheds, sched)
 	}
 
-	switch len(scheds) {
-	case 0:
-		log.Fatal("Failed to parse scheduler spec")
-		return nil
-	case 1:
-		return scheds[0]
-	default:
-		for i := 0; i < len(scheds)/2; i++ {
-			j := len(scheds) - i - 1
-			scheds[i], scheds[j] = scheds[j], scheds[i]
-		}
-		return compose(scheds)
+	for i := 1; i < len(scheds); i++ {
+		scheds[i-1].Chain(scheds[i])
 	}
+
+	return scheds[0]
 }
