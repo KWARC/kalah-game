@@ -178,6 +178,9 @@ func (wc *WebConf) init() {
 	http.HandleFunc("/game/", showGame)
 	http.HandleFunc("/about", about)
 	http.Handle("/static/", http.StripPrefix("/static/", static))
+	http.HandleFunc("/robots.txt", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, "User-agent: *\nDisallow:")
+	})
 
 	// Parse templates
 	var err error
