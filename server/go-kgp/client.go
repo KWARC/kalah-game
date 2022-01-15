@@ -352,8 +352,14 @@ func (cli *Client) Handle() {
 	// If the client was currently playing a game, we have to
 	// consider what our opponent is doing.  We notify the game
 	// that the client is gone.
-	for _, game := range cli.games {
-		game.death <- cli
+	if cli.simple {
+		cli.game.death <- cli
+	} else {
+		cli.lock.Lock()
+		for _, game := range cli.games {
+			game.death <- cli
+		}
+		cli.lock.Unlock()
 	}
 
 	debug.Print("Closed connection to ", cli)
