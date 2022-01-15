@@ -89,6 +89,7 @@ func (rr *roundRobin) Ready(t *Tournament, cli *Client) {
 				rr.ready[len(rr.ready)-1] = nil
 				rr.ready = rr.ready[:len(rr.ready)]
 				delete(rr.games, game)
+				debug.Println(len(rr.games), "left in RR tournament")
 
 				t.start <- game
 				return

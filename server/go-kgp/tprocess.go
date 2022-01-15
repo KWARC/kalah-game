@@ -36,7 +36,7 @@ type Process struct {
 // Run a process by calling "run.sh" and connect to PORT
 //
 // The output is redirected to a file.
-func (p *Process) Run(port string) error {
+func (p *Process) Start(port string) error {
 	var build *exec.Cmd
 	if p.prefix != nil {
 		args := append(p.prefix[1:], "./build.sh")
@@ -88,6 +88,7 @@ func (p *Process) Run(port string) error {
 		log.Printf("Failed to start %v: %s", p.dir, err)
 		return err
 	}
+
 	return nil
 }
 

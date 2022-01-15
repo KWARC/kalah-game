@@ -57,7 +57,7 @@ type Docker struct {
 }
 
 // Start an isolating docker container and connect to PORT
-func (d *Docker) Run(port string) error {
+func (d *Docker) Start(port string) error {
 	d.awake = make(chan struct{})
 
 	dSync.Lock()

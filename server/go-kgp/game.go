@@ -37,6 +37,21 @@ const (
 	RESIGN
 )
 
+func (o Outcome) String() string {
+	switch o {
+	case WIN:
+		return "Win"
+	case DRAW:
+		return "Draw"
+	case LOSS:
+		return "Loss"
+	case RESIGN:
+		return "Resign"
+	default:
+		return "???"
+	}
+}
+
 // Move is an Action to set the next move
 type Move struct {
 	Pit     int
@@ -185,10 +200,6 @@ func (g *Game) Play() *Client {
 	}
 
 	defer func() {
-		// Suspend both clients as soon as the game is over
-		pause(g.South)
-		pause(g.North)
-
 		// Indicate an available slot
 		if slots != nil {
 			slots <- struct{}{}
@@ -196,6 +207,7 @@ func (g *Game) Play() *Client {
 
 		// Update game data
 		g.Outcome = g.Board.Outcome(SideSouth)
+		debug.Printf("%s vs. %s (%s): %s", g.South, g.North, g, g.Outcome)
 
 		// Remove all ID references from both clients
 		g.North.Forget(g)
@@ -262,8 +274,8 @@ func (g *Game) Play() *Client {
 			continue
 		}
 
-		unpause(g.Current())
-		pause(g.Other(g.Current()))
+		g.Current().Unpause()
+		g.Other(g.Current()).Pause()
 
 		select {
 		case m := <-move:
@@ -281,6 +293,10 @@ func (g *Game) Play() *Client {
 				choice = m
 			}
 		case cli := <-death:
+			if cli == nil {
+				g.Current().Respond(g.last, "stop")
+				return nil
+			}
 			if g.North != cli && g.South != cli {
 				log.Print("Unrelated death")
 				return cli

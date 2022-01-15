@@ -71,6 +71,7 @@ type Client struct {
 
 // Kill will try to close the connection for a client
 func (cli *Client) Kill() {
+	debug.Println("To kill", cli)
 	if cli != nil && cli.killFn != nil {
 		cli.killFn()
 	}
@@ -230,6 +231,9 @@ func (cli *Client) Pinger(ctx context.Context) {
 		case <-ticker.C:
 			// If the timer fired, check the ping flag and
 			// kill the client if it is still set
+			if cli.rwc == nil {
+				continue
+			}
 		}
 
 		if cli.isol != nil {

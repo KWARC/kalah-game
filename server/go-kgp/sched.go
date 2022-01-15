@@ -108,6 +108,8 @@ func (QueueSched) Chain(Sched) {
 func random(queue []*Client) []*Client {
 	for _, cli := range queue {
 		go func(cli *Client) {
+			defer cli.Kill()
+
 			var (
 				size   = conf.Schedulers.Random.Size
 				stones = conf.Schedulers.Random.Stones
@@ -176,14 +178,28 @@ func fifo(queue []*Client) []*Client {
 					North: north,
 					South: south,
 				}
-				g1.Play()
+				if died := g1.Play(); died != nil {
+					other := g1.Other(died)
+					if conf.Schedulers.FIFO.Endless {
+						enqueue <- south
+					} else {
+						other.Kill()
+					}
+				}
 
 				g2 := &Game{
 					Board: makeBoard(size, stones),
 					North: south,
 					South: north,
 				}
-				g2.Play()
+				if died := g2.Play(); died != nil {
+					other := g1.Other(died)
+					if conf.Schedulers.FIFO.Endless {
+						enqueue <- south
+					} else {
+						other.Kill()
+					}
+				}
 
 				o1 := g1.Outcome
 				o2 := g2.Outcome
@@ -219,7 +235,7 @@ func schedule(sched Sched) {
 	for {
 		select {
 		case cli := <-enqueue:
-			pause(cli)
+			cli.Pause()
 			sched.Add(cli)
 		case cli := <-forget:
 			sched.Remove(cli)

@@ -30,7 +30,7 @@ import (
 )
 
 type Isolation interface {
-	Run(port string) error
+	Start(port string) error
 	Halt() error
 	Unpause()
 	Pause()
@@ -38,16 +38,46 @@ type Isolation interface {
 }
 
 // Helper function to pause an isolated client
-func pause(cli *Client) {
+func (cli *Client) Pause() {
+	debug.Print("Pausing ", cli)
 	if cli != nil && cli.isol != nil {
 		cli.isol.Pause()
 	}
 }
 
 // Helper function to unpause an isolated client
-func unpause(cli *Client) {
+func (cli *Client) Unpause() {
+	debug.Print("Unpausing ", cli)
 	if cli != nil && cli.isol != nil {
 		cli.isol.Unpause()
+	}
+}
+
+// Helper function to unpause an isolated client
+func (cli *Client) Ensure() {
+	debug.Print("Restarting ", cli)
+	if cli != nil && cli.isol != nil && cli.rwc == nil {
+		var (
+			// response channel for successful connections
+			c = make(chan *Client)
+			// indicator channel for failed connection
+			fail = make(chan string)
+		)
+
+		cli.lock.Lock()
+		defer cli.lock.Unlock()
+		err := cli.isol.Halt()
+		if err != nil {
+			cli.Kill()
+			return
+		}
+		connect(cli, c, fail)
+		select {
+		case <-c:
+			// everything is ok
+		case <-fail:
+			cli.Kill()
+		}
 	}
 }
 
@@ -66,18 +96,14 @@ type Tournament struct {
 	start chan *Game
 	// List of active games
 	active map[*Game]struct{}
-	// Scheduler to use when this one is done
-	next Sched
 }
 
-// Helper function to launch a client with NAME
-//
-// The function starts a separate server, creates an isolated client,
-// and returns the client via the passed channel
-func launch(name string, c chan<- *Client) {
-	debug.Println("Launching ", name)
+func connect(cli *Client, c chan<- *Client, fail chan<- string) {
+	if cli.isol == nil {
+		panic("No isolation method for client")
+	}
 
-	// Start a new TCP listener for this client
+	// Start a new TCP server with a random port for this client
 	ln, err := net.Listen("tcp", ":0")
 	if err != nil {
 		log.Fatal(err)
@@ -92,6 +118,51 @@ func launch(name string, c chan<- *Client) {
 	}
 	port := addr[i+1:]
 
+	go func() {
+		var (
+			name = string(cli.token)
+			dir  = path.Base(name)
+			err  error
+		)
+
+		// Wait for the client to connect
+		cli.iolock.Lock()
+		cli.rwc, err = ln.Accept()
+		cli.iolock.Unlock()
+		if err != nil {
+			log.Print("Failed to connect to ", dir)
+			fail <- name
+			return
+		}
+		debug.Print("Connected to ", dir)
+
+		// Handle the connection
+		cli.notify = c
+		cli.Handle()
+	}()
+
+	// Initiate the client in the isolation
+	go func() {
+		err := cli.isol.Start(port)
+		if err != nil {
+			fail <- string(cli.token)
+			log.Print(err)
+		}
+	}()
+
+	var wait sync.WaitGroup
+	wait.Add(1)
+	dbact <- cli.updateDatabase(&wait, true)
+	wait.Wait()
+}
+
+// Helper function to launch a client with NAME
+//
+// The function starts a separate server, creates an isolated client,
+// and returns the client via the passed channel
+func launch(name string, c chan<- *Client, fail chan<- string) {
+	debug.Println("Launching ", name)
+
 	// Initialise and prepare a command for the client depending
 	// on the requested isolation mechanism.
 	var isol Isolation
@@ -104,55 +175,18 @@ func launch(name string, c chan<- *Client) {
 		log.Fatal("Unknown isolation system ", conf.Tourn.Isolation)
 	}
 
-	// Create a client and wait for an incoming connection
-	cli := &Client{
-		notify: c,
-		token:  []byte(name),
-		isol:   isol,
-	}
-
-	go func() {
-		var (
-			dir = path.Base(name)
-			err error
-		)
-
-		// Wait for the client to connect
-		cli.rwc, err = ln.Accept()
-		if err != nil {
-			log.Print("Failed to connect to ", dir)
-			c <- nil
-			return
-		}
-		debug.Println("Connected to ", dir)
-
-		// Handle the connection
-		cli.Handle()
-
-		// As soon as the connection is terminated, kill the
-		// isolated process as well.
-		err = isol.Halt()
-		if err != nil {
-			log.Println(err)
-		}
-	}()
-
-	var wait sync.WaitGroup
-	wait.Add(1)
-	dbact <- cli.updateDatabase(&wait, true)
-	wait.Wait()
-
-	err = isol.Run(port)
-	if err != nil {
-		log.Fatal(err)
-	}
-	cli.Kill()
+	// Create a client and connect to a new server
+	connect(&Client{
+		token: []byte(name),
+		isol:  isol,
+	}, c, fail)
 }
 
 // Convert a tournament system into a scheduler
 func makeTournament(sys System) Sched {
 	t := &Tournament{
 		record: make(map[*Client][]*Client),
+		active: make(map[*Game]struct{}),
 		system: sys,
 	}
 
@@ -172,9 +206,10 @@ func makeTournament(sys System) Sched {
 	}
 
 	var (
-		// response channel (nil for a failed and non-nil for
-		// a successful connection)
+		// response channel for successful connections
 		c = make(chan *Client)
+		// indicator channel for failed connection
+		fail = make(chan string)
 		// number of successful connections
 		s uint
 		// connections not yet established
@@ -182,7 +217,7 @@ func makeTournament(sys System) Sched {
 	)
 
 	for _, name := range names {
-		go launch(name, c)
+		launch(name, c, fail)
 	}
 
 	wait := make(chan struct{})
@@ -190,22 +225,15 @@ func makeTournament(sys System) Sched {
 		// Await every response from the client channel.  The channel
 		// cannot be closed, because we may still be waiting for a
 		// response from a client.
-		for cli := range c {
-			// We will receive a non-nil client, if the client
-			// failed to initialise, in which case we add nothing
-			// to the participant list.  A client is successfully
-			// initialised, as soon as it requests to play a game.
-			if cli != nil {
+		for w > 0 {
+			select {
+			case cli := <-c:
 				t.participants = append(t.participants, cli)
 				s++
+			case name := <-fail:
+				log.Print(name, " failed to connect")
 			}
-
-			// Check if we have received a response for every
-			// launch invocation.
 			w--
-			if w == 0 {
-				break
-			}
 		}
 
 		close(wait)
@@ -231,12 +259,13 @@ func (t *Tournament) Manage() {
 	id := <-c
 
 	for game := range t.start {
-		t.Lock()
-		t.active[game] = struct{}{}
-		t.Unlock()
-
+		debug.Print("To start ", game)
 		go func(game *Game) {
 			var died *Client
+
+			t.Lock()
+			t.active[game] = struct{}{}
+			t.Unlock()
 
 			// Create a second game with reversed positions
 			size := uint(len(game.Board.northPits))
@@ -246,6 +275,8 @@ func (t *Tournament) Manage() {
 				South: game.North,
 			}
 
+			game.South.Ensure()
+			game.North.Ensure()
 			log.Printf("Start %s vs. %s (%s)", game.South, game.North, game)
 			died = game.Play()
 			if died != nil {
@@ -253,15 +284,20 @@ func (t *Tournament) Manage() {
 				enqueue <- emag.Other(died)
 				return
 			}
+			game.South.isol.Halt()
+			game.North.isol.Halt()
 
+			game.South.Ensure()
+			game.North.Ensure()
 			log.Printf("Start %s vs. %s (%s, rev)", emag.South, emag.North, emag)
-			emag.Play()
-			died = game.Play()
+			died = emag.Play()
 			if died != nil {
 				log.Printf("Cancelled %s vs. %s (%s, rev)", emag.South, emag.North, emag)
 				enqueue <- emag.Other(died)
 				return
 			}
+			game.South.isol.Halt()
+			game.North.isol.Halt()
 
 			t.Lock()
 			switch game.Outcome {
@@ -293,6 +329,7 @@ func (t *Tournament) Manage() {
 			t.system.Record(t, game)
 
 		norecord:
+			delete(t.active, game)
 			t.Unlock()
 
 			enqueue <- game.North
@@ -307,16 +344,20 @@ func (t *Tournament) Init() error {
 }
 
 func (t *Tournament) Add(cli *Client) {
+	debug.Println("To add", cli)
 	defer t.Unlock()
 	t.Lock()
+	debug.Println("Adding", cli)
 	t.system.Ready(t, cli)
 }
 
 func (t *Tournament) Remove(cli *Client) {
+	debug.Println("To remove", cli)
 	defer t.Unlock()
 	t.Lock()
-	for i, c := range t.participants {
-		for c == cli {
+	debug.Println("Removing", cli)
+	for i := 0; i < len(t.participants); i++ {
+		if t.participants[i] == cli {
 			t.participants[i] = t.participants[len(t.participants)-1]
 			t.participants = t.participants[:len(t.participants)-1]
 		}
@@ -331,13 +372,5 @@ func (t *Tournament) Remove(cli *Client) {
 func (t *Tournament) Done() bool {
 	defer t.Unlock()
 	t.Lock()
-	return t.system.Over(t) && (t.next == nil || t.next.Done())
-}
-
-func (t *Tournament) Chain(s Sched) {
-	if t.next == nil {
-		t.next = s
-	} else {
-		t.next.Chain(s)
-	}
+	return t.system.Over(t)
 }

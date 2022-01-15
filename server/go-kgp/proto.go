@@ -157,7 +157,9 @@ func (cli *Client) Interpret(input string) error {
 	if cli.simple {
 		game = cli.game
 	} else {
+		cli.lock.Lock()
 		game = cli.games[ref]
+		cli.lock.Unlock()
 	}
 
 	switch cmd {
