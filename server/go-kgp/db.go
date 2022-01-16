@@ -55,28 +55,6 @@ var sqlDir embed.FS
 
 var queries = make(map[string]*sql.Stmt)
 
-func (m *Move) updateDatabase(in *Game) DBAction {
-	if !in.logged {
-		return nil
-	}
-
-	when := time.Now()
-
-	return func(db *sql.DB, ctx context.Context) (err error) {
-		_, err = queries["insert-move"].Exec(
-			in.Id,
-			m.Client.Id,
-			in.side,
-			m.Pit,
-			m.Comment,
-			when)
-		if err != nil {
-			log.Print(err)
-		}
-		return
-	}
-}
-
 func (game *Game) updateDatabase(wait *sync.WaitGroup) DBAction {
 	if !game.logged {
 		panic("Saving unlogged game")
