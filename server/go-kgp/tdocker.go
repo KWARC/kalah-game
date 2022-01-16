@@ -25,7 +25,6 @@ import (
 	"os"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -54,11 +53,13 @@ type Docker struct {
 	name  string
 	pause uint32
 	awake chan struct{}
+	ended chan struct{}
 }
 
 // Start an isolating docker container and connect to PORT
 func (d *Docker) Start(port string) error {
 	d.awake = make(chan struct{})
+	d.ended = make(chan struct{})
 
 	dSync.Lock()
 	if dCli == nil {
@@ -104,8 +105,10 @@ func (d *Docker) Start(port string) error {
 	select {
 	case err := <-errC:
 		log.Printf("Container %v signalled an error: %s", d.name, err)
+		d.ended <- struct{}{}
 		return err
 	case <-okC:
+		d.ended <- struct{}{}
 		return nil
 	}
 }
@@ -116,8 +119,10 @@ func (d *Docker) Halt() error {
 	err := dCli.ContainerKill(ctx, d.id, "SIGKILL")
 	if err != nil {
 		log.Print("Failed to kill container ", d.name)
+		return err
 	}
-	return err
+	<-d.ended
+	return nil
 }
 
 // Pause the execution of an isolating docker container
@@ -146,7 +151,7 @@ func (d *Docker) Unpause() {
 	}
 
 	atomic.StoreUint32(&d.pause, 0)
-	close(d.awake)
+	d.awake <- struct{}{}
 }
 
 // Block until the isolating docker container was unpaused
@@ -160,6 +165,5 @@ func (d *Docker) Await() {
 
 	for atomic.LoadUint32(&d.pause) != 0 {
 		<-d.awake
-		time.Sleep(50 * time.Millisecond)
 	}
 }
