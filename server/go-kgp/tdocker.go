@@ -120,7 +120,7 @@ func (d *Docker) Halt() error {
 	ctx := context.Background()
 	err := dCli.ContainerKill(ctx, d.id, "SIGKILL")
 	if err != nil {
-		log.Print("Failed to kill container ", d.name)
+		log.Print("Failed to kill container ", d.name, ": ", err)
 		return err
 	}
 	<-d.ended
@@ -136,7 +136,7 @@ func (d *Docker) Pause() {
 	ctx := context.Background()
 	err := dCli.ContainerPause(ctx, d.id)
 	if err != nil {
-		log.Print("Failed to start container ", d.name)
+		log.Print("Failed to start container ", d.name, ": ", err)
 	}
 }
 
@@ -149,7 +149,7 @@ func (d *Docker) Unpause() {
 	ctx := context.Background()
 	err := dCli.ContainerUnpause(ctx, d.id)
 	if err != nil {
-		log.Print("Failed to start container ", d.name)
+		log.Print("Failed to start container ", d.name, ": ", err)
 	}
 
 	atomic.StoreUint32(&d.pause, 0)
