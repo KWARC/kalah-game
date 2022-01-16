@@ -26,7 +26,7 @@ import (
 	"os/exec"
 )
 
-//
+// Process starts a client without isolation
 type Process struct {
 	prefix []string
 	run    *exec.Cmd
@@ -36,21 +36,7 @@ type Process struct {
 // Run a process by calling "run.sh" and connect to PORT
 //
 // The output is redirected to a file.
-func (p *Process) Start(port string) error {
-	var build *exec.Cmd
-	if p.prefix != nil {
-		args := append(p.prefix[1:], "./build.sh")
-		build = exec.Command(p.prefix[0], args...)
-	} else {
-		build = exec.Command("./build.sh")
-	}
-	build.Dir = p.dir
-	err := build.Run()
-	if err != nil && !os.IsNotExist(err) {
-		log.Print("Failed to build", p.dir)
-		return err
-	}
-
+func (p *Process) Start(port string) (err error) {
 	if p.prefix != nil {
 		args := append(p.prefix[1:], "./run.sh", port)
 		p.run = exec.Command(p.prefix[0], args...)
@@ -79,32 +65,36 @@ func (p *Process) Start(port string) error {
 	}
 	p.run.Dir = p.dir
 
-	err = p.run.Run()
+	err = p.run.Start()
 	if err != nil {
-		if err.Error() == "signal: killed" {
-			log.Printf("%s was killed", p.dir)
-			return nil
-		}
 		log.Printf("Failed to start %v: %s", p.dir, err)
-		return err
+		return
 	}
 
-	return nil
+	err = p.run.Wait()
+	if err.Error() == "signal: killed" {
+		log.Printf("%s was killed", p.dir)
+		err = nil
+	}
+
+	return
 }
 
 // Halt a process by killing it
 func (p *Process) Halt() error {
 	if p.run != nil {
-		return p.run.Process.Kill()
+		err := p.run.Process.Kill()
+		p.run.Wait()
+		return err
 	}
 	return nil
 }
 
 // Process is not paused
-func (Process) Pause() {}
+func (*Process) Pause() {}
 
 // Process is not unpaused
-func (Process) Unpause() {}
+func (*Process) Unpause() {}
 
 // Process cannot be awaited, as it cannot be paused
-func (Process) Await() {}
+func (*Process) Await() {}

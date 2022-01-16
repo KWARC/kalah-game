@@ -39,46 +39,98 @@ type Isolation interface {
 
 // Helper function to pause an isolated client
 func (cli *Client) Pause() {
+	if cli == nil {
+		return
+	}
+
+	debug.Print("To pause ", cli)
+	defer cli.lock.Unlock()
+	cli.lock.Lock()
+
 	debug.Print("Pausing ", cli)
-	if cli != nil && cli.isol != nil {
+	if cli.isol != nil {
 		cli.isol.Pause()
 	}
 }
 
 // Helper function to unpause an isolated client
 func (cli *Client) Unpause() {
+	if cli == nil {
+		return
+	}
+
+	debug.Print("To unpause ", cli)
+	defer cli.lock.Unlock()
+	cli.lock.Lock()
+
 	debug.Print("Unpausing ", cli)
-	if cli != nil && cli.isol != nil {
+	if cli.isol != nil {
 		cli.isol.Unpause()
 	}
 }
 
-// Helper function to unpause an isolated client
-func (cli *Client) Ensure() {
-	debug.Print("Restarting ", cli)
-	if cli != nil && cli.isol != nil && cli.rwc == nil {
-		var (
-			// response channel for successful connections
-			c = make(chan *Client)
-			// indicator channel for failed connection
-			fail = make(chan string)
-		)
+// Helper function to halt a client
+func (cli *Client) Halt() error {
+	debug.Print("To halt ", cli)
 
-		cli.lock.Lock()
-		defer cli.lock.Unlock()
-		err := cli.isol.Halt()
-		if err != nil {
-			cli.Kill()
-			return
-		}
-		connect(cli, c, fail)
-		select {
-		case <-c:
-			// everything is ok
-		case <-fail:
-			cli.Kill()
-		}
+	defer cli.lock.Unlock()
+	cli.lock.Lock()
+
+	debug.Print("Unpausing ", cli)
+	if cli.isol == nil {
+		log.Panic("Client is not isolated")
 	}
+
+	err := cli.isol.Halt()
+	if err != nil {
+		log.Print(err)
+	}
+	// cli.rwc = nil
+	return err
+}
+
+// Restart an isolated client
+func (cli *Client) Restart() bool {
+	debug.Print("Restarting ", cli)
+
+	cli.lock.Lock()
+	if cli.rwc != nil {
+		cli.lock.Unlock()
+		return true
+	}
+
+	debug.Print("Ensuring ", cli)
+	if cli == nil || cli.isol == nil {
+		log.Panic("Client is not isolated")
+	}
+
+	var (
+		// response channel for successful connections
+		c = make(chan *Client)
+		// indicator channel for failed connection
+		fail = make(chan string)
+	)
+
+	err := cli.Halt()
+	cli.lock.Unlock()
+	if err != nil {
+		if err == os.ErrProcessDone {
+			return true
+		}
+		log.Print(err)
+		cli.Kill()
+		return false
+	}
+	connect(cli, c, fail)
+	select {
+	case <-c:
+		// everything is ok
+		return true
+	case <-fail:
+		cli.Kill()
+		return false
+	}
+
 }
 
 // A tournament is a scheduler that matches participants via a system
@@ -126,9 +178,12 @@ func connect(cli *Client, c chan<- *Client, fail chan<- string) {
 		)
 
 		// Wait for the client to connect
-		cli.iolock.Lock()
+		cli.lock.Lock()
+		if cli.rwc != nil {
+			cli.rwc.Close()
+		}
 		cli.rwc, err = ln.Accept()
-		cli.iolock.Unlock()
+		cli.lock.Unlock()
 		if err != nil {
 			log.Print("Failed to connect to ", dir)
 			fail <- name
@@ -215,8 +270,16 @@ func (t *Tournament) Manage() {
 				South: game.North,
 			}
 
-			game.South.Ensure()
-			game.North.Ensure()
+			if !game.South.Restart() {
+				log.Println("Failed to restart", game.South)
+				enqueue <- game.North
+				return
+			}
+			if !game.North.Restart() {
+				log.Println("Failed to restart", game.North)
+				enqueue <- game.South
+				return
+			}
 			log.Printf("Start %s vs. %s (%s)", game.South, game.North, game)
 			died = game.Play()
 			if died != nil {
@@ -224,11 +287,19 @@ func (t *Tournament) Manage() {
 				enqueue <- emag.Other(died)
 				return
 			}
-			game.South.isol.Halt()
-			game.North.isol.Halt()
+			game.South.Halt()
+			game.North.Halt()
 
-			game.South.Ensure()
-			game.North.Ensure()
+			if !game.South.Restart() {
+				log.Println("Failed to restart", game.South)
+				enqueue <- game.North
+				return
+			}
+			if !game.North.Restart() {
+				log.Println("Failed to restart", game.North)
+				enqueue <- game.South
+				return
+			}
 			log.Printf("Start %s vs. %s (%s, rev)", emag.South, emag.North, emag)
 			died = emag.Play()
 			if died != nil {
@@ -236,8 +307,8 @@ func (t *Tournament) Manage() {
 				enqueue <- emag.Other(died)
 				return
 			}
-			game.South.isol.Halt()
-			game.North.isol.Halt()
+			game.South.Halt()
+			game.North.Halt()
 
 			t.Lock()
 			switch game.Outcome {

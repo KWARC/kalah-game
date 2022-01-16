@@ -44,7 +44,7 @@ import (
 
 type DBAction func(*sql.DB, context.Context) error
 
-var dbact = make(chan DBAction, 1)
+var dbact = make(chan DBAction, 256)
 
 // The SQL queries are stored under ./sql/, and they are loaded by the
 // database manager.  These are prepared and stored in QUERIES, that
@@ -536,10 +536,12 @@ func closeDB() {
 	for atomic.LoadUint64(&playing) > 0 {
 		time.Sleep(time.Second)
 	}
+	time.Sleep(time.Second)
 
 	// Wait for the actual queue to empty itself, then terminate
 	// the database managers
 	for len(dbact) > 0 {
+		debug.Printf("%d database actions left", len(dbact))
 		time.Sleep(conf.Database.Timeout)
 	}
 	close(dbact)

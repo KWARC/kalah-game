@@ -51,7 +51,6 @@ type Client struct {
 	games   map[uint64]*Game
 	rwc     io.ReadWriteCloser
 	lock    sync.Mutex
-	iolock  sync.Mutex
 	rid     uint64
 	killFn  context.CancelFunc
 	pinged  uint32
@@ -71,7 +70,7 @@ type Client struct {
 
 // Kill will try to close the connection for a client
 func (cli *Client) Kill() {
-	debug.Println("To kill", cli)
+	debug.Println("Kill", cli)
 	if cli != nil && cli.killFn != nil {
 		cli.killFn()
 	}
@@ -149,8 +148,8 @@ func (cli *Client) Respond(to uint64, command string, args ...interface{}) uint6
 	}
 
 	// attempt to send this message before any other message is sent
-	defer cli.iolock.Unlock()
-	cli.iolock.Lock()
+	defer cli.lock.Unlock()
+	cli.lock.Lock()
 
 	if cli.rwc == nil {
 		return 0
@@ -251,9 +250,11 @@ func (cli *Client) Pinger(ctx context.Context) {
 			cli.Send("ping")
 		} else {
 			// Attempt to send an error message, ignoring errors
-			cli.iolock.Lock()
-			fmt.Fprint(cli.rwc, "error \"Received no pong\"\r\n")
-			cli.iolock.Unlock()
+			cli.lock.Lock()
+			if cli.rwc != nil {
+				fmt.Fprint(cli.rwc, "error \"Received no pong\"\r\n")
+			}
+			cli.lock.Unlock()
 
 			debug.Printf("%s did not respond to a ping in time", cli)
 			cli.Kill()
@@ -327,6 +328,7 @@ func (cli *Client) Handle() {
 	// When the client is killed (a game has finished, the client
 	// timed out, ...) we log this and mark the client as dead for
 	// the input thread
+	rwc := cli.rwc
 	<-ctx.Done()
 
 	// Request for the client to be removed from the queue
@@ -334,9 +336,9 @@ func (cli *Client) Handle() {
 
 	// Send a simple goodbye, ignoring errors if the network
 	// connection was broken
-	cli.iolock.Lock()
-	fmt.Fprint(cli.rwc, "goodbye\r\n")
-	cli.iolock.Unlock()
+	defer cli.lock.Unlock()
+	cli.lock.Lock()
+	fmt.Fprint(rwc, "goodbye\r\n")
 
 	// Kill input processing thread
 	dead = true
@@ -353,13 +355,13 @@ func (cli *Client) Handle() {
 	// consider what our opponent is doing.  We notify the game
 	// that the client is gone.
 	if cli.simple {
-		cli.game.death <- cli
+		if cli.game != nil {
+			cli.game.death <- cli
+		}
 	} else {
-		cli.lock.Lock()
 		for _, game := range cli.games {
 			game.death <- cli
 		}
-		cli.lock.Unlock()
 	}
 
 	debug.Print("Closed connection to ", cli)
