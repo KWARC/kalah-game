@@ -57,9 +57,9 @@ func (rr *roundRobin) String() string {
 func (rr *roundRobin) Ready(t *Tournament, cli *Client) {
 	if rr.games == nil {
 		rr.games = make(map[*Game]struct{})
-		for _, a := range t.participants {
-			for _, b := range t.participants {
-				if a == b {
+		for i, a := range t.participants {
+			for j, b := range t.participants {
+				if i <= j {
 					continue
 				}
 				rr.games[&Game{
