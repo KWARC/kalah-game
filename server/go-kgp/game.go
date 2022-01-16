@@ -182,7 +182,7 @@ var slots chan struct{}
 
 // Send the current side a state command
 func (g *Game) SendState() {
-	g.last = g.Current().Send("state", g)
+	atomic.StoreUint64(&g.last, g.Current().Send("state", g))
 	g.Current().lock.Lock()
 	g.Current().games[g.last] = g
 	g.Current().lock.Unlock()
