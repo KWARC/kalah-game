@@ -87,7 +87,7 @@ func (rr *roundRobin) Ready(t *Tournament, cli *Client) {
 				// preserving order (GC)"
 				rr.ready[i] = rr.ready[len(rr.ready)-1]
 				rr.ready[len(rr.ready)-1] = nil
-				rr.ready = rr.ready[:len(rr.ready)]
+				rr.ready = rr.ready[:len(rr.ready)-1]
 				delete(rr.games, game)
 				debug.Println(len(rr.games), "left in RR tournament")
 
