@@ -184,72 +184,12 @@ func launch(name string, c chan<- *Client, fail chan<- string) {
 
 // Convert a tournament system into a scheduler
 func makeTournament(sys System) Sched {
-	t := &Tournament{
+	return &Tournament{
 		record: make(map[*Client][]*Client),
 		active: make(map[*Game]struct{}),
+		start:  make(chan *Game),
 		system: sys,
 	}
-
-	names := conf.Tourn.Names
-	if names == nil {
-		dir, err := os.ReadDir(conf.Tourn.Directory)
-		if err != nil {
-			log.Fatal(err)
-		}
-		for _, ent := range dir {
-			if !ent.IsDir() {
-				continue
-			}
-
-			names = append(names, ent.Name())
-		}
-	}
-
-	var (
-		// response channel for successful connections
-		c = make(chan *Client)
-		// indicator channel for failed connection
-		fail = make(chan string)
-		// number of successful connections
-		s uint
-		// connections not yet established
-		w = uint(len(names))
-	)
-
-	for _, name := range names {
-		launch(name, c, fail)
-	}
-
-	wait := make(chan struct{})
-	go func() {
-		// Await every response from the client channel.  The channel
-		// cannot be closed, because we may still be waiting for a
-		// response from a client.
-		for w > 0 {
-			select {
-			case cli := <-c:
-				t.participants = append(t.participants, cli)
-				s++
-			case name := <-fail:
-				log.Print(name, " failed to connect")
-			}
-			w--
-		}
-
-		close(wait)
-	}()
-
-	select {
-	case <-wait:
-		log.Printf("Tournament successfully initialised (%d/%d)",
-			s, len(names))
-	case <-time.After(time.Duration(conf.Tourn.Warmup) * time.Second):
-		log.Printf("Tournament warm-up time exceeded (%d/%d/%d)",
-			s, len(names)-int(w), len(names))
-	}
-
-	t.start = make(chan *Game)
-	return t
 }
 
 // Start and manage games
@@ -339,6 +279,66 @@ func (t *Tournament) Manage() {
 }
 
 func (t *Tournament) Init() error {
+	if t.participants == nil {
+		names := conf.Tourn.Names
+		if names == nil {
+			dir, err := os.ReadDir(conf.Tourn.Directory)
+			if err != nil {
+				log.Fatal(err)
+			}
+			for _, ent := range dir {
+				if !ent.IsDir() {
+					continue
+				}
+
+				names = append(names, ent.Name())
+			}
+		}
+
+		var (
+			// response channel for successful connections
+			c = make(chan *Client)
+			// indicator channel for failed connection
+			fail = make(chan string)
+			// number of successful connections
+			s uint
+			// connections not yet established
+			w = uint(len(names))
+		)
+
+		for _, name := range names {
+			launch(name, c, fail)
+		}
+
+		wait := make(chan struct{})
+		go func() {
+			// Await every response from the client channel.  The channel
+			// cannot be closed, because we may still be waiting for a
+			// response from a client.
+			for w > 0 {
+				select {
+				case cli := <-c:
+					t.participants = append(t.participants, cli)
+					s++
+				case name := <-fail:
+					log.Print(name, " failed to connect")
+				}
+				w--
+			}
+
+			close(wait)
+		}()
+
+		select {
+		case <-wait:
+			log.Printf("Tournament successfully initialised (%d/%d)",
+				s, len(names))
+		case <-time.After(time.Duration(conf.Tourn.Warmup) * time.Second):
+			log.Printf("Tournament warm-up time exceeded (%d/%d/%d)",
+				s, len(names)-int(w), len(names))
+		}
+	}
+
 	go t.Manage()
 	return nil
 }

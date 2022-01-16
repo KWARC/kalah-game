@@ -135,7 +135,7 @@ type TCPConf struct {
 
 type Conf struct {
 	// Scheduler specification
-	Sched interface{} `toml:"sched"`
+	Sched []string `toml:"sched"`
 	// Enable debug logging
 	Debug bool `toml:"debug"`
 	// Scheduler configuration
@@ -155,7 +155,7 @@ type Conf struct {
 // Configuration object used by default
 var defaultConfig = Conf{
 	Debug: false,
-	Sched: "fifo",
+	Sched: []string{"fifo"},
 	Tourn: TournamentConf{
 		Directory: ".",
 		Isolation: "none",

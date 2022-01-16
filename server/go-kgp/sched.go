@@ -50,8 +50,58 @@ type Sched interface {
 	Remove(*Client)
 	// Indicate if the scheduler will not schedule any more games
 	Done() bool
-	// Append a scheduler to use after this one is done
-	Chain(Sched)
+}
+
+type CompositeSched struct{ s []Sched }
+
+func (cs *CompositeSched) Init() error {
+	for _, s := range cs.s {
+		if _, ok := s.(*QueueSched); ok {
+			return errors.New("queue schedulers cannot be composed")
+		}
+	}
+	return cs.s[0].Init()
+}
+
+// Notify the scheduler of a new client
+func (cs *CompositeSched) Add(cli *Client) {
+	if cs.s != nil {
+		cs.s[0].Add(cli)
+	}
+}
+
+// Notify the scheduler a client has died
+func (cs *CompositeSched) Remove(cli *Client) {
+	if cs.s != nil {
+		cs.s[0].Remove(cli)
+	}
+}
+
+// Indicate if the scheduler will not schedule any more games
+func (cs *CompositeSched) Done() bool {
+	if cs.s == nil {
+		return true
+	}
+
+	if cs.s[0].Done() {
+		if len(cs.s) == 1 {
+			return true
+		}
+
+		if this, ok := cs.s[0].(*Tournament); ok && len(cs.s) >= 1 {
+			if next, ok := cs.s[1].(*Tournament); ok {
+				next.participants = this.participants
+			}
+		}
+
+		cs.s = cs.s[1:]
+		err := cs.s[0].Init()
+		if err != nil {
+			log.Fatal(err)
+		}
+		return cs.s[0].Done()
+	}
+	return false
 }
 
 type QueueSched struct {
@@ -67,7 +117,7 @@ func (qs *QueueSched) Init() error {
 		qs.init()
 	}
 	if qs.impl == nil {
-		return errors.New("Queue Scheduler without an implementation")
+		return errors.New("queue scheduler without an implementation")
 	}
 	return nil
 }
@@ -230,7 +280,10 @@ func fifo(queue []*Client) []*Client {
 // Using a scheduler, handle incoming events (requests to add and
 // remove clients from the queue), to start games.
 func schedule(sched Sched) {
-	sched.Init()
+	err := sched.Init()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	for {
 		select {
@@ -258,24 +311,17 @@ func schedule(sched Sched) {
 // Parse a scheduler specification into a scheduler
 //
 // The scheduler specification is described in the manual.
-func parseSched(spec interface{}) Sched {
-	var specs []string
-	switch v := spec.(type) {
-	case string:
-		// For the sake of convenience, the scheduler can also
-		// just be a single string.
-		specs = []string{v}
-	case []string:
-		specs = v
+func parseSched(specs []string) Sched {
+	var scheds []Sched
+	if specs == nil {
+		log.Fatal("Empty scheduler specification")
 	}
 
-	var scheds []Sched
 	for _, spec := range specs {
 		var sched Sched
 
-		parts := strings.SplitN(spec, " ", 1)
-		fn := parts[0]
-		switch fn {
+		parts := strings.Split(spec, " ")
+		switch parts[0] {
 		case "fifo":
 			sched = &QueueSched{
 				init: func() {
@@ -307,15 +353,15 @@ func parseSched(spec interface{}) Sched {
 			}
 			sched = makeTournament(&roundRobin{size: uint(n)})
 		default:
-			log.Fatal("Unknown scheduler", fn)
+			log.Fatal("Unknown scheduler ", parts[0])
 		}
 
 		scheds = append(scheds, sched)
 	}
 
-	for i := 1; i < len(scheds); i++ {
-		scheds[i-1].Chain(scheds[i])
+	if len(scheds) == 1 {
+		return scheds[0]
+	} else {
+		return &CompositeSched{scheds}
 	}
-
-	return scheds[0]
 }
