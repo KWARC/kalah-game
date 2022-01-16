@@ -320,7 +320,7 @@ func parseSched(specs []string) Sched {
 	for _, spec := range specs {
 		var sched Sched
 
-		parts := strings.Split(spec, " ")
+		parts := strings.SplitN(spec, " ", 2)
 		switch parts[0] {
 		case "fifo":
 			sched = &QueueSched{
@@ -347,11 +347,14 @@ func parseSched(specs []string) Sched {
 				impl: random,
 			}
 		case "rr", "round-robin":
-			var n uint64
-			if err := parse(parts[1], &n); err != nil {
+			var n, p uint64
+			if err := parse(parts[1], &n, &p); err != nil {
 				log.Fatal("Invalid ")
 			}
-			sched = makeTournament(&roundRobin{size: uint(n)})
+			sched = makeTournament(&roundRobin{
+				size: uint(n),
+				pick: uint(p),
+			})
 		default:
 			log.Fatal("Unknown scheduler ", parts[0])
 		}

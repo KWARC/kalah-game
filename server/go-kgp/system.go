@@ -19,7 +19,11 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"log"
+	"sort"
+)
 
 // A tournament system decides what games to play, and records results
 //
@@ -46,6 +50,10 @@ type roundRobin struct {
 	games map[*Game]struct{}
 	// Set of clients that are ready to play a game
 	ready []*Client
+	// Number of games that have to be finished
+	left uint
+	// How many agents can pass on to the next round
+	pick uint
 }
 
 // Generate a name for the current tournament
@@ -69,6 +77,7 @@ func (rr *roundRobin) Ready(t *Tournament, cli *Client) {
 				}] = struct{}{}
 			}
 		}
+		rr.left = uint(len(rr.games))
 	}
 
 	// Loop over all the ready clients to check if we still need
@@ -111,8 +120,30 @@ func (rr roundRobin) Forget(_ *Tournament, cli *Client) {
 	}
 }
 
-// The result of a game is not relevant for round robin
-func (*roundRobin) Record(*Tournament, *Game) {}
+// Track if all games of the tournament are finished
+func (rr *roundRobin) Record(t *Tournament, _ *Game) {
+	if rr.left-1 == 0 {
+		// The last game just finished, sort the participants by score
+		sort.SliceStable(t.participants, func(i, j int) bool {
+			return t.participants[j].Score < t.participants[i].Score
+		})
+		// Find at least the top n agents
+		n := int(rr.pick)
+		for n < len(t.participants) && t.participants[n-1].Score == t.participants[n].Score {
+			n++
+		}
+		// Forget the rest
+		for i := 0; i < n; i++ {
+			log.Printf("%s is on place %d (%f)",
+				t.participants[i], i, t.participants[i].Score)
+		}
+		for i := n; i < len(t.participants); i++ {
+			log.Println(t.participants[i], "has been eliminated")
+		}
+		t.participants = t.participants[:n]
+	}
+	rr.left--
+}
 
 // A round robin tournament is over as soon as everyone has played a
 // game against every other participant.  For n participants, this
