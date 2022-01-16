@@ -63,11 +63,11 @@ func (g *Game) updateElo() (err error) {
 
 		switch g.Outcome {
 		case WIN:
-			points = 1.0
+			points = conf.Game.Win
 		case DRAW:
-			points = 0.5
+			points = conf.Game.Draw
 		case LOSS:
-			points = 0.0
+			points = conf.Game.Loss
 		}
 
 		g.South.Score += K * (points - ea)

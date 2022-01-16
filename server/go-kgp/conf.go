@@ -121,6 +121,12 @@ type GameConf struct {
 	// Should trivial moves (where there is only one choice) be
 	// made for the client, without an additional query.
 	SkipTriv bool `toml:"skiptriv"`
+	// Points for winning
+	Win float64 `toml:"win"`
+	// Points for loosing
+	Loss float64 `toml:"loose"`
+	// Points for a draw
+	Draw float64 `toml:"draw"`
 }
 
 type TCPConf struct {
@@ -191,6 +197,9 @@ var defaultConfig = Conf{
 		SkipTriv: true,
 		Timeout:  5,
 		Slots:    0, // unlimited
+		Win:      1,
+		Loss:     -1,
+		Draw:     0,
 	},
 	Web: WebConf{
 		Enabled: true,

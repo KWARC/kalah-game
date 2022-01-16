@@ -319,8 +319,10 @@ func (t *Tournament) Manage() {
 				}
 				log.Printf("%s won against %s", game.South, game.North)
 				t.record[game.South] = append(t.record[game.South], game.North)
-				dbact <- game.South.recordScore(game, id, 1)
-				dbact <- game.North.recordScore(game, id, -1)
+				dbact <- game.South.recordScore(game, id, conf.Game.Win)
+				game.South.Score += conf.Game.Win
+				dbact <- game.North.recordScore(game, id, conf.Game.Loss)
+				game.North.Score += conf.Game.Loss
 			case LOSS:
 				if game.Outcome != emag.Outcome {
 					log.Printf("%s was undecided %s", game.North, game.South)
@@ -328,14 +330,18 @@ func (t *Tournament) Manage() {
 				}
 				log.Printf("%s won against %s", game.North, game.South)
 				t.record[game.North] = append(t.record[game.North], game.South)
-				dbact <- game.South.recordScore(game, id, -1)
-				dbact <- game.North.recordScore(game, id, 1)
+				dbact <- game.South.recordScore(game, id, conf.Game.Loss)
+				game.South.Score += conf.Game.Loss
+				dbact <- game.North.recordScore(game, id, conf.Game.Win)
+				game.North.Score += conf.Game.Win
 			case DRAW:
 				log.Printf("%s played a draw against %s", game.South, game.North)
 				t.record[game.South] = append(t.record[game.South], game.North)
 				t.record[game.North] = append(t.record[game.North], game.South)
-				dbact <- game.South.recordScore(game, id, 0)
-				dbact <- game.North.recordScore(game, id, 0)
+				dbact <- game.South.recordScore(game, id, conf.Game.Draw)
+				game.South.Score += conf.Game.Draw
+				dbact <- game.North.recordScore(game, id, conf.Game.Draw)
+				game.South.Score += conf.Game.Draw
 			}
 			t.system.Record(t, game)
 
@@ -408,6 +414,9 @@ func (t *Tournament) Init() error {
 			log.Printf("Tournament warm-up time exceeded (%d/%d/%d)",
 				s, len(names)-int(w), len(names))
 		}
+	}
+	for _, cli := range t.participants {
+		cli.Score = 0
 	}
 
 	go t.Manage()
