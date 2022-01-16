@@ -344,7 +344,7 @@ func parseSched(specs []string) Sched {
 						debug.Print("Handling websocket on /socket")
 					}
 				},
-				impl: fifo,
+				impl: random,
 			}
 		case "rr", "round-robin":
 			var n uint64
