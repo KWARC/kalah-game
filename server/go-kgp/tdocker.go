@@ -21,10 +21,12 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -88,7 +90,7 @@ func (d *Docker) Start(port string) error {
 		ReadonlyRootfs: true,
 		NetworkMode:    container.NetworkMode(conf.Tourn.Docker.Network),
 		AutoRemove:     true,
-	}, nil, nil, d.name)
+	}, nil, nil, fmt.Sprintf("%s-%d", d.name, time.Now().UnixNano()))
 	if err != nil {
 		log.Fatal("Failed to create container ", d.name, ": ", err)
 		return err
