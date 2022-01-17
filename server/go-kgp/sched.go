@@ -288,7 +288,6 @@ func schedule(sched Sched) {
 	for {
 		select {
 		case cli := <-enqueue:
-			cli.Pause()
 			sched.Add(cli)
 		case cli := <-forget:
 			sched.Remove(cli)

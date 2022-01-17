@@ -273,9 +273,6 @@ func (g *Game) Play() *Client {
 			continue
 		}
 
-		g.Current().Unpause()
-		g.Other(g.Current()).Pause()
-
 		select {
 		case m := <-move:
 			if !g.IsCurrent(m.Client, m.ref) {

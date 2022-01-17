@@ -36,44 +36,6 @@ type Isolation interface {
 	Start(port string) error
 	// Kill the client and block until it dies
 	Halt() error
-	// Unpause execution if paused
-	Unpause()
-	// Pause execution of a client if possible
-	Pause()
-	// Wait for a client to be unpaused, if paused
-	Await()
-}
-
-// Helper function to pause an isolated client
-func (cli *Client) Pause() {
-	if cli == nil {
-		return
-	}
-
-	debug.Print("To pause ", cli)
-	defer cli.lock.Unlock()
-	cli.lock.Lock()
-
-	debug.Print("Pausing ", cli)
-	if cli.isol != nil {
-		cli.isol.Pause()
-	}
-}
-
-// Helper function to unpause an isolated client
-func (cli *Client) Unpause() {
-	if cli == nil {
-		return
-	}
-
-	debug.Print("To unpause ", cli)
-	defer cli.lock.Unlock()
-	cli.lock.Lock()
-
-	debug.Print("Unpausing ", cli)
-	if cli.isol != nil {
-		cli.isol.Unpause()
-	}
 }
 
 // Helper function to halt a client

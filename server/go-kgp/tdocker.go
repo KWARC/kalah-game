@@ -25,7 +25,6 @@ import (
 	"log"
 	"os"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -54,14 +53,12 @@ type Docker struct {
 	id    string
 	name  string
 	pause uint32
-	awake chan struct{}
 	ended chan struct{}
 }
 
 // Start an isolating docker container and connect to PORT
 func (d *Docker) Start(port string) error {
-	d.awake = make(chan struct{})
-	d.ended = make(chan struct{})
+	d.ended = make(chan struct{}, 1)
 
 	dSync.Lock()
 	if dCli == nil {
@@ -121,53 +118,9 @@ func (d *Docker) Halt() error {
 	err := dCli.ContainerKill(ctx, d.id, "SIGKILL")
 	if err != nil {
 		log.Print("Failed to kill container ", d.name, ": ", err)
+		<-d.ended
 		return err
 	}
 	<-d.ended
 	return nil
-}
-
-// Pause the execution of an isolating docker container
-func (d *Docker) Pause() {
-	// Indicate that the container will be paused
-	if !atomic.CompareAndSwapUint32(&d.pause, 0, 1) {
-		return
-	}
-
-	// Connect to the
-	ctx := context.Background()
-	err := dCli.ContainerPause(ctx, d.id)
-	if err != nil {
-		log.Print("Failed to start container ", d.name, ": ", err)
-	}
-}
-
-// Unpause a paused docker container
-func (d *Docker) Unpause() {
-	if atomic.LoadUint32(&d.pause) == 0 {
-		return
-	}
-
-	ctx := context.Background()
-	err := dCli.ContainerUnpause(ctx, d.id)
-	if err != nil {
-		log.Print("Failed to start container ", d.name, ": ", err)
-	}
-
-	atomic.StoreUint32(&d.pause, 0)
-	d.awake <- struct{}{}
-}
-
-// Block until the isolating docker container was unpaused
-//
-// If the docker container was not paused, do nothing
-func (d *Docker) Await() {
-	// We don't need to block anything if the container is
-	// running.  Otherwise we await that the container is
-	// unpaused, give it some time to catch up and then make sure
-	// the container wasn't suspended in the meantime.
-
-	for atomic.LoadUint32(&d.pause) != 0 {
-		<-d.awake
-	}
 }

@@ -89,12 +89,3 @@ func (p *Process) Halt() error {
 	}
 	return nil
 }
-
-// Process is not paused
-func (*Process) Pause() {}
-
-// Process is not unpaused
-func (*Process) Unpause() {}
-
-// Process cannot be awaited, as it cannot be paused
-func (*Process) Await() {}

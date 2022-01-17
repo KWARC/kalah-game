@@ -235,12 +235,6 @@ func (cli *Client) Pinger(ctx context.Context) {
 			}
 		}
 
-		if cli.isol != nil {
-			// If we are managing the client, and know
-			// that it is asleep, we do not expect a ping.
-			cli.isol.Await()
-		}
-
 		// To prevent race conditions, we atomically check and
 		// reset the pinged flag.  We try to set the flag, but
 		// will fail if it is already set.  Failure will lead
