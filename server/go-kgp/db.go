@@ -29,6 +29,7 @@ import (
 	"path"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -417,28 +418,32 @@ func databaseManager(id uint, db *sql.DB, wg *sync.WaitGroup) {
 	// actions, without an other thread writing on a closed
 	// channel that would trigger a panic.
 	dbact := dbact
-	for act := range dbact {
+	for {
 		var (
 			ctx    context.Context
 			cancel func()
 		)
 
-		if act == nil {
-			goto next
+		select {
+		case act := <-dbact:
+			if act == nil {
+				break
+			}
+
+			bg := context.Background()
+			ctx, cancel = context.WithTimeout(bg, conf.Database.Timeout)
+			act(db, ctx)
+			if err := ctx.Err(); err != nil {
+				log.Println(err)
+			}
+			cancel()
+		case <-time.Tick(conf.Database.Timeout):
+			// noop
 		}
 
-		ctx, cancel = context.WithTimeout(context.Background(), conf.Database.Timeout)
-		act(db, ctx)
-		if err := ctx.Err(); err != nil {
-			log.Println(err)
-		}
-		cancel()
-
-	next:
-		if len(dbact) == 0 && shutdown != 0 {
+		if len(dbact) == 0 && atomic.LoadUint32(&shutdown) != 0 {
 			return
 		}
-
 	}
 }
 

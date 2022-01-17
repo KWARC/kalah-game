@@ -88,23 +88,15 @@ func (cli *Client) Restart() bool {
 		fail = make(chan string)
 	)
 
-	err := cli.Halt()
+	cli.Halt()
 	cli.lock.Unlock()
-	if err != nil {
-		if err == os.ErrProcessDone {
-			return true
-		}
-		log.Print(err)
-		cli.Kill()
-		return false
-	}
 	connect(cli, c, fail)
 	select {
 	case <-c:
 		// everything is ok
 		return true
 	case <-fail:
-		cli.Kill()
+		forget <- cli
 		return false
 	}
 
@@ -264,8 +256,6 @@ func (t *Tournament) Manage() {
 				enqueue <- emag.Other(died)
 				return
 			}
-			game.South.Halt()
-			game.North.Halt()
 
 			if !game.South.Restart() {
 				log.Println("Failed to restart", game.South)
@@ -284,15 +274,13 @@ func (t *Tournament) Manage() {
 				enqueue <- emag.Other(died)
 				return
 			}
-			game.South.Halt()
-			game.North.Halt()
 
 			t.Lock()
 			switch game.Outcome {
 			case WIN:
 				if game.Outcome != emag.Outcome {
 					log.Printf("%s was undecided %s", game.South, game.North)
-					goto norecord
+					break
 				}
 				log.Printf("%s won against %s", game.South, game.North)
 				t.record[game.South] = append(t.record[game.South], game.North)
@@ -307,7 +295,7 @@ func (t *Tournament) Manage() {
 			case LOSS:
 				if game.Outcome != emag.Outcome {
 					log.Printf("%s was undecided %s", game.North, game.South)
-					goto norecord
+					break
 				}
 				log.Printf("%s won against %s", game.North, game.South)
 				t.record[game.North] = append(t.record[game.North], game.South)
@@ -334,7 +322,6 @@ func (t *Tournament) Manage() {
 			}
 			t.system.Record(t, game)
 
-		norecord:
 			delete(t.active, game)
 			t.Unlock()
 

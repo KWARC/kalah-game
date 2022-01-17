@@ -50,16 +50,12 @@ func init() {
 
 // Docker isolates a client within a docker container
 type Docker struct {
-	id    string
-	name  string
-	pause uint32
-	ended chan struct{}
+	id   string
+	name string
 }
 
 // Start an isolating docker container and connect to PORT
 func (d *Docker) Start(port string) error {
-	d.ended = make(chan struct{}, 1)
-
 	dSync.Lock()
 	if dCli == nil {
 		var err error
@@ -104,10 +100,8 @@ func (d *Docker) Start(port string) error {
 	select {
 	case err := <-errC:
 		log.Printf("Container %v signalled an error: %s", d.name, err)
-		d.ended <- struct{}{}
 		return err
 	case <-okC:
-		d.ended <- struct{}{}
 		return nil
 	}
 }
@@ -118,9 +112,7 @@ func (d *Docker) Halt() error {
 	err := dCli.ContainerKill(ctx, d.id, "SIGKILL")
 	if err != nil {
 		log.Print("Failed to kill container ", d.name, ": ", err)
-		<-d.ended
 		return err
 	}
-	<-d.ended
 	return nil
 }

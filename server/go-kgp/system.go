@@ -187,7 +187,9 @@ func (rnd *random) Ready(t *Tournament, cli *Client) {
 }
 
 // Nothing has to be done if a client died
-func (*random) Forget(*Tournament, *Client) {}
+func (rnd *random) Forget(*Tournament, *Client) {
+	rnd.waiting--
+}
 
 // Record if the client managed to beat a random agent
 func (rnd *random) Record(t *Tournament, g *Game) {
@@ -215,5 +217,5 @@ func (rnd *random) Record(t *Tournament, g *Game) {
 
 // Check if a tournament is over
 func (rnd *random) Over(t *Tournament) bool {
-	return len(t.participants) == len(rnd.done) && rnd.waiting == 0
+	return len(t.participants) <= len(rnd.done) && rnd.waiting == 0
 }
