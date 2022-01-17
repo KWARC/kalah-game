@@ -181,8 +181,8 @@ func (rnd *random) Ready(t *Tournament, cli *Client) {
 			conf.Schedulers.Random.Size,
 			conf.Schedulers.Random.Stones,
 		),
-		North: cli,
-		South: nil,
+		South: cli,
+		North: nil,
 	}
 }
 
