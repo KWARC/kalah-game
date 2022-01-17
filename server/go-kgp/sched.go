@@ -26,7 +26,6 @@ import (
 	"math/rand"
 	"net/http"
 	"strings"
-	"sync"
 	"sync/atomic"
 )
 
@@ -152,48 +151,6 @@ func (qs *QueueSched) Done() bool {
 
 func (QueueSched) Chain(Sched) {
 	log.Fatal("Queue schedulers cannot be chained")
-}
-
-// The random scheduler has everyone play two games against a random agent
-func random(queue []*Client) []*Client {
-	for _, cli := range queue {
-		go func(cli *Client) {
-			defer cli.Kill()
-
-			var (
-				size   = conf.Schedulers.Random.Size
-				stones = conf.Schedulers.Random.Stones
-			)
-
-			g1 := &Game{
-				Board: makeBoard(size, stones),
-				North: cli,
-				South: nil,
-			}
-			g2 := &Game{
-				Board: makeBoard(size, stones),
-				North: cli,
-				South: nil,
-			}
-
-			g1.Play()
-			g2.Play()
-
-			o1 := g1.Outcome
-			o2 := g2.Outcome
-			if o1 == LOSS && o2 == WIN {
-				cli.Score = 1
-			} else {
-				cli.Score = 0
-			}
-
-			var wait sync.WaitGroup
-			wait.Add(1)
-			dbact <- cli.updateDatabase(&wait, false)
-			wait.Wait()
-		}(cli)
-	}
-	return nil
 }
 
 // The FIFO scheduler minimises the time a client remains in the
@@ -334,21 +291,11 @@ func parseSched(specs []string) Sched {
 				impl: fifo,
 			}
 		case "rand", "random":
-			sched = &QueueSched{
-				init: func() {
-					fc := conf.Schedulers.FIFO
-					listen(fc.Port)
-					if fc.WebSocket {
-						http.HandleFunc("/socket", listenUpgrade)
-						debug.Print("Handling websocket on /socket")
-					}
-				},
-				impl: random,
-			}
+			sched = makeTournament(&random{})
 		case "rr", "round-robin":
 			var n, p uint64
 			if err := parse(parts[1], &n, &p); err != nil {
-				log.Fatal("Invalid ")
+				log.Fatal("Invalid arguments")
 			}
 			sched = makeTournament(&roundRobin{
 				size: uint(n),

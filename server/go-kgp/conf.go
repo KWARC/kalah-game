@@ -42,10 +42,6 @@ type FIFOConf struct {
 }
 
 type RandConf struct {
-	// Port number
-	Port uint `toml:"port"`
-	// Enable websocket
-	WebSocket bool `toml:"websocket"`
 	// Size of the random board
 	Size uint `toml:"size"`
 	// Number of stones to play on

@@ -151,3 +151,66 @@ func (rr *roundRobin) Record(t *Tournament, _ *Game) {
 func (rr *roundRobin) Over(t *Tournament) bool {
 	return rr.games != nil && len(rr.games) == 0
 }
+
+type random struct {
+	// List of clients that have played a random match
+	done []*Client
+	// Number of games we are still waiting to finish
+	waiting uint
+}
+
+func (*random) String() string {
+	return "rnd"
+}
+
+// Register a client as ready
+func (rnd *random) Ready(t *Tournament, cli *Client) {
+	for _, c := range rnd.done {
+		if cli == c {
+			return
+		}
+	}
+	rnd.done = append(rnd.done, cli)
+
+	rnd.waiting++
+	t.start <- &Game{
+		Board: makeBoard(
+			conf.Schedulers.Random.Size,
+			conf.Schedulers.Random.Stones,
+		),
+		North: cli,
+		South: nil,
+	}
+}
+
+// Nothing has to be done if a client died
+func (*random) Forget(*Tournament, *Client) {}
+
+// Record if the client managed to beat a random agent
+func (rnd *random) Record(t *Tournament, g *Game) {
+	cli := g.South
+
+	if g.Outcome == WIN {
+		log.Println(cli, "managed to beat the random agent")
+	} else {
+		// If the agent did not manage to beat random, it is
+		// removed from the participant list
+		for i := range t.participants {
+			if cli != t.participants[i] {
+				continue
+			}
+
+			t.participants[i] = t.participants[len(t.participants)-1]
+			t.participants = t.participants[:len(t.participants)-1]
+			break
+		}
+
+		log.Println(cli, "failed to beat the random agent")
+	}
+	rnd.waiting--
+}
+
+// Check if a tournament is over
+func (rnd *random) Over(t *Tournament) bool {
+	return len(t.participants) == len(rnd.done) && rnd.waiting == 0
+}
