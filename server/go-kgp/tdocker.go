@@ -130,7 +130,9 @@ func (d *Docker) Halt() error {
 // Pause the execution of an isolating docker container
 func (d *Docker) Pause() {
 	// Indicate that the container will be paused
-	atomic.StoreUint32(&d.pause, 1)
+	if !atomic.CompareAndSwapUint32(&d.pause, 0, 1) {
+		return
+	}
 
 	// Connect to the
 	ctx := context.Background()
