@@ -26,12 +26,9 @@ import (
 	"fmt"
 	"io/fs"
 	"log"
-	"os"
-	"os/signal"
 	"path"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -44,7 +41,13 @@ import (
 
 type DBAction func(*sql.DB, context.Context) error
 
-var dbact = make(chan DBAction, 256)
+var (
+	// Shutdown indicator
+	shutdown uint32
+
+	// Database action channel
+	dbact = make(chan DBAction, 256)
+)
 
 // The SQL queries are stored under ./sql/, and they are loaded by the
 // database manager.  These are prepared and stored in QUERIES, that
@@ -395,16 +398,27 @@ func databaseManager(id uint, db *sql.DB, wg *sync.WaitGroup) {
 	// channel that would trigger a panic.
 	dbact := dbact
 	for act := range dbact {
+		var (
+			ctx    context.Context
+			cancel func()
+		)
+
 		if act == nil {
-			continue
+			goto next
 		}
 
-		context, cancel := context.WithTimeout(context.Background(), conf.Database.Timeout*10000)
-		act(db, context)
-		if err := context.Err(); err != nil {
+		ctx, cancel = context.WithTimeout(context.Background(), conf.Database.Timeout)
+		act(db, ctx)
+		if err := ctx.Err(); err != nil {
 			log.Println(err)
 		}
 		cancel()
+
+	next:
+		if len(dbact) == 0 && shutdown != 0 {
+			return
+		}
+
 	}
 }
 
@@ -415,20 +429,6 @@ func manageDatabase() {
 		log.Fatal(err, ": ", conf.Database.File)
 	}
 	defer db.Close()
-
-	go func() {
-		intr := make(chan os.Signal, 1)
-		signal.Notify(intr, os.Interrupt)
-
-		// The first interrupt signals the database managers to stop
-		// accepting more requests
-		<-intr
-		go shutdown.Do(closeDB)
-
-		// The second interrupt force-exits the process
-		<-intr
-		os.Exit(1)
-	}()
 
 	for _, pragma := range []string{
 		// https://www.sqlite.org/pragma.html#pragma_journal_mode
@@ -498,29 +498,4 @@ func manageDatabase() {
 		go databaseManager(id, db, &wg)
 	}
 	wg.Wait()
-}
-
-// Shutdown synchronisation object
-//
-// When the program is shutdown, use this to call closeDB.
-var shutdown sync.Once
-
-// Initiate a database shutdown
-func closeDB() {
-	debug.Print("Shutting down...")
-	time.Sleep(conf.Database.Timeout * 2)
-
-	// Wait for ongoing games to finish
-	for atomic.LoadUint64(&playing) > 0 {
-		time.Sleep(time.Second)
-	}
-	time.Sleep(time.Second)
-
-	// Wait for the actual queue to empty itself, then terminate
-	// the database managers
-	for len(dbact) > 0 {
-		debug.Printf("%d database actions left", len(dbact))
-		time.Sleep(conf.Database.Timeout)
-	}
-	close(dbact)
 }

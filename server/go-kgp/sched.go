@@ -295,7 +295,7 @@ func schedule(sched Sched) {
 		}
 
 		if sched.Done() {
-			shutdown.Do(closeDB)
+			atomic.StoreUint32(&shutdown, 1)
 			return
 		}
 
