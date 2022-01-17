@@ -265,7 +265,6 @@ func (g *Game) Play() *Client {
 		//
 		// If a client is nil, we interpret it as a random
 		// move client.
-		fmt.Println(g.Current())
 		if g.Current() == nil {
 			choice := &Move{Pit: g.Board.Random(g.side)}
 			g.Moves = append(g.Moves, choice)
