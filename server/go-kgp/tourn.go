@@ -29,11 +29,18 @@ import (
 	"time"
 )
 
+// Local client isolation abstraction
 type Isolation interface {
+	// Start a client and connect to port, and block until the
+	// client terminates
 	Start(port string) error
+	// Kill the client and block until it dies
 	Halt() error
+	// Unpause execution if paused
 	Unpause()
+	// Pause execution of a client if possible
 	Pause()
+	// Wait for a client to be unpaused, if paused
 	Await()
 }
 
