@@ -128,6 +128,11 @@ func (cli *Client) Set(key, val string) error {
 
 // Interpret parses and evaluates INPUT
 func (cli *Client) Interpret(input string) error {
+	if strings.TrimSpace(input) == "" {
+		// Ignore empty lines
+		return nil
+	}
+
 	matches := parser.FindStringSubmatch(input)
 	if matches == nil {
 		debug.Printf("Malformed input: %v", input)
