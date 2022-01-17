@@ -197,6 +197,10 @@ func (cli *Client) Occupied() bool {
 
 // Remove all of CLIs references to GAME
 func (cli *Client) Forget(game *Game) {
+	if cli == nil {
+		return
+	}
+
 	defer cli.lock.Unlock()
 	cli.lock.Lock()
 

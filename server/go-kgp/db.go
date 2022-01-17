@@ -73,11 +73,18 @@ func (game *Game) updateDatabase(wait *sync.WaitGroup) DBAction {
 		}
 		defer tx.Rollback()
 
+		var scid, ncid *int64
+		if game.South != nil {
+			scid = &game.South.Id
+		}
+		if game.North != nil {
+			ncid = &game.North.Id
+		}
+
 		res, err := tx.Stmt(queries["insert-game"]).ExecContext(ctx,
 			len(game.Board.northPits),
 			game.Board.init,
-			game.North.Id,
-			game.South.Id,
+			ncid, scid,
 			game.Board.Outcome(SideSouth))
 		if err != nil {
 			log.Fatal(err)
@@ -89,9 +96,13 @@ func (game *Game) updateDatabase(wait *sync.WaitGroup) DBAction {
 		}
 
 		for _, move := range game.Moves {
+			var cid *int64
+			if move.Client != nil {
+				cid = &move.Client.Id
+			}
 			_, err = tx.Stmt(queries["insert-move"]).ExecContext(ctx,
 				game.Id,
-				move.Client.Id,
+				cid,
 				game.Side(move.Client),
 				move.Pit,
 				move.Comment,
@@ -128,6 +139,10 @@ func registerTournament(name string, c chan<- int64) DBAction {
 }
 
 func (cli *Client) recordScore(game *Game, tid int64, score float64) DBAction {
+	if cli == nil {
+		return nil
+	}
+
 	return func(db *sql.DB, ctx context.Context) (err error) {
 		_, err = queries["insert-score"].ExecContext(ctx,
 			cli.Id, game.Id, tid, score)
@@ -136,6 +151,11 @@ func (cli *Client) recordScore(game *Game, tid int64, score float64) DBAction {
 }
 
 func (cli *Client) updateDatabase(wait *sync.WaitGroup, query bool) DBAction {
+	if cli == nil {
+		wait.Done()
+		return nil
+	}
+
 	return func(db *sql.DB, ctx context.Context) (err error) {
 		var (
 			name, descr *string

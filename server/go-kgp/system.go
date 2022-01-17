@@ -165,6 +165,9 @@ func (*random) String() string {
 
 // Register a client as ready
 func (rnd *random) Ready(t *Tournament, cli *Client) {
+	if cli == nil {
+		return
+	}
 	for _, c := range rnd.done {
 		if cli == c {
 			return

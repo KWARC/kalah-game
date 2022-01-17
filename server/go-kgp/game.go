@@ -182,6 +182,9 @@ var slots chan struct{}
 
 // Send the current side a state command
 func (g *Game) SendState() {
+	if g.Current() == nil {
+		return
+	}
 	atomic.StoreUint64(&g.last, g.Current().Send("state", g))
 	g.Current().lock.Lock()
 	g.Current().games[g.last] = g
@@ -222,7 +225,7 @@ func (g *Game) Play() *Client {
 	g.move = move
 	g.death = death
 
-	if g.North.simple {
+	if g.North != nil && g.North.simple {
 		if g.North.game != nil {
 			panic(fmt.Sprintf("Already %s part of game %s (%s, %s) while entering %s (%s, %s)",
 				g.North,
@@ -231,7 +234,7 @@ func (g *Game) Play() *Client {
 		}
 		g.North.game = g
 	}
-	if g.South.simple {
+	if g.South != nil && g.South.simple {
 		if g.South.game != nil {
 			panic(fmt.Sprintf("Already %s part of game %s (%s, %s) while entering %s (%s, %s)",
 				g.South,
@@ -241,7 +244,7 @@ func (g *Game) Play() *Client {
 		g.South.game = g
 	}
 
-	if g.North.token != nil && g.South.token != nil {
+	if (g.North == nil || g.North.token != nil) && (g.South == nil || g.South.token != nil) {
 		g.logged = true
 		var wait sync.WaitGroup
 		wait.Add(1)
@@ -262,12 +265,16 @@ func (g *Game) Play() *Client {
 		//
 		// If a client is nil, we interpret it as a random
 		// move client.
+		fmt.Println(g.Current())
 		if g.Current() == nil {
 			choice := &Move{Pit: g.Board.Random(g.side)}
 			g.Moves = append(g.Moves, choice)
 
 			if !g.Board.Sow(g.side, choice.Pit) {
 				g.side = !g.side
+			}
+			if g.Current() != nil {
+				g.SendState()
 			}
 
 			continue
