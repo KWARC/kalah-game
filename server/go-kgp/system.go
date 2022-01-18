@@ -187,7 +187,8 @@ func (rnd *random) Ready(t *Tournament, cli *Client) {
 }
 
 // Nothing has to be done if a client died
-func (rnd *random) Forget(*Tournament, *Client) {
+func (rnd *random) Forget(_ *Tournament, cli *Client) {
+	log.Println(cli, "was disqualified")
 	rnd.waiting--
 }
 
