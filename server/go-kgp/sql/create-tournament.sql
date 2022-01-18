@@ -2,5 +2,6 @@
 
 CREATE TABLE IF NOT EXISTS tournament (
        id INTEGER PRIMARY KEY AUTOINCREMENT,
-       name TEXT
+       name TEXT,
+       start TIMESTAMP
 );

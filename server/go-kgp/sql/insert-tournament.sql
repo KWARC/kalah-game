@@ -1,3 +1,3 @@
 -- -*- sql-product: sqlite; -*-
 
-INSERT INTO tournament(name) VALUES (?);
+INSERT INTO tournament(name, start) VALUES (?, DATETIME('now'));
