@@ -22,7 +22,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -246,10 +245,7 @@ func (g *Game) Play() *Client {
 
 	if (g.North == nil || g.North.token != nil) && (g.South == nil || g.South.token != nil) {
 		g.logged = true
-		var wait sync.WaitGroup
-		wait.Add(1)
-		dbact <- g.updateDatabase(&wait)
-		wait.Wait()
+		g.updateDatabase()
 	}
 
 	g.side = SideSouth

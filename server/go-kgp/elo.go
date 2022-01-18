@@ -22,7 +22,6 @@ package main
 import (
 	"log"
 	"math"
-	"sync"
 )
 
 const (
@@ -77,12 +76,9 @@ func (g *Game) updateElo() (err error) {
 	g.North.Score = math.Max(0, g.North.Score)
 
 	// Send database manager a request to update the entry
-	var wait sync.WaitGroup
-	wait.Add(3)
-	dbact <- g.South.updateDatabase(&wait, false)
-	dbact <- g.North.updateDatabase(&wait, false)
-	dbact <- g.updateDatabase(&wait)
-	wait.Wait()
+	g.South.updateDatabase(false)
+	g.North.updateDatabase(false)
+	g.updateDatabase()
 
 	return nil
 }

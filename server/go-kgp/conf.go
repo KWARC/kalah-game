@@ -58,8 +58,6 @@ type SchedulersConf struct {
 type DBConf struct {
 	// Path to the SQLite database
 	File string `toml:"file"`
-	// Number of database managers
-	Threads uint `toml:"threads"`
 	// Timeout to execute a database action
 	Timeout time.Duration `toml:"timeout"`
 	// Periodically optimise the database
@@ -171,7 +169,6 @@ var defaultConfig = Conf{
 	},
 	Database: DBConf{
 		File:     "kalah.sql",
-		Threads:  1,
 		Timeout:  100 * time.Millisecond,
 		Optimise: true,
 	},

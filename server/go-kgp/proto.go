@@ -26,7 +26,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"unicode"
 )
@@ -123,17 +122,14 @@ func (cli *Client) Set(key, val string) error {
 			cli.token = hash.Sum(nil)
 			cli.Score = 1000.0
 
-			var wg sync.WaitGroup
-			wg.Add(1)
-			dbact <- cli.updateDatabase(&wg, true)
-			wg.Wait()
+			cli.updateDatabase(true)
 		}
 	case "auth:forget":
 		hash := sha256.New()
 		fmt.Fprint(hash, val)
 		token := hash.Sum(nil)
 
-		dbact <- cli.forget(token)
+		cli.forget(token)
 	}
 
 	return nil

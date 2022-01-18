@@ -174,10 +174,7 @@ func connect(cli *Client, c chan<- *Client, fail chan<- string) {
 		}
 	}()
 
-	var wait sync.WaitGroup
-	wait.Add(1)
-	dbact <- cli.updateDatabase(&wait, true)
-	wait.Wait()
+	cli.updateDatabase(true)
 }
 
 // Helper function to launch a client with NAME
@@ -218,9 +215,7 @@ func makeTournament(sys System) Sched {
 
 // Start and manage games
 func (t *Tournament) Manage() {
-	c := make(chan int64)
-	dbact <- registerTournament(t.system.String(), c)
-	id := <-c
+	id := registerTournament(t.system.String())
 
 	for game := range t.start {
 		debug.Print("To start ", game)
@@ -284,14 +279,8 @@ func (t *Tournament) Manage() {
 				}
 				log.Printf("%s won against %s", game.South, game.North)
 				t.record[game.South] = append(t.record[game.South], game.North)
-				dbact <- game.South.recordScore(game, id, conf.Game.Win)
-				if game.South != nil {
-					game.South.Score += conf.Game.Win
-				}
-				dbact <- game.North.recordScore(game, id, conf.Game.Loss)
-				if game.North != nil {
-					game.North.Score += conf.Game.Loss
-				}
+				game.South.recordScore(game, id, conf.Game.Win)
+				game.North.recordScore(game, id, conf.Game.Loss)
 			case LOSS:
 				if game.Outcome != emag.Outcome {
 					log.Printf("%s was undecided %s", game.North, game.South)
@@ -299,26 +288,14 @@ func (t *Tournament) Manage() {
 				}
 				log.Printf("%s won against %s", game.North, game.South)
 				t.record[game.North] = append(t.record[game.North], game.South)
-				dbact <- game.South.recordScore(game, id, conf.Game.Loss)
-				if game.South != nil {
-					game.South.Score += conf.Game.Loss
-				}
-				dbact <- game.North.recordScore(game, id, conf.Game.Win)
-				if game.North != nil {
-					game.North.Score += conf.Game.Win
-				}
+				game.South.recordScore(game, id, conf.Game.Loss)
+				game.North.recordScore(game, id, conf.Game.Win)
 			case DRAW:
 				log.Printf("%s played a draw against %s", game.South, game.North)
 				t.record[game.South] = append(t.record[game.South], game.North)
 				t.record[game.North] = append(t.record[game.North], game.South)
-				dbact <- game.South.recordScore(game, id, conf.Game.Draw)
-				if game.South != nil {
-					game.South.Score += conf.Game.Draw
-				}
-				dbact <- game.North.recordScore(game, id, conf.Game.Draw)
-				if game.North != nil {
-					game.North.Score += conf.Game.Draw
-				}
+				game.South.recordScore(game, id, conf.Game.Draw)
+				game.North.recordScore(game, id, conf.Game.Draw)
 			}
 			t.system.Record(t, game)
 

@@ -206,7 +206,7 @@ func index(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "text/html")
 	w.Header().Add("Cache-Control", "max-age=60")
 	c := make(chan *Agent)
-	dbact <- queryAgents(c, page-1)
+	go queryAgents(c, page-1)
 	err = T.ExecuteTemplate(w, "index.tmpl", struct {
 		Agents chan *Agent
 		Page   int
@@ -243,8 +243,8 @@ func showAgent(w http.ResponseWriter, r *http.Request) {
 
 	ac := make(chan *Agent)
 	gc := make(chan *Game)
-	dbact <- queryAgent(id, ac)
-	dbact <- queryGames(id, gc, page-1)
+	go queryAgent(id, ac)
+	go queryGames(id, gc, page-1)
 
 	w.Header().Add("Content-Type", "text/html")
 	err = T.ExecuteTemplate(w, "show-agent.tmpl", struct {
@@ -266,7 +266,7 @@ func showGame(w http.ResponseWriter, r *http.Request) {
 	}
 
 	c := make(chan *Game)
-	dbact <- queryGame(id, c)
+	go queryGame(id, c)
 
 	w.Header().Add("Content-Type", "text/html")
 	w.Header().Add("Cache-Control", "max-age=604800")
