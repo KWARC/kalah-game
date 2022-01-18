@@ -273,7 +273,7 @@ func (t *Tournament) Manage() {
 			t.Lock()
 			switch game.Outcome {
 			case WIN:
-				if game.Outcome != emag.Outcome {
+				if LOSS != emag.Outcome {
 					log.Printf("%s was undecided %s", game.South, game.North)
 					break
 				}
@@ -282,7 +282,7 @@ func (t *Tournament) Manage() {
 				game.South.recordScore(game, id, conf.Game.Win)
 				game.North.recordScore(game, id, conf.Game.Loss)
 			case LOSS:
-				if game.Outcome != emag.Outcome {
+				if WIN != emag.Outcome {
 					log.Printf("%s was undecided %s", game.North, game.South)
 					break
 				}
