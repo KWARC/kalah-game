@@ -26,6 +26,8 @@ import (
 	"fmt"
 	"io/fs"
 	"log"
+	"os"
+	"os/signal"
 	"path"
 	"strings"
 	"time"
@@ -472,4 +474,12 @@ func prepareDatabase() {
 			}
 		}()
 	}
+
+	go func() {
+		c := make(chan os.Signal)
+		signal.Notify(c, os.Interrupt)
+		<-c
+		db.Close()
+		os.Exit(0)
+	}()
 }
