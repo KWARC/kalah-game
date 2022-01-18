@@ -490,7 +490,7 @@ public class ProtocolManager {
 
     // sends command to server, adds \r\n, flushes
     // also acts as callback for logging etc.
-    private void sendToServer(String msg, Long ref) throws IOException {
+    private synchronized void sendToServer(String msg, Long ref) throws IOException {
     	String msg2 = id + (ref == null ? "" : "@" + ref) + " " + msg;
     
     	connection.send(msg2);
