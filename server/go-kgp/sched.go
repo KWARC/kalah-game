@@ -27,6 +27,7 @@ import (
 	"net/http"
 	"strings"
 	"sync/atomic"
+	"time"
 )
 
 var (
@@ -248,6 +249,8 @@ func schedule(sched Sched) {
 			sched.Add(cli)
 		case cli := <-forget:
 			sched.Remove(cli)
+		case <-time.Tick(time.Second):
+			// noop
 		}
 
 		if sched.Done() {
