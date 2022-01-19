@@ -50,8 +50,6 @@ type roundRobin struct {
 	games map[*Game]struct{}
 	// Set of clients that are ready to play a game
 	ready []*Client
-	// Number of games that have to be finished
-	left uint
 	// How many agents can pass on to the next round
 	pick uint
 }
@@ -77,7 +75,6 @@ func (rr *roundRobin) Ready(t *Tournament, cli *Client) {
 				}] = struct{}{}
 			}
 		}
-		rr.left = uint(len(rr.games))
 	}
 
 	// Loop over all the ready clients to check if we still need
@@ -122,7 +119,7 @@ func (rr roundRobin) Forget(_ *Tournament, cli *Client) {
 
 // Track if all games of the tournament are finished
 func (rr *roundRobin) Record(t *Tournament, _ *Game) {
-	if rr.left-1 == 0 {
+	if len(rr.games)-1 == 0 {
 		// The last game just finished, sort the participants by score
 		sort.SliceStable(t.participants, func(i, j int) bool {
 			return t.participants[j].Score < t.participants[i].Score
@@ -142,7 +139,6 @@ func (rr *roundRobin) Record(t *Tournament, _ *Game) {
 		}
 		t.participants = t.participants[:n]
 	}
-	rr.left--
 }
 
 // A round robin tournament is over as soon as everyone has played a
