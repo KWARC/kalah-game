@@ -52,6 +52,14 @@ type roundRobin struct {
 	ready []*Client
 	// How many agents can pass on to the next round
 	pick uint
+	// How many games are left to finish
+	//
+	// Not that this is not the same as len(games), because a game
+	// is removed from games when it starts, but left is
+	// decremented when it finishes.  This distinction is
+	// necessary for .Over to not stop as when the last game has
+	// started, but when it finishes.
+	left uint
 }
 
 // Generate a name for the current tournament
@@ -75,6 +83,7 @@ func (rr *roundRobin) Ready(t *Tournament, cli *Client) {
 				}] = struct{}{}
 			}
 		}
+		rr.left = uint(len(rr.games))
 	}
 
 	// Loop over all the ready clients to check if we still need
@@ -113,6 +122,8 @@ func (rr roundRobin) Forget(_ *Tournament, cli *Client) {
 	for game := range rr.games {
 		if game.North == cli || game.South == cli {
 			delete(rr.games, game)
+			game.death <- cli
+			rr.left--
 		}
 	}
 }
@@ -139,13 +150,14 @@ func (rr *roundRobin) Record(t *Tournament, _ *Game) {
 		}
 		t.participants = t.participants[:n]
 	}
+	rr.left--
 }
 
 // A round robin tournament is over as soon as everyone has played a
 // game against every other participant.  For n participants, this
 // means every one has had n-1 games, ie. there have been n-1 rounds.
 func (rr *roundRobin) Over(t *Tournament) bool {
-	return rr.games != nil && len(rr.games) == 0
+	return rr.games != nil && rr.left == 0
 }
 
 type random struct {
@@ -214,5 +226,5 @@ func (rnd *random) Record(t *Tournament, g *Game) {
 
 // Check if a tournament is over
 func (rnd *random) Over(t *Tournament) bool {
-	return len(t.participants) <= len(rnd.done) && rnd.waiting == 0
+	return len(t.participants) == len(rnd.done) && rnd.waiting == 0
 }
