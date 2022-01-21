@@ -93,6 +93,8 @@ func parse(raw string, params ...interface{}) error {
 			if err != nil {
 				return err
 			}
+		default:
+			panic("Unsupported argument type")
 		}
 	}
 
