@@ -134,6 +134,8 @@ func (cli *Client) recordScore(game *Game, tid int64, score float64) {
 		return
 	}
 
+	cli.Score += score
+
 	bg := context.Background()
 	ctx, cancel := context.WithTimeout(bg, conf.Database.Timeout)
 	defer cancel()
