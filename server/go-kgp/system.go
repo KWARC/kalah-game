@@ -118,7 +118,7 @@ func (rr *roundRobin) Ready(t *Tournament, cli *Client) {
 }
 
 // Remove all games that CLI should have participated in
-func (rr roundRobin) Forget(_ *Tournament, cli *Client) {
+func (rr *roundRobin) Forget(_ *Tournament, cli *Client) {
 	for game := range rr.games {
 		if game.North == cli || game.South == cli {
 			delete(rr.games, game)
