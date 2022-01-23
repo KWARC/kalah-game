@@ -207,7 +207,7 @@ func makeTournament(sys System) Sched {
 	return &Tournament{
 		record: make(map[*Client][]*Client),
 		active: make(map[*Game]struct{}),
-		start:  make(chan *Game, 1),
+		start:  make(chan *Game, 4),
 		system: sys,
 	}
 }

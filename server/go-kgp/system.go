@@ -150,8 +150,7 @@ func (rr *roundRobin) Over(t *Tournament) bool {
 }
 
 type random struct {
-	// List of clients that have played a random match
-	done []*Client
+	done map[*Client]struct{}
 }
 
 func (*random) String() string {
@@ -160,15 +159,14 @@ func (*random) String() string {
 
 // Register a client as ready
 func (rnd *random) Ready(t *Tournament, cli *Client) {
-	if cli == nil {
+	if rnd.done == nil {
+		rnd.done = make(map[*Client]struct{})
+		rnd.done[nil] = struct{}{}
+	}
+
+	if _, done := rnd.done[cli]; done {
 		return
 	}
-	for _, c := range rnd.done {
-		if cli == c {
-			return
-		}
-	}
-	rnd.done = append(rnd.done, cli)
 
 	t.start <- &Game{
 		Board: makeBoard(
@@ -206,9 +204,10 @@ func (rnd *random) Record(t *Tournament, g *Game) {
 
 		log.Println(cli, "failed to beat the random agent")
 	}
+	rnd.done[cli] = struct{}{}
 }
 
 // Check if a tournament is over
 func (rnd *random) Over(t *Tournament) bool {
-	return len(t.participants) == len(rnd.done)
+	return len(t.participants) <= len(rnd.done)
 }
