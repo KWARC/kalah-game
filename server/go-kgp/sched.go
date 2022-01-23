@@ -299,6 +299,9 @@ func parseSched(specs []string) Sched {
 			if err := parse(parts[1], &n, &p); err != nil {
 				log.Fatal("Invalid arguments")
 			}
+			if p < 1 {
+				log.Fatal("Round robin needs to at least pick one agent")
+			}
 			sched = makeTournament(&roundRobin{
 				size: uint(n),
 				pick: uint(p),
