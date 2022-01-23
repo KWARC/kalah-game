@@ -26,6 +26,7 @@ import (
 	"math/rand"
 	"net/http"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -43,7 +44,7 @@ var (
 // A Scheduler updates the waiting queue and manages games
 type Sched interface {
 	// Initialise the scheduler
-	Init() error
+	Init(sync.Locker) error
 	// Notify the scheduler of a new client
 	Add(*Client)
 	// Notify the scheduler a client has died
@@ -52,15 +53,19 @@ type Sched interface {
 	Done() bool
 }
 
-type CompositeSched struct{ s []Sched }
+type CompositeSched struct {
+	lock sync.Locker
+	s    []Sched
+}
 
-func (cs *CompositeSched) Init() error {
+func (cs *CompositeSched) Init(lock sync.Locker) error {
+	cs.lock = lock
 	for _, s := range cs.s {
 		if _, ok := s.(*QueueSched); ok {
 			return errors.New("queue schedulers cannot be composed")
 		}
 	}
-	return cs.s[0].Init()
+	return cs.s[0].Init(lock)
 }
 
 // Notify the scheduler of a new client
@@ -95,7 +100,7 @@ func (cs *CompositeSched) Done() bool {
 		}
 
 		cs.s = cs.s[1:]
-		err := cs.s[0].Init()
+		err := cs.s[0].Init(cs.lock)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -112,7 +117,7 @@ type QueueSched struct {
 
 // A queue scheduler might have a special initialisation, but must
 // have a logic function
-func (qs *QueueSched) Init() error {
+func (qs *QueueSched) Init(sync.Locker) error {
 	if qs.init != nil {
 		qs.init()
 	}
@@ -238,7 +243,9 @@ func fifo(queue []*Client) []*Client {
 // Using a scheduler, handle incoming events (requests to add and
 // remove clients from the queue), to start games.
 func schedule(sched Sched) {
-	err := sched.Init()
+	var mutex sync.Mutex
+
+	err := sched.Init(&mutex)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -246,14 +253,18 @@ func schedule(sched Sched) {
 	for {
 		select {
 		case cli := <-enqueue:
+			mutex.Lock()
 			sched.Add(cli)
 		case cli := <-forget:
+			mutex.Lock()
 			sched.Remove(cli)
 		case <-time.Tick(time.Second):
+			mutex.Lock()
 			// noop
 		}
 
 		if sched.Done() {
+			mutex.Unlock()
 			return
 		}
 
@@ -262,7 +273,7 @@ func schedule(sched Sched) {
 			w := uint64(len(qs.queue))
 			atomic.StoreUint64(&waiting, w)
 		}
-
+		mutex.Unlock()
 	}
 }
 
@@ -316,6 +327,6 @@ func parseSched(specs []string) Sched {
 	if len(scheds) == 1 {
 		return scheds[0]
 	} else {
-		return &CompositeSched{scheds}
+		return &CompositeSched{s: scheds}
 	}
 }
