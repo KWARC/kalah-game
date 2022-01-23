@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"sync"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -32,13 +31,8 @@ import (
 	"github.com/docker/docker/client"
 )
 
-var (
-	dCli  *client.Client
-	dSync sync.Mutex
-
-	// Hostname of the current system
-	hostname string
-)
+// Hostname of the current system
+var hostname string
 
 func init() {
 	var err error
@@ -52,26 +46,23 @@ func init() {
 type Docker struct {
 	id   string
 	name string
+	cli  *client.Client
 }
 
 // Start an isolating docker container and connect to PORT
 func (d *Docker) Start(port string) error {
-	dSync.Lock()
-	if dCli == nil {
-		var err error
-		dCli, err = client.NewClientWithOpts(client.FromEnv)
-		if err != nil {
-			panic(err)
-		}
+	var err error
+	d.cli, err = client.NewClientWithOpts(client.FromEnv)
+	if err != nil {
+		panic(err)
 	}
-	dSync.Unlock()
 
 	// The documentation for the library is sparse, but it is also
 	// just a wrapper around a HTTP API.  To understand what this
 	// configuration does, it is necessary to read
 	// https://docs.docker.com/engine/api/v1.41/#operation/ContainerCreate
 	ctx := context.Background()
-	resp, err := dCli.ContainerCreate(ctx, &container.Config{
+	resp, err := d.cli.ContainerCreate(ctx, &container.Config{
 		Image: d.name,
 		Cmd:   []string{hostname, port},
 	}, &container.HostConfig{
@@ -91,12 +82,12 @@ func (d *Docker) Start(port string) error {
 	defer d.Halt()
 
 	d.id = resp.ID
-	if err := dCli.ContainerStart(ctx, d.id, types.ContainerStartOptions{}); err != nil {
+	if err := d.cli.ContainerStart(ctx, d.id, types.ContainerStartOptions{}); err != nil {
 		log.Fatal("Failed to start container ", d.name, ": ", err)
 		return err
 	}
 
-	okC, errC := dCli.ContainerWait(ctx, d.id, container.WaitConditionNotRunning)
+	okC, errC := d.cli.ContainerWait(ctx, d.id, container.WaitConditionNotRunning)
 	select {
 	case err := <-errC:
 		log.Printf("Container %v signalled an error: %s", d.name, err)
@@ -109,7 +100,7 @@ func (d *Docker) Start(port string) error {
 // Kill the isolating Docker container
 func (d *Docker) Halt() error {
 	ctx := context.Background()
-	err := dCli.ContainerKill(ctx, d.id, "SIGKILL")
+	err := d.cli.ContainerKill(ctx, d.id, "SIGKILL")
 	if err != nil {
 		log.Print("Failed to kill container ", d.name, ": ", err)
 		return err
