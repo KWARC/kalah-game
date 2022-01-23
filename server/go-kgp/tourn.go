@@ -405,5 +405,5 @@ func (t *Tournament) Remove(cli *Client) {
 func (t *Tournament) Done() bool {
 	defer t.Unlock()
 	t.Lock()
-	return t.system.Over(t)
+	return t.system.Over(t) && len(t.active) == 0
 }
