@@ -70,16 +70,18 @@ func (cs *CompositeSched) Init(lock sync.Locker) error {
 
 // Notify the scheduler of a new client
 func (cs *CompositeSched) Add(cli *Client) {
-	if cs.s != nil {
-		cs.s[0].Add(cli)
+	if cs.s == nil {
+		panic("Composite Scheduler is empty")
 	}
+	cs.s[0].Add(cli)
 }
 
 // Notify the scheduler a client has died
 func (cs *CompositeSched) Remove(cli *Client) {
-	if cs.s != nil {
-		cs.s[0].Remove(cli)
+	if cs.s == nil {
+		panic("Composite Scheduler is empty")
 	}
+	cs.s[0].Remove(cli)
 }
 
 // Indicate if the scheduler will not schedule any more games
