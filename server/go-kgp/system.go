@@ -146,7 +146,7 @@ func (rr *roundRobin) Record(t *Tournament, _ *Game) {
 // game against every other participant.  For n participants, this
 // means every one has had n-1 games, ie. there have been n-1 rounds.
 func (rr *roundRobin) Over(t *Tournament) bool {
-	return rr.games != nil
+	return rr.games != nil && len(rr.games) == 0
 }
 
 type random struct {
