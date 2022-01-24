@@ -110,8 +110,6 @@ type Tournament struct {
 	// What are the clients we are expecting to participate in
 	// this tournament.
 	participants []*Client
-	// Record of victories, mapping a winner to a list of looses.
-	record map[*Client][]*Client
 	// Games to start
 	start chan *Game
 	// List of active games
@@ -205,7 +203,6 @@ func launch(name string, c chan<- *Client, fail chan<- string) {
 // Convert a tournament system into a scheduler
 func makeTournament(sys System) Sched {
 	return &Tournament{
-		record: make(map[*Client][]*Client),
 		active: make(map[*Game]struct{}),
 		start:  make(chan *Game, 4),
 		system: sys,
@@ -277,7 +274,6 @@ func (t *Tournament) Manage(lock sync.Locker) {
 					break
 				}
 				log.Printf("%s won against %s", game.South, game.North)
-				t.record[game.South] = append(t.record[game.South], game.North)
 				game.South.recordScore(game, id, conf.Game.Win)
 				game.North.recordScore(game, id, conf.Game.Loss)
 			case LOSS:
@@ -286,13 +282,10 @@ func (t *Tournament) Manage(lock sync.Locker) {
 					break
 				}
 				log.Printf("%s won against %s", game.North, game.South)
-				t.record[game.North] = append(t.record[game.North], game.South)
 				game.South.recordScore(game, id, conf.Game.Loss)
 				game.North.recordScore(game, id, conf.Game.Win)
 			case DRAW:
 				log.Printf("%s played a draw against %s", game.South, game.North)
-				t.record[game.South] = append(t.record[game.South], game.North)
-				t.record[game.North] = append(t.record[game.North], game.South)
 				game.South.recordScore(game, id, conf.Game.Draw)
 				game.North.recordScore(game, id, conf.Game.Draw)
 			}
