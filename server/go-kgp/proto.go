@@ -223,15 +223,15 @@ func (cli *Client) Interpret(input string) error {
 			ref:    ref,
 		}
 	case "yield":
-		if game == nil || !game.IsCurrent(cli, ref) {
-			debug.Printf("%s ignored yield (ref: %d, game: %s)", cli, ref, game)
-			return nil
-		}
-
 		new := atomic.AddUint64(&cli.nyield, 1)
 		if cli.simple && new-1 > cli.nstop {
 			cli.Error(id, "Preemptive yield")
 			cli.Kill()
+		}
+
+		if !game.IsCurrent(cli, ref) {
+			debug.Printf("%s ignored yield (ref: %d, game: %s)", cli, ref, game)
+			return nil
 		}
 
 		game.move <- &Move{
