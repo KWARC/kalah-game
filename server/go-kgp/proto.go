@@ -205,7 +205,7 @@ func (cli *Client) Interpret(input string) error {
 			cli.Error(id, "Unsupported mode %q", mode)
 		}
 	case "move":
-		if game == nil || !game.IsCurrent(cli, ref) {
+		if !game.IsCurrent(cli, ref) {
 			debug.Printf("%s ignored move (ref: %d, game: %s)", cli, ref, game)
 			return nil
 		}
