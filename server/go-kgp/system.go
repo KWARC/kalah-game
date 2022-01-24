@@ -127,16 +127,17 @@ func (rr *roundRobin) Record(t *Tournament, _ *Game) {
 		})
 		// Find at least the top n agents
 		n := int(rr.pick)
-		for n < len(t.participants) && t.participants[n-1].Score == t.participants[n].Score {
+		for n+1 < len(t.participants) && t.participants[n-1].Score == t.participants[n].Score {
 			n++
 		}
 		// Forget the rest
 		for i := 0; i < n; i++ {
 			log.Printf("%s is on place %d (%f)",
-				t.participants[i], i, t.participants[i].Score)
+				t.participants[i], i+1, t.participants[i].Score)
 		}
 		for i := n; i < len(t.participants); i++ {
-			log.Println(t.participants[i], "has been eliminated")
+			log.Printf("%s has been eliminated (%f)",
+				t.participants[i], t.participants[i].Score)
 		}
 		t.participants = t.participants[:n]
 	}
