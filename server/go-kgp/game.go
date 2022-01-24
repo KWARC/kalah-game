@@ -220,7 +220,7 @@ func (g *Game) Play() *Client {
 	}()
 
 	move := make(chan *Move)
-	death := make(chan *Client)
+	death := make(chan *Client, 2)
 	g.move = move
 	g.death = death
 
