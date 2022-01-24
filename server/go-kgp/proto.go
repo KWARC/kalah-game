@@ -160,12 +160,14 @@ func (cli *Client) Interpret(input string) error {
 	if matches[1] != "" {
 		id, err = strconv.ParseUint(matches[1], 10, 64)
 		if err != nil {
+			debug.Printf("Error while parsing ID in %v: %s", input, err)
 			return nil
 		}
 	}
 	if matches[2] != "" {
 		ref, err = strconv.ParseUint(matches[2], 10, 64)
 		if err != nil {
+			debug.Printf("Error while parsing ref in %v: %s", input, err)
 			return nil
 		}
 	}
