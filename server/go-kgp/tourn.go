@@ -104,6 +104,7 @@ func (cli *Client) Restart() bool {
 
 // A tournament is a scheduler that matches participants via a system
 type Tournament struct {
+	sync.Mutex
 	// What tournament system is being used (swiss, round-robin,
 	// single-elimination, ...).
 	system System
@@ -210,13 +211,13 @@ func makeTournament(sys System) Sched {
 }
 
 // Start and manage games
-func (t *Tournament) Manage(lock sync.Locker) {
+func (t *Tournament) Manage() {
 	id := registerTournament(t.system.String())
 
 	for game := range t.start {
-		lock.Lock()
+		t.Lock()
 		t.active[game] = struct{}{}
-		lock.Unlock()
+		t.Unlock()
 
 		debug.Print("To start ", game)
 		go func(game *Game) {
@@ -266,6 +267,7 @@ func (t *Tournament) Manage(lock sync.Locker) {
 				return
 			}
 
+			t.Lock()
 			switch game.Outcome {
 			case WIN:
 				if LOSS != emag.Outcome {
@@ -289,10 +291,9 @@ func (t *Tournament) Manage(lock sync.Locker) {
 				game.North.recordScore(game, id, conf.Game.Draw)
 			}
 
-			lock.Lock()
 			t.system.Record(t, game)
 			delete(t.active, game)
-			lock.Unlock()
+			t.Unlock()
 
 			enqueue <- game.North
 			enqueue <- game.South
@@ -300,7 +301,7 @@ func (t *Tournament) Manage(lock sync.Locker) {
 	}
 }
 
-func (t *Tournament) Init(lock sync.Locker) error {
+func (t *Tournament) Init() error {
 	if t.participants == nil {
 		names := conf.Tourn.Names
 		if names == nil {
@@ -340,9 +341,9 @@ func (t *Tournament) Init(lock sync.Locker) error {
 			for w > 0 {
 				select {
 				case cli := <-c:
-					lock.Lock()
+					t.Lock()
 					t.participants = append(t.participants, cli)
-					lock.Unlock()
+					t.Unlock()
 					s++
 				case name := <-fail:
 					log.Print(name, " failed to connect")
@@ -362,21 +363,27 @@ func (t *Tournament) Init(lock sync.Locker) error {
 				s, len(names)-int(w), len(names))
 		}
 	}
-	lock.Lock()
+	t.Lock()
 	for _, cli := range t.participants {
 		cli.Score = 0
 	}
-	lock.Unlock()
+	t.Unlock()
 
-	go t.Manage(lock)
+	go t.Manage()
 	return nil
 }
 
 func (t *Tournament) Add(cli *Client) {
+	defer t.Unlock()
+	t.Lock()
+
 	t.system.Ready(t, cli)
 }
 
 func (t *Tournament) Remove(cli *Client) {
+	defer t.Unlock()
+	t.Lock()
+
 	for i := 0; i < len(t.participants); i++ {
 		if t.participants[i] == cli {
 			t.participants[i] = t.participants[len(t.participants)-1]
@@ -391,5 +398,8 @@ func (t *Tournament) Remove(cli *Client) {
 }
 
 func (t *Tournament) Done() bool {
+	defer t.Unlock()
+	t.Lock()
+
 	return t.system.Over(t) && len(t.active) == 0
 }

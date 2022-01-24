@@ -134,9 +134,7 @@ func (cli *Client) recordScore(game *Game, tid int64, score float64) {
 		return
 	}
 
-	cli.lock.Lock()
 	cli.Score += score
-	cli.lock.Unlock()
 
 	bg := context.Background()
 	ctx, cancel := context.WithTimeout(bg, conf.Database.Timeout)
