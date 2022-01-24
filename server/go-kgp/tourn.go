@@ -340,7 +340,9 @@ func (t *Tournament) Init(lock sync.Locker) error {
 			for w > 0 {
 				select {
 				case cli := <-c:
+					lock.Lock()
 					t.participants = append(t.participants, cli)
+					lock.Unlock()
 					s++
 				case name := <-fail:
 					log.Print(name, " failed to connect")
@@ -360,9 +362,11 @@ func (t *Tournament) Init(lock sync.Locker) error {
 				s, len(names)-int(w), len(names))
 		}
 	}
+	lock.Lock()
 	for _, cli := range t.participants {
 		cli.Score = 0
 	}
+	lock.Unlock()
 
 	go t.Manage(lock)
 	return nil
