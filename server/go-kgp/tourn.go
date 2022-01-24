@@ -266,7 +266,6 @@ func (t *Tournament) Manage(lock sync.Locker) {
 				return
 			}
 
-			lock.Lock()
 			switch game.Outcome {
 			case WIN:
 				if LOSS != emag.Outcome {
@@ -289,8 +288,9 @@ func (t *Tournament) Manage(lock sync.Locker) {
 				game.South.recordScore(game, id, conf.Game.Draw)
 				game.North.recordScore(game, id, conf.Game.Draw)
 			}
-			t.system.Record(t, game)
 
+			lock.Lock()
+			t.system.Record(t, game)
 			delete(t.active, game)
 			lock.Unlock()
 
