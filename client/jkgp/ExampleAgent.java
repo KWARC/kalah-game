@@ -56,7 +56,7 @@ class ExampleAgent extends Agent {
         this.submitMove(chosenMove);
 
         // artificially wait until search time is over
-        // takes 200 naps of 1 millisecond each
+        // takes 50 naps of 1 millisecond each
         int naps = 0;
         while (!shouldStop() && naps < 50) {
             sleep(1);

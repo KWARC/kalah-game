@@ -8,6 +8,7 @@ import java.sql.Timestamp;
 import java.util.*;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -59,7 +60,7 @@ public class ProtocolManager {
     private volatile boolean running;
     private ConnectionType conType;
 
-    private Set<Long> running_state_refs;
+    private ConcurrentHashMap<Long, Integer> runningStateRefs;
     private LinkedBlockingQueue<Job> jobs;
 
     private final Job POISON_PILL_JOB = new Job(null, null);
@@ -108,7 +109,7 @@ public class ProtocolManager {
             opClock = null;
             serverName = null;
 
-            running_state_refs = Collections.synchronizedSet(new HashSet<>());
+            runningStateRefs = new ConcurrentHashMap<>();
             jobs = new LinkedBlockingQueue<>();
 
             state = ProtocolState.WAITING_FOR_VERSION;
@@ -157,7 +158,6 @@ public class ProtocolManager {
                                 id = job.id;
                                 agent.do_search(job.ks, job.id);
                                 events.add(new AgentFinished(null, id));
-                                running_state_refs.remove(id);
                             } catch (IOException e) {
                                 events.add(new AgentFinished(e, id));
                             } catch (InterruptedException e) {
@@ -184,8 +184,11 @@ public class ProtocolManager {
                         if (af.exception != null) {
                         	throw af.exception;
                         }
-                        
-                        sendYield(af.ref);
+
+                        if (!shouldStop(af.ref)) {
+                            sendYield(af.ref);
+                            runningStateRefs.remove(id);
+                        }
 
                     } else if (event instanceof NetworkThreadException) {
                         // throw on whatever happened in network thread
@@ -261,17 +264,11 @@ public class ProtocolManager {
                                 throw new ProtocolException("Server sent state with no legal moves:\n" + ks);
                             }
 
-                            if (ks.numberOfMoves() > 1) {
-                                jobs.add(new Job(ks, cmd.id));
-                                running_state_refs.add(cmd.id);
-                            } else {
-                                // Play the only move
-                                sendMove(ks.getMoves().get(0) + 1, cmd.id);
-                                sendYield(cmd.id);
-                            }
+                            jobs.add(new Job(ks, cmd.id));
+                            runningStateRefs.put(cmd.id, Integer.MAX_VALUE); // Hopefully, Integer.MAX_VALUE is not a legal move
 
                         } else if ("stop".equals(cmd.name)) {
-                            running_state_refs.remove(cmd.ref);
+                            runningStateRefs.remove(cmd.ref);
                         } else if ("set".equals(cmd.name)) {
                             reactToSet(cmd);
                         } else {
@@ -294,7 +291,7 @@ public class ProtocolManager {
                 jobs.add(POISON_PILL_JOB);
 
                 // agent thread (if agent isn't broken) escapes via fake stop:
-                running_state_refs.clear();
+                runningStateRefs.clear();
 
                 // or it's hung up in the barrier
                 bar.reset();
@@ -456,7 +453,7 @@ public class ProtocolManager {
 
     // see documentation of onState(...)
     boolean shouldStop(Long ref) {
-        return !running_state_refs.contains(ref);
+        return !runningStateRefs.containsKey(ref);
     }
 
     // see documentation of onState(...)
@@ -464,14 +461,18 @@ public class ProtocolManager {
     // but the Kalah implementation uses 0, 1, 2, ..., board_size - 1
     // because of array indexing, so you have to add +1 to your move
     // before calling this function
-    void sendMove(int move, Long ref) throws IOException {
+    synchronized void sendMove(int move, Long ref) throws IOException {
     	assert ref != null;
         
         if (move <= 0) {
             throw new IllegalArgumentException("Move cannot be negative");
         }
 
-        sendToServer("move " + move, ref);
+        Integer lastMove = runningStateRefs.get(ref);
+        if (lastMove != null && lastMove != move) {
+            sendToServer("move " + move, ref);
+            runningStateRefs.put(ref, move);
+        }
     }
 
     private void sendGoodbyeAndCloseConnection() throws IOException {
