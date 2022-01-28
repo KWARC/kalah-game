@@ -466,6 +466,11 @@ func prepareDatabase() {
 		c := make(chan os.Signal, 1)
 		signal.Notify(c, os.Interrupt)
 		<-c
+		log.Println("Shutting down...")
+		_, err = db.Exec("PRAGMA optimize;")
+		if err != nil {
+			log.Print(err)
+		}
 		db.Close()
 		os.Exit(0)
 	}()
