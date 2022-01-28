@@ -52,6 +52,8 @@ type roundRobin struct {
 	ready []*Client
 	// How many agents can pass on to the next round
 	pick uint
+	// How many games are we waiting on to finish
+	active uint
 }
 
 // Generate a name for the current tournament
@@ -152,6 +154,7 @@ func (rr *roundRobin) Over(t *Tournament) bool {
 
 type random struct {
 	done map[*Client]struct{}
+	size uint
 }
 
 func (*random) String() string {
@@ -170,10 +173,7 @@ func (rnd *random) Ready(t *Tournament, cli *Client) {
 	}
 
 	t.start <- &Game{
-		Board: makeBoard(
-			conf.Schedulers.Random.Size,
-			conf.Schedulers.Random.Stones,
-		),
+		Board: makeBoard(rnd.size, rnd.size),
 		South: cli,
 		North: nil,
 	}

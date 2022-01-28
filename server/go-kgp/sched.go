@@ -24,8 +24,6 @@ import (
 	"errors"
 	"log"
 	"math/rand"
-	"net/http"
-	"strings"
 	"sync/atomic"
 	"time"
 )
@@ -185,8 +183,7 @@ func fifo(queue []*Client) []*Client {
 			}
 
 			go func() {
-				size := conf.Schedulers.FIFO.Sizes[rand.Intn(len(conf.Schedulers.FIFO.Sizes))]
-				stones := conf.Schedulers.FIFO.Stones[rand.Intn(len(conf.Schedulers.FIFO.Stones))]
+				var size, stones uint = 7, 7
 
 				g1 := &Game{
 					Board: makeBoard(size, stones),
@@ -242,6 +239,13 @@ func fifo(queue []*Client) []*Client {
 	return queue
 }
 
+func noop(queue []*Client) []*Client {
+	for _, cli := range queue {
+		cli.Kill()
+	}
+	return nil
+}
+
 // Using a scheduler, handle incoming events (requests to add and
 // remove clients from the queue), to start games.
 func schedule(sched Sched) {
@@ -269,59 +273,5 @@ func schedule(sched Sched) {
 			w := uint64(len(qs.queue))
 			atomic.StoreUint64(&waiting, w)
 		}
-	}
-}
-
-// Parse a scheduler specification into a scheduler
-//
-// The scheduler specification is described in the manual.
-func parseSched(specs []string) Sched {
-	var scheds []Sched
-	if specs == nil {
-		log.Fatal("Empty scheduler specification")
-	}
-
-	for _, spec := range specs {
-		var sched Sched
-
-		parts := strings.SplitN(spec, " ", 2)
-		switch parts[0] {
-		case "fifo":
-			sched = &QueueSched{
-				init: func() {
-					fc := conf.Schedulers.FIFO
-					listen(fc.Port)
-					if fc.WebSocket {
-						http.HandleFunc("/socket", listenUpgrade)
-						debug.Print("Handling websocket on /socket")
-					}
-				},
-				impl: fifo,
-			}
-		case "rand", "random":
-			sched = makeTournament(&random{})
-		case "rr", "round-robin":
-			var n, p uint64
-			if err := parse(parts[1], &n, &p); err != nil {
-				log.Fatal("Invalid arguments")
-			}
-			if p < 1 {
-				log.Fatal("Round robin needs to at least pick one agent")
-			}
-			sched = makeTournament(&roundRobin{
-				size: uint(n),
-				pick: uint(p),
-			})
-		default:
-			log.Fatal("Unknown scheduler ", parts[0])
-		}
-
-		scheds = append(scheds, sched)
-	}
-
-	if len(scheds) == 1 {
-		return scheds[0]
-	} else {
-		return &CompositeSched{s: scheds}
 	}
 }

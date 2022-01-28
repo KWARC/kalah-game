@@ -395,6 +395,7 @@ func (t *Tournament) Remove(cli *Client) {
 			game.death <- cli
 		}
 	}
+	t.system.Forget(t, cli)
 }
 
 func (t *Tournament) Done() bool {

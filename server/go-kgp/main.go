@@ -111,7 +111,7 @@ func main() {
 
 	// Generate match scheduler from the scheduler specification
 	// and start it
-	schedule(parseSched(conf.Sched))
+	schedule(conf.Sched.s)
 	db.Close()
 	debug.Print("Terminating")
 }

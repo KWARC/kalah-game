@@ -20,40 +20,15 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"log"
+	"net/http"
 	"os"
 	"time"
 
 	"github.com/BurntSushi/toml"
 )
-
-type FIFOConf struct {
-	// Enable "endless" mode
-	Endless bool `toml:"endless"`
-	// Port number
-	Port uint `toml:"port"`
-	// Enable websocket
-	WebSocket bool `toml:"websocket"`
-	// A list of game sizes that can be randomly chosen
-	Sizes []uint `toml:"sizes"`
-	// A list of initial stones that can be randomly chosen
-	Stones []uint `toml:"stones"`
-}
-
-type RandConf struct {
-	// Size of the random board
-	Size uint `toml:"size"`
-	// Number of stones to play on
-	Stones uint `toml:"stones"`
-}
-
-type SchedulersConf struct {
-	// Configuration for the FIFO scheduler
-	FIFO FIFOConf `toml:"fifo"`
-	// Configuration for the Random scheduler
-	Random RandConf `toml:"random"`
-}
 
 type DBConf struct {
 	// Path to the SQLite database
@@ -131,13 +106,13 @@ type TCPConf struct {
 	Timeout uint `toml:"timeout"`
 }
 
+type Scheduler struct{ s Sched }
+
 type Conf struct {
 	// Scheduler specification
-	Sched []string `toml:"sched"`
+	Sched Scheduler `toml:"sched"`
 	// Enable debug logging
 	Debug bool `toml:"debug"`
-	// Scheduler configuration
-	Schedulers SchedulersConf `toml:"schedulers"`
 	// Database configuration
 	Database DBConf `toml:"database"`
 	// Tournament configuration
@@ -153,7 +128,6 @@ type Conf struct {
 // Configuration object used by default
 var defaultConfig = Conf{
 	Debug: false,
-	Sched: []string{"fifo"},
 	Tourn: TournamentConf{
 		Directory: ".",
 		Isolation: "none",
@@ -169,19 +143,6 @@ var defaultConfig = Conf{
 		File:     "kalah.sql",
 		Timeout:  100 * time.Millisecond,
 		Optimise: true,
-	},
-	Schedulers: SchedulersConf{
-		FIFO: FIFOConf{
-			Sizes:     []uint{4, 5, 6, 7, 8, 9, 10, 11, 12},
-			Stones:    []uint{4, 5, 6, 7, 8, 9, 10, 11, 12},
-			WebSocket: false,
-			Port:      2671,
-			Endless:   true,
-		},
-		Random: RandConf{
-			Size:   6,
-			Stones: 6,
-		},
 	},
 	Game: GameConf{
 		EarlyWin: true,
@@ -217,9 +178,9 @@ func (conf *Conf) init() {
 }
 
 // Parse a configuration from R into CONF
-func parseConf(r io.Reader, conf *Conf) error {
-	_, err := toml.NewDecoder(r).Decode(conf)
-	return err
+func parseConf(r io.Reader, conf *Conf) (err error) {
+	_, err = toml.NewDecoder(r).Decode(conf)
+	return
 }
 
 // Open a configuration file and return it
@@ -233,4 +194,101 @@ func openConf(name string) (*Conf, error) {
 	defer file.Close()
 
 	return &conf, parseConf(file, &conf)
+}
+
+func (sched Scheduler) UnmarshalTOML(s interface{}) error {
+	switch v := s.(type) {
+	case string:
+		switch v {
+		case "ro", "noop":
+			sched.s = &QueueSched{impl: noop}
+			return nil
+		case "fifo":
+			sched.s = &QueueSched{
+				init: func() {
+					go listen(2671)
+					http.HandleFunc("/socket", listenUpgrade)
+					debug.Print("Handling websocket on /socket")
+				},
+				impl: fifo,
+			}
+		case "random", "rand":
+			sched.s = makeTournament(&random{size: 6})
+		case "rr", "round-robin":
+			sched.s = makeTournament(&roundRobin{size: 6})
+		default:
+			return fmt.Errorf("Unknown scheduler %s", v)
+		}
+	case map[string]interface{}:
+		rtyp, ok := v["type"]
+		if !ok {
+			return fmt.Errorf("Scheduler has no type %s", v)
+		}
+		typ, ok := rtyp.(string)
+		if !ok {
+			return fmt.Errorf("Scheduler type is not a string %s", rtyp)
+		}
+
+		switch typ {
+		case "rand":
+			rand := &random{}
+
+			size, ok := v["size"]
+			if ok {
+				rand.size, ok = size.(uint)
+				if !ok {
+					return fmt.Errorf("Invalid size %s", size)
+				}
+			} else {
+				rand.size = 6
+			}
+
+			sched.s = makeTournament(rand)
+		case "rr", "round-robin":
+			rr := &roundRobin{}
+
+			size, ok := v["size"]
+			if ok {
+				rr.size, ok = size.(uint)
+				if !ok {
+					return fmt.Errorf("Invalid size %s", size)
+				}
+			} else {
+				rr.size = 6
+			}
+
+			pick, ok := v["pick"]
+			if ok {
+				rr.pick, ok = pick.(uint)
+				if !ok {
+					return fmt.Errorf("Invalid pick value %s", pick)
+				}
+			}
+
+			sched.s = makeTournament(rr)
+		default:
+			return fmt.Errorf("Unknown type %v", v)
+		}
+	case []interface{}:
+		var comp []Sched
+		for _, s := range v {
+			var sched Scheduler
+			err := sched.UnmarshalTOML(s)
+			if err != nil {
+				return err
+			}
+			comp = append(comp, sched.s)
+		}
+		switch len(comp) {
+		case 0:
+			return fmt.Errorf("Empty Scheduler list")
+		case 1:
+			sched.s = comp[0]
+		default:
+			sched.s = &CompositeSched{s: comp}
+		}
+	default:
+		return fmt.Errorf("Unknown scheduler %#v", s)
+	}
+	return nil
 }
