@@ -129,8 +129,6 @@ type TCPConf struct {
 	// Number of seconds until a "ping" expires, and the
 	// connection is regarded to be dead
 	Timeout uint `toml:"timeout"`
-	// Number of retries to resend a message via TCP
-	Retries uint `toml:"retries"`
 }
 
 type Conf struct {
@@ -204,7 +202,6 @@ var defaultConfig = Conf{
 	TCP: TCPConf{
 		Ping:    true,
 		Timeout: 20,
-		Retries: 8,
 	},
 }
 

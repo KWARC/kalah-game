@@ -148,8 +148,6 @@ func (cli *Client) Respond(to uint64, command string, args ...interface{}) uint6
 	}
 
 	// attempt to send this message before any other message is sent
-	defer cli.lock.Unlock()
-	cli.lock.Lock()
 
 	if cli.rwc == nil {
 		return 0
@@ -158,31 +156,10 @@ func (cli *Client) Respond(to uint64, command string, args ...interface{}) uint6
 	debug.Print(cli, " > ", buf.String())
 	fmt.Fprint(buf, "\r\n")
 
-	i := conf.TCP.Retries // allow 8 unsuccesful retries
-retry:
-	n, err := io.Copy(cli.rwc, buf)
+	_, err := io.Copy(cli.rwc, buf)
 	if err != nil {
-		_, isWS := cli.rwc.(*wsrwc)
-		if isWS {
-			return id
-		}
-
-		nerr, ok := err.(net.Error)
-		if i > 0 && (!ok || (ok && nerr.Temporary())) {
-			wait := time.Millisecond
-			wait <<= (conf.TCP.Retries - i)
-			wait *= 10
-			time.Sleep(wait)
-			if n > 0 {
-				// discard first n bytes
-				buf = bytes.NewBuffer(buf.Bytes()[n:])
-			}
-			i--
-			goto retry
-		} else {
-			log.Print(cli, err)
-			cli.Kill()
-		}
+		log.Print(cli, err)
+		cli.Kill()
 	}
 
 	return id
@@ -248,11 +225,9 @@ func (cli *Client) Pinger(ctx context.Context) {
 			cli.Send("ping")
 		} else {
 			// Attempt to send an error message, ignoring errors
-			cli.lock.Lock()
 			if cli.rwc != nil {
 				fmt.Fprint(cli.rwc, "error \"Received no pong\"\r\n")
 			}
-			cli.lock.Unlock()
 
 			debug.Printf("%s did not respond to a ping in time", cli)
 			cli.Kill()
@@ -334,9 +309,9 @@ func (cli *Client) Handle() {
 
 	// Send a simple goodbye, ignoring errors if the network
 	// connection was broken
+	fmt.Fprint(rwc, "goodbye\r\n")
 	defer cli.lock.Unlock()
 	cli.lock.Lock()
-	fmt.Fprint(rwc, "goodbye\r\n")
 
 	// Kill input processing thread
 	dead = true
