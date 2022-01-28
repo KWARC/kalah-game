@@ -222,6 +222,12 @@ func (t *Tournament) Manage() {
 
 		debug.Print("To start ", game)
 		go func(game *Game) {
+			defer func() {
+				t.Lock()
+				delete(t.active, game)
+				t.Unlock()
+			}()
+
 			var died *Client
 
 			// Create a second game with reversed positions
@@ -293,7 +299,6 @@ func (t *Tournament) Manage() {
 			}
 
 			t.system.Record(t, game)
-			delete(t.active, game)
 			t.Unlock()
 
 			enqueue <- game.North
