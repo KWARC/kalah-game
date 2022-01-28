@@ -35,8 +35,6 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-// type DBAction func(*sql.DB, context.Context) error
-
 //go:embed sql
 var sqlDir embed.FS
 
@@ -55,11 +53,7 @@ func (game *Game) updateDatabase() {
 		panic("Saving unlogged game")
 	}
 
-	bg := context.Background()
-	ctx, cancel := context.WithTimeout(bg, conf.Database.Timeout)
-	defer cancel()
-
-	tx, err := db.BeginTx(ctx, nil)
+	tx, err := db.Begin()
 	if err != nil {
 		log.Print(err)
 		return
@@ -74,7 +68,7 @@ func (game *Game) updateDatabase() {
 		ncid = &game.North.Id
 	}
 
-	res, err := tx.Stmt(queries["insert-game"]).ExecContext(ctx,
+	res, err := tx.Stmt(queries["insert-game"]).Exec(
 		len(game.Board.northPits),
 		game.Board.init,
 		ncid, scid,
@@ -93,7 +87,7 @@ func (game *Game) updateDatabase() {
 		if move.Client != nil {
 			cid = &move.Client.Id
 		}
-		_, err = tx.Stmt(queries["insert-move"]).ExecContext(ctx,
+		_, err = tx.Stmt(queries["insert-move"]).Exec(
 			game.Id,
 			cid,
 			game.Side(move.Client),
@@ -113,11 +107,7 @@ func (game *Game) updateDatabase() {
 }
 
 func registerTournament(name string) int64 {
-	bg := context.Background()
-	ctx, cancel := context.WithTimeout(bg, conf.Database.Timeout)
-	defer cancel()
-
-	res, err := queries["insert-tournament"].ExecContext(ctx, name)
+	res, err := queries["insert-tournament"].Exec(name)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -136,12 +126,7 @@ func (cli *Client) recordScore(game *Game, tid int64, score float64) {
 
 	cli.Score += score
 
-	bg := context.Background()
-	ctx, cancel := context.WithTimeout(bg, conf.Database.Timeout)
-	defer cancel()
-
-	_, err := queries["insert-score"].ExecContext(ctx,
-		cli.Id, game.Id, tid, score)
+	_, err := queries["insert-score"].Exec(cli.Id, game.Id, tid, score)
 	if err != nil {
 		log.Print(err)
 	}
