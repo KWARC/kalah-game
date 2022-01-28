@@ -99,7 +99,6 @@ func (cli *Client) Restart() bool {
 		forget <- cli
 		return false
 	}
-
 }
 
 // A tournament is a scheduler that matches participants via a system
@@ -115,6 +114,8 @@ type Tournament struct {
 	start chan *Game
 	// List of active games
 	active map[*Game]struct{}
+	// Is manually initialised
+	manual bool
 }
 
 func connect(cli *Client, c chan<- *Client, fail chan<- string) {
@@ -302,7 +303,7 @@ func (t *Tournament) Manage() {
 }
 
 func (t *Tournament) Init() error {
-	if t.participants == nil {
+	if !t.manual {
 		names := conf.Tourn.Names
 		if names == nil {
 			dir, err := os.ReadDir(conf.Tourn.Directory)

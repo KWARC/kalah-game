@@ -39,6 +39,8 @@ type System interface {
 	Record(*Tournament, *Game)
 	// Check if a tournament is over
 	Over(*Tournament) bool
+	// Called when the tournament is finished
+	Deinit(*Tournament)
 }
 
 // roundRobin tournaments let every participant play with every other
@@ -115,34 +117,37 @@ func (rr *roundRobin) Forget(_ *Tournament, cli *Client) {
 	for game := range rr.games {
 		if game.North == cli || game.South == cli {
 			delete(rr.games, game)
-			game.death <- cli
 		}
 	}
 }
 
-// Track if all games of the tournament are finished
-func (rr *roundRobin) Record(t *Tournament, _ *Game) {
-	if len(rr.games)-1 == 0 {
-		// The last game just finished, sort the participants by score
-		sort.SliceStable(t.participants, func(i, j int) bool {
-			return t.participants[j].Score < t.participants[i].Score
-		})
-		// Find at least the top n agents
-		n := int(rr.pick)
-		for n+1 < len(t.participants) && t.participants[n-1].Score == t.participants[n].Score {
-			n++
-		}
-		// Forget the rest
-		for i := 0; i < n; i++ {
-			log.Printf("%s is on place %d (%f)",
-				t.participants[i], i+1, t.participants[i].Score)
-		}
-		for i := n; i < len(t.participants); i++ {
-			log.Printf("%s has been eliminated (%f)",
-				t.participants[i], t.participants[i].Score)
-		}
-		t.participants = t.participants[:n]
+// The result has not to be recorded
+func (*roundRobin) Record(*Tournament, *Game) {}
+
+// Only allow the PICK best agents to proceed to a next round
+func (rr *roundRobin) Deinit(t *Tournament) {
+	// The last game just finished, sort the participants by score
+	sort.SliceStable(t.participants, func(i, j int) bool {
+		return t.participants[j].Score < t.participants[i].Score
+	})
+	// Find at least the top n agents
+	n := int(rr.pick)
+	if n > len(t.participants) {
+		n = len(t.participants)
 	}
+	for n+1 < len(t.participants) && t.participants[n-1].Score == t.participants[n].Score {
+		n++
+	}
+	// Forget the rest
+	for i := 0; i < n; i++ {
+		log.Printf("Passed: %s is on place %d (%f)",
+			t.participants[i], i, t.participants[i].Score)
+	}
+	for i := n; i < len(t.participants); i++ {
+		log.Printf("Eliminated: %s is on place %d (%f)",
+			t.participants[i], i, t.participants[i].Score)
+	}
+	t.participants = t.participants[:n]
 }
 
 // A round robin tournament is over as soon as everyone has played a
@@ -212,3 +217,6 @@ func (rnd *random) Record(t *Tournament, g *Game) {
 func (rnd *random) Over(t *Tournament) bool {
 	return len(t.participants) <= len(rnd.done)
 }
+
+// Nothing to be done when a tournament finishes
+func (*random) Deinit(*Tournament) {}

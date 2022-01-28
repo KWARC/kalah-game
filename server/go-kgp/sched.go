@@ -82,28 +82,35 @@ func (cs *CompositeSched) Remove(cli *Client) {
 // Indicate if the scheduler will not schedule any more games
 func (cs *CompositeSched) Done() bool {
 	if cs.s == nil {
-		return true
+		panic("Composite Scheduler is empty")
 	}
 
-	if cs.s[0].Done() {
+	done := cs.s[0].Done()
+	if done {
 		if len(cs.s) == 1 {
 			return true
 		}
 
-		if this, ok := cs.s[0].(*Tournament); ok && len(cs.s) >= 1 {
-			if next, ok := cs.s[1].(*Tournament); ok {
-				next.participants = this.participants
-			}
+		var prev *Tournament
+		if t, ok := cs.s[0].(*Tournament); ok {
+			prev = t
+			t.system.Deinit(t)
 		}
-
-		// As the scheduler lock is already being held, we
-		// create a new pseudo-lock here to prevent locking
-		// the scheduler lock again, in a sub-scheduler.
 		cs.s = cs.s[1:]
+		if prev != nil {
+			prev.manual = true
+		}
 		err := cs.s[0].Init()
 		if err != nil {
 			log.Fatal(err)
 		}
+
+		if curr, ok := cs.s[0].(*Tournament); prev != nil && ok {
+			for _, cli := range prev.participants {
+				curr.Add(cli)
+			}
+		}
+
 		return cs.s[0].Done()
 	}
 	return false
