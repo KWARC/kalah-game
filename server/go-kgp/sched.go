@@ -199,11 +199,7 @@ func fifo(queue []*Client) []*Client {
 				}
 				if died := g1.Play(); died != nil {
 					other := g1.Other(died)
-					if conf.Schedulers.FIFO.Endless {
-						enqueue <- south
-					} else {
-						other.Kill()
-					}
+					enqueue <- other
 				}
 
 				g2 := &Game{
@@ -213,11 +209,7 @@ func fifo(queue []*Client) []*Client {
 				}
 				if died := g2.Play(); died != nil {
 					other := g1.Other(died)
-					if conf.Schedulers.FIFO.Endless {
-						enqueue <- south
-					} else {
-						other.Kill()
-					}
+					enqueue <- other
 				}
 
 				o1 := g1.Outcome
@@ -228,16 +220,8 @@ func fifo(queue []*Client) []*Client {
 					}
 				}
 
-				if conf.Schedulers.FIFO.Endless {
-					// In the "endless" mode, the client is just
-					// added back to the waiting queue as soon as
-					// the game is over.
-					enqueue <- north
-					enqueue <- south
-				} else {
-					north.Kill()
-					south.Kill()
-				}
+				enqueue <- north
+				enqueue <- south
 			}()
 			break
 		}
