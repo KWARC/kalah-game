@@ -211,15 +211,28 @@ func makeTournament(sys System) Sched {
 	}
 }
 
+// Check if a client is currently playing a game
+func (t *Tournament) isActive(cli *Client) bool {
+	for game := range t.active {
+		if game.North == cli || game.South == cli {
+			return true
+		}
+	}
+	return false
+}
+
+func (t *Tournament) startGame(g *Game) {
+	t.Lock()
+	t.active[g] = struct{}{}
+	t.Unlock()
+	t.start <- g
+}
+
 // Start and manage games
 func (t *Tournament) Manage() {
 	id := registerTournament(t.system.String())
 
 	for game := range t.start {
-		t.Lock()
-		t.active[game] = struct{}{}
-		t.Unlock()
-
 		debug.Print("To start ", game)
 		go func(game *Game) {
 			defer func() {

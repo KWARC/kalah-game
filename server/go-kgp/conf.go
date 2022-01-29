@@ -266,6 +266,20 @@ func (sched Scheduler) UnmarshalTOML(s interface{}) error {
 			}
 
 			sched.s = makeTournament(rr)
+		case "se", "single-elimination":
+			se := &singleElim{}
+
+			size, ok := v["size"]
+			if ok {
+				se.size, ok = size.(uint)
+				if !ok {
+					return fmt.Errorf("invalid size %s", size)
+				}
+			} else {
+				se.size = 6
+			}
+
+			sched.s = makeTournament(se)
 		default:
 			return fmt.Errorf("Unknown type %v", v)
 		}

@@ -101,7 +101,7 @@ func (rr *roundRobin) Ready(t *Tournament, cli *Client) {
 				delete(rr.games, game)
 				debug.Println(len(rr.games), "left in RR tournament")
 
-				t.start <- game
+				t.startGame(game)
 				return
 			}
 		}
@@ -177,11 +177,11 @@ func (rnd *random) Ready(t *Tournament, cli *Client) {
 		return
 	}
 
-	t.start <- &Game{
+	t.startGame(&Game{
 		Board: makeBoard(rnd.size, rnd.size),
 		South: cli,
 		North: nil,
-	}
+	})
 }
 
 // Nothing has to be done if a client died
@@ -220,3 +220,86 @@ func (rnd *random) Over(t *Tournament) bool {
 
 // Nothing to be done when a tournament finishes
 func (*random) Deinit(*Tournament) {}
+
+type singleElim struct {
+	// List of clients that have been eliminated
+	elim []*Client
+	// Board size used during the tournament
+	size uint
+}
+
+func (se *singleElim) String() string {
+	return "single-elimination"
+}
+
+func (se *singleElim) eliminated(cli *Client) bool {
+	for _, ilc := range se.elim {
+		if cli == ilc {
+			return true
+		}
+	}
+	return false
+}
+
+// Find and plan possible matches
+func (se *singleElim) start(t *Tournament) {
+	for i := 0; i < len(t.participants); i++ {
+		cli := t.participants[i]
+		if se.eliminated(cli) || t.isActive(cli) {
+			continue
+		}
+		for j := i + 1; j < len(t.participants); j++ {
+			ilc := t.participants[i]
+			if se.eliminated(ilc) || t.isActive(ilc) {
+				continue
+			}
+
+			t.startGame(&Game{
+				Board: makeBoard(se.size, se.size),
+				South: cli,
+				North: ilc,
+			})
+			break
+		}
+	}
+}
+
+// Start games whenever someone is ready
+func (se *singleElim) Ready(t *Tournament, _ *Client) {
+	se.start(t)
+}
+
+// Mark a client as dead or eliminated
+func (se *singleElim) Forget(_ *Tournament, cli *Client) {
+	se.elim = append(se.elim, cli)
+}
+
+// Record the outcome of a game
+func (se *singleElim) Record(t *Tournament, g *Game) {
+	o, cli := g.Result()
+	if o == RESIGN || o == LOSS {
+		se.Forget(t, cli)
+	}
+
+	if se.Over(t) {
+		return
+	}
+
+	se.start(t)
+}
+
+// Check if a tournament is over
+func (se *singleElim) Over(t *Tournament) bool {
+	return len(t.participants) == len(se.elim)+1
+}
+
+// Remove all clients that have lost
+func (se *singleElim) Deinit(t *Tournament) {
+	for _, cli := range t.participants {
+		if !se.eliminated(cli) {
+			t.participants = []*Client{cli}
+			return
+		}
+	}
+	panic("All agents have been eliminated")
+}

@@ -173,6 +173,22 @@ func (g *Game) Other(cli *Client) *Client {
 	}
 }
 
+// Return the result and who it relates to
+func (g *Game) Result() (Outcome, *Client) {
+	switch g.Outcome {
+	case WIN:
+		return LOSS, g.North
+	case LOSS:
+		return LOSS, g.South
+	case DRAW:
+		return DRAW, nil
+	case RESIGN:
+		return RESIGN, g.Current()
+	default:
+		panic("Request result of an active game")
+	}
+}
+
 // Semaphore-like channel to limit the number of concurrent games
 //
 // If nil (as by default), there is no upper bound.  This variable is
