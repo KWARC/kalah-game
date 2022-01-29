@@ -196,7 +196,7 @@ func openConf(name string) (*Conf, error) {
 	return &conf, parseConf(file, &conf)
 }
 
-func (sched Scheduler) UnmarshalTOML(s interface{}) error {
+func (sched *Scheduler) UnmarshalTOML(s interface{}) error {
 	switch v := s.(type) {
 	case string:
 		switch v {
