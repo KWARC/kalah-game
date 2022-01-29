@@ -214,8 +214,6 @@ func (sched *Scheduler) UnmarshalTOML(s interface{}) error {
 			}
 		case "random", "rand":
 			sched.s = makeTournament(&random{size: 6})
-		case "rr", "round-robin":
-			sched.s = makeTournament(&roundRobin{size: 6})
 		default:
 			return fmt.Errorf("unknown scheduler %s", v)
 		}
