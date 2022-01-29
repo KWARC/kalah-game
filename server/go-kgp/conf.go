@@ -217,16 +217,16 @@ func (sched *Scheduler) UnmarshalTOML(s interface{}) error {
 		case "rr", "round-robin":
 			sched.s = makeTournament(&roundRobin{size: 6})
 		default:
-			return fmt.Errorf("Unknown scheduler %s", v)
+			return fmt.Errorf("unknown scheduler %s", v)
 		}
 	case map[string]interface{}:
 		rtyp, ok := v["type"]
 		if !ok {
-			return fmt.Errorf("Scheduler has no type %s", v)
+			return fmt.Errorf("scheduler has no type %s", v)
 		}
 		typ, ok := rtyp.(string)
 		if !ok {
-			return fmt.Errorf("Scheduler type is not a string %s", rtyp)
+			return fmt.Errorf("scheduler type is not a string %s", rtyp)
 		}
 
 		switch typ {
@@ -237,7 +237,7 @@ func (sched *Scheduler) UnmarshalTOML(s interface{}) error {
 			if ok {
 				rand.size, ok = size.(uint)
 				if !ok {
-					return fmt.Errorf("Invalid size %s", size)
+					return fmt.Errorf("invalid size %s", size)
 				}
 			} else {
 				rand.size = 6
@@ -251,7 +251,7 @@ func (sched *Scheduler) UnmarshalTOML(s interface{}) error {
 			if ok {
 				rr.size, ok = size.(uint)
 				if !ok {
-					return fmt.Errorf("Invalid size %s", size)
+					return fmt.Errorf("invalid size %s", size)
 				}
 			} else {
 				rr.size = 6
@@ -261,7 +261,7 @@ func (sched *Scheduler) UnmarshalTOML(s interface{}) error {
 			if ok {
 				rr.pick, ok = pick.(uint)
 				if !ok {
-					return fmt.Errorf("Invalid pick value %s", pick)
+					return fmt.Errorf("invalid pick value %s", pick)
 				}
 			}
 
@@ -281,7 +281,7 @@ func (sched *Scheduler) UnmarshalTOML(s interface{}) error {
 
 			sched.s = makeTournament(se)
 		default:
-			return fmt.Errorf("Unknown type %v", v)
+			return fmt.Errorf("unknown type %v", v)
 		}
 	case []interface{}:
 		var comp []Sched
@@ -295,14 +295,14 @@ func (sched *Scheduler) UnmarshalTOML(s interface{}) error {
 		}
 		switch len(comp) {
 		case 0:
-			return fmt.Errorf("Empty Scheduler list")
+			return fmt.Errorf("empty scheduler list")
 		case 1:
 			sched.s = comp[0]
 		default:
 			sched.s = &CompositeSched{s: comp}
 		}
 	default:
-		return fmt.Errorf("Unknown scheduler %#v", s)
+		return fmt.Errorf("unknown scheduler %#v", s)
 	}
 	return nil
 }
