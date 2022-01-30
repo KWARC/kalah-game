@@ -140,7 +140,7 @@ var defaultConfig = Conf{
 		},
 	},
 	Database: DBConf{
-		File:     "kalah.sql",
+		File:     "kalah.db",
 		Timeout:  100 * time.Millisecond,
 		Optimise: true,
 	},

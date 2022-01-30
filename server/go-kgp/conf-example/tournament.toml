@@ -1,7 +1,7 @@
 sched = "rr.4 skim.40 !.0 rr.8 skim.20 !.0 rr.12"
 
 [database]
-  file = "kalah.sql"
+  file = "kalah.db"
   threads = 1
   timeout = 1000000000
 

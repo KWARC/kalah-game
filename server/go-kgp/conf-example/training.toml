@@ -9,7 +9,7 @@ sched = "fifo"
     stones = [4, 5, 6, 7, 8, 9, 10, 11, 12]
 
 [database]
-  file = "kalah.sql"
+  file = "kalah.gb"
   threads = 4
   timeout = 100000000
   optimise = true
