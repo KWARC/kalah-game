@@ -222,9 +222,7 @@ func (t *Tournament) isActive(cli *Client) bool {
 }
 
 func (t *Tournament) startGame(g *Game) {
-	t.Lock()
 	t.active[g] = struct{}{}
-	t.Unlock()
 	t.start <- g
 }
 
