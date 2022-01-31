@@ -135,7 +135,7 @@ func (rr *roundRobin) Deinit(t *Tournament) {
 	if n > len(t.participants) {
 		n = len(t.participants)
 	}
-	for n+1 < len(t.participants) && t.participants[n-1].Score == t.participants[n].Score {
+	for n < len(t.participants) && t.participants[n-1].Score == t.participants[n].Score {
 		n++
 	}
 	// Forget the rest
