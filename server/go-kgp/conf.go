@@ -233,10 +233,11 @@ func (sched *Scheduler) UnmarshalTOML(s interface{}) error {
 
 			size, ok := v["size"]
 			if ok {
-				rand.size, ok = size.(uint)
+				s, ok := size.(int64)
 				if !ok {
 					return fmt.Errorf("invalid size %s", size)
 				}
+				rand.size = uint(s)
 			} else {
 				rand.size = 6
 			}
@@ -247,20 +248,22 @@ func (sched *Scheduler) UnmarshalTOML(s interface{}) error {
 
 			size, ok := v["size"]
 			if ok {
-				rr.size, ok = size.(uint)
+				s, ok := size.(int64)
 				if !ok {
 					return fmt.Errorf("invalid size %s", size)
 				}
+				rr.size = uint(s)
 			} else {
 				rr.size = 6
 			}
 
 			pick, ok := v["pick"]
 			if ok {
-				rr.pick, ok = pick.(uint)
+				p, ok := pick.(int64)
 				if !ok {
 					return fmt.Errorf("invalid pick value %s", pick)
 				}
+				rr.pick = uint(p)
 			}
 
 			sched.s = makeTournament(rr)
@@ -269,10 +272,11 @@ func (sched *Scheduler) UnmarshalTOML(s interface{}) error {
 
 			size, ok := v["size"]
 			if ok {
-				se.size, ok = size.(uint)
+				s, ok := size.(int64)
 				if !ok {
 					return fmt.Errorf("invalid size %s", size)
 				}
+				se.size = uint(s)
 			} else {
 				se.size = 6
 			}
