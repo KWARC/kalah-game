@@ -111,7 +111,12 @@ func main() {
 
 	// Generate match scheduler from the scheduler specification
 	// and start it
-	schedule(conf.Sched.s)
-	db.Close()
-	debug.Print("Terminating")
+	if conf.Sched.s == nil {
+		debug.Print("No scheduler specified")
+		select {}
+	} else {
+		schedule(conf.Sched.s)
+		db.Close()
+		debug.Print("Terminating")
+	}
 }
