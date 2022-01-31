@@ -110,10 +110,13 @@ func (cli *Client) Set(key, val string) error {
 	switch key {
 	case "info:name":
 		cli.Name = val
+		cli.updateDatabase(true)
 	case "info:authors", "info:author":
 		cli.Author = val
+		cli.updateDatabase(true)
 	case "info:description":
 		cli.Descr = val
+		cli.updateDatabase(true)
 	case "info:comment":
 		cli.comment = val
 	case "auth:token":
@@ -122,7 +125,6 @@ func (cli *Client) Set(key, val string) error {
 			fmt.Fprint(hash, val)
 			cli.token = hash.Sum(nil)
 			cli.Score = 1000.0
-
 			cli.updateDatabase(true)
 		}
 	case "auth:forget":
