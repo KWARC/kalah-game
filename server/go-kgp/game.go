@@ -233,6 +233,12 @@ func (g *Game) Play() *Client {
 
 		// Decrement the number of active games
 		atomic.AddUint64(&playing, ^uint64(1))
+
+		// Save the game (along with the moves) in the
+		// database
+		if g.logged {
+			g.updateDatabase()
+		}
 	}()
 
 	move := make(chan *Move)

@@ -78,7 +78,6 @@ func (g *Game) updateElo() (err error) {
 	// Send database manager a request to update the entry
 	g.South.updateDatabase(false)
 	g.North.updateDatabase(false)
-	g.updateDatabase()
 
 	return nil
 }
