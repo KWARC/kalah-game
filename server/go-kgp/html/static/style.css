@@ -60,6 +60,11 @@ table.list.move tr {
     border-bottom-width: 0;
 }
 
+table.list.move tr svg {
+    display: block;
+    margin: auto;
+}
+
 table.list.move tr:nth-child(even), 
 table.list.move thead {
     border-bottom: 1px solid grey;
