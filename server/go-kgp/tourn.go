@@ -20,6 +20,7 @@
 package main
 
 import (
+	"errors"
 	"log"
 	"net"
 	"os"
@@ -63,17 +64,17 @@ func (cli *Client) Halt() error {
 }
 
 // Restart an isolated client
-func (cli *Client) Restart() bool {
+func (cli *Client) Restart() error {
 	debug.Print("Restarting ", cli)
 
 	if cli == nil {
-		return true
+		return nil
 	}
 
 	cli.lock.Lock()
 	if cli.rwc != nil {
 		cli.lock.Unlock()
-		return true
+		return nil
 	}
 
 	debug.Print("Ensuring ", cli)
@@ -88,16 +89,19 @@ func (cli *Client) Restart() bool {
 		fail = make(chan string)
 	)
 
-	cli.Halt()
+	err := cli.Halt()
+	if err != nil {
+		return err
+	}
 	cli.lock.Unlock()
 	connect(cli, c, fail)
 	select {
 	case <-c:
 		// everything is ok
-		return true
+		return nil
 	case <-fail:
 		forget <- cli
-		return false
+		return errors.New("failed to connect")
 	}
 }
 
@@ -249,13 +253,15 @@ func (t *Tournament) Manage() {
 				South: game.North,
 			}
 
-			if !game.South.Restart() {
-				log.Println("Failed to restart", game.South)
+			if err := game.South.Restart(); err != nil {
+				log.Printf("Failed to restart %s: %s",
+					game.South, err)
 				enqueue <- game.North
 				return
 			}
-			if !game.North.Restart() {
-				log.Println("Failed to restart", game.North)
+			if err := game.North.Restart(); err != nil {
+				log.Printf("Failed to restart %s: %s",
+					game.North, err)
 				enqueue <- game.South
 				return
 			}
@@ -267,13 +273,15 @@ func (t *Tournament) Manage() {
 				return
 			}
 
-			if !game.South.Restart() {
-				log.Println("Failed to restart", game.South)
+			if err := game.South.Restart(); err != nil {
+				log.Printf("Failed to restart %s: %s",
+					game.South, err)
 				enqueue <- game.North
 				return
 			}
-			if !game.North.Restart() {
-				log.Println("Failed to restart", game.North)
+			if err := game.North.Restart(); err != nil {
+				log.Printf("Failed to restart %s: %s",
+					game.North, err)
 				enqueue <- game.South
 				return
 			}
