@@ -130,7 +130,7 @@ var (
 			fmt.Fprintf(B, `<rect x="0" y="0" rx="10" ry="10" width="%g" height="%g" fill="burlywood" />`,
 				w, 2*u)
 			for i := len(b.northPits) - 1; i >= 0; i-- {
-				n := b.northPits[0]
+				n := b.northPits[i]
 				hl := g.North == m.Client && m.Pit == i
 				circle(float64(1+i), 0, n, hl)
 			}
