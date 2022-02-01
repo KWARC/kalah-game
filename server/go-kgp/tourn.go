@@ -118,8 +118,6 @@ type Tournament struct {
 	start chan *Game
 	// List of active games
 	active map[*Game]struct{}
-	// Is manually initialised
-	manual bool
 }
 
 func connect(cli *Client, c chan<- *Client, fail chan<- string) {
@@ -226,6 +224,7 @@ func (t *Tournament) isActive(cli *Client) bool {
 }
 
 func (t *Tournament) startGame(g *Game) {
+	debug.Println("Requesting to start", g)
 	t.active[g] = struct{}{}
 	t.start <- g
 }
@@ -233,6 +232,7 @@ func (t *Tournament) startGame(g *Game) {
 // Start and manage games
 func (t *Tournament) Manage() {
 	id := registerTournament(t.system.String())
+	debug.Println(t.system.String(), "has the id", id)
 
 	for game := range t.start {
 		debug.Print("To start ", game)
@@ -327,7 +327,7 @@ func (t *Tournament) Manage() {
 }
 
 func (t *Tournament) Init() error {
-	if !t.manual {
+	if t.participants == nil {
 		names := conf.Tourn.Names
 		if names == nil {
 			dir, err := os.ReadDir(conf.Tourn.Directory)

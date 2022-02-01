@@ -91,22 +91,22 @@ func (cs *CompositeSched) Done() bool {
 			return true
 		}
 
-		var prev *Tournament
-		if t, ok := cs.s[0].(*Tournament); ok {
-			prev = t
-			t.system.Deinit(t)
+		var cs0 Sched
+		cs0, cs.s = cs.s[0], cs.s[1:]
+		if prev, ok := cs0.(*Tournament); ok {
+			prev.system.Deinit(prev)
+			if curr, ok := cs.s[0].(*Tournament); prev != nil && ok {
+				curr.participants = prev.participants
+			}
 		}
-		cs.s = cs.s[1:]
-		if prev != nil {
-			prev.manual = true
-		}
+
 		err := cs.s[0].Init()
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		if curr, ok := cs.s[0].(*Tournament); prev != nil && ok {
-			for _, cli := range prev.participants {
+		if curr, ok := cs.s[0].(*Tournament); ok {
+			for _, cli := range curr.participants {
 				curr.Add(cli)
 			}
 		}
