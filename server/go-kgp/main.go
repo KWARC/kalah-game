@@ -116,7 +116,10 @@ func main() {
 		select {}
 	} else {
 		schedule(conf.Sched.s)
-		db.Close()
+		err := db.Close()
+		if err != nil {
+			log.Println(err)
+		}
 		debug.Print("Terminating")
 	}
 }

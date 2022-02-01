@@ -471,7 +471,10 @@ func prepareDatabase() {
 		if err != nil {
 			log.Print(err)
 		}
-		db.Close()
+		err := db.Close()
+		if err != nil {
+			log.Println(err)
+		}
 		os.Exit(0)
 	}()
 }
