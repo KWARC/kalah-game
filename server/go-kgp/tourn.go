@@ -294,6 +294,7 @@ func (t *Tournament) Manage() {
 			}
 
 			t.Lock()
+		again:
 			switch game.Outcome {
 			case WIN:
 				if LOSS != emag.Outcome {
@@ -312,6 +313,10 @@ func (t *Tournament) Manage() {
 				game.South.recordScore(game, id, conf.Game.Loss)
 				game.North.recordScore(game, id, conf.Game.Win)
 			case DRAW:
+				if DRAW != emag.Outcome {
+					game, emag = emag, game
+					goto again
+				}
 				log.Printf("%s played a draw against %s", game.South, game.North)
 				game.South.recordScore(game, id, conf.Game.Draw)
 				game.North.recordScore(game, id, conf.Game.Draw)
