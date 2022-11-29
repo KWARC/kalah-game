@@ -1,6 +1,6 @@
 // Database management
 //
-// Copyright (c) 2021  Philip Kaludercic
+// Copyright (c) 2021, 2022  Philip Kaludercic
 //
 // This file is part of go-kgp.
 //
@@ -468,15 +468,9 @@ func prepareDatabase() {
 		c := make(chan os.Signal, 1)
 		signal.Notify(c, os.Interrupt)
 		<-c
-		log.Println("Shutting down...")
-		_, err = db.Exec("PRAGMA optimize;")
-		if err != nil {
-			log.Print(err)
-		}
-		err := db.Close()
-		if err != nil {
-			log.Println(err)
-		}
+
+		db.Exec("PRAGMA optimize;")
+		db.Close()
 		os.Exit(0)
 	}()
 }
