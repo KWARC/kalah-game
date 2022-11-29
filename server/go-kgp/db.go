@@ -411,6 +411,8 @@ func prepareDatabase() {
 		"mmap_size = 268435456",
 		// https://www.sqlite.org/pragma.html#pragma_foreign_keys
 		"foreign_keys = on",
+		// https://www.sqlite.org/pragma.html#pragma_synchronous
+		"synchronous = normal",
 	} {
 		debug.Printf("Run PRAGMA %v", pragma)
 		_, err = db.Exec("PRAGMA " + pragma + ";")
