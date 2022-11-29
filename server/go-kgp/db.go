@@ -30,6 +30,7 @@ import (
 	"os/signal"
 	"path"
 	"strings"
+	"syscall"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -472,5 +473,15 @@ func prepareDatabase() {
 		db.Exec("PRAGMA optimize;")
 		db.Close()
 		os.Exit(0)
+	}()
+
+	go func() {
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, syscall.SIGUSR1)
+
+		for range c {
+			// https://www.sqlite.org/lang_vacuum.html
+			db.Exec("VACUUM;")
+		}
 	}()
 }
