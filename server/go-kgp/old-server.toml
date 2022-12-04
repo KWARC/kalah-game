@@ -1,0 +1,34 @@
+debug = true
+endless = true
+sched = ["fifo"]
+
+[database]
+  file = "/var/tmp/kalah.sql"
+  threads = 4
+  mode = "rwc"
+  timeout = 100000000
+
+[game]
+  sizes = [6]
+  stones = [4]
+  timeout = 5
+  earlywin = true
+
+[web]
+  enabled = true
+  host = "0.0.0.0"
+  port = 8080
+  limit = 50
+  about = ""
+  cache = false
+
+[websocket]
+  enabled = false
+
+[tcp]
+  enabled = true
+  host = "0.0.0.0"
+  port = 2671
+  ping = true
+  timeout = 20
+  retries = 8

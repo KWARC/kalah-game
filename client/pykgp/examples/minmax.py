@@ -86,4 +86,5 @@ def agent(state):
 # the leaderboard.
 
 if __name__ == "__main__":
-    kgp.connect(agent)
+    import os
+    kgp.connect(agent, host="localhost", debug=True, token=os.getenv("TOKEN"), name="Minmax 16")

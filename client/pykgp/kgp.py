@@ -1,6 +1,6 @@
 # KALAH GAME PROTOCOL LIBRARY                    -*- mode: python; -*-
 
-# Copyright 2021, Philip Kaludercic
+# Copyright 2021, 2022, Philip Kaludercic
 
 # Permission to use, copy, modify, and/or distribute this software for
 # any purpose with or without fee is hereby granted, provided that the
@@ -355,13 +355,13 @@ def connect(agent, host='wss://kalah.kwarc.info/socket', port=2671, token=None, 
                     threads[cid] = mp.Process(
                         name=f'query-{cid}',
                         args=(board, cid),
-                        target=query,
-                        daemon=True)
+                        target=query)
                     threads[cid].start()
                 elif cmd == "stop":
                     if ref and ref in threads:
                         thread = threads[ref]
-                        thread.terminate()
+                        thread.kill()
+                        thread.join()
                         threads.pop(ref, None)
                 elif cmd == "ok":
                     pass    # ignored

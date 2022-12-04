@@ -1,6 +1,6 @@
 // Kalah Board Implementation
 //
-// Copyright (c) 2021  Philip Kaludercic
+// Copyright (c) 2021, 2022  Philip Kaludercic
 //
 // This file is part of go-kgp.
 //
@@ -17,31 +17,20 @@
 // License, version 3, along with go-kgp . If not, see
 // <http://www.gnu.org/licenses/>
 
-package main
+package kgp
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"math"
 	"math/rand"
+	"regexp"
+	"strconv"
+	"strings"
 )
 
-// Side represents a side of a board
-type Side bool
-
-const (
-	// SideNorth is the northern side of the board
-	SideNorth Side = false
-	// SideSouth is the southern side of the board
-	SideSouth Side = true
-)
-
-// String returns a string represenation for a side
-func (b Side) String() string {
-	if b {
-		return "South"
-	}
-	return "North"
-}
+var repr = regexp.MustCompile(`^\s*<\s*(\d+(\s*,\s*\d+)+)\s*>\s*$`)
 
 // Board represents a Kalah game
 type Board struct {
@@ -55,8 +44,32 @@ type Board struct {
 	init uint
 }
 
+func (b *Board) Type() (size, init uint) {
+	return uint(len(b.northPits)), b.init
+}
+
+func (b *Board) Pit(side Side, pit uint) uint {
+	if pit >= uint(len(b.northPits)) {
+		panic("Illegal access")
+	}
+
+	if side {
+		return b.northPits[pit]
+	} else {
+		return b.southPits[pit]
+	}
+}
+
+func (b *Board) Store(side Side) uint {
+	if side {
+		return b.north
+	} else {
+		return b.south
+	}
+}
+
 // create a new board with SIZE pits, each with INIT stones
-func makeBoard(size, init uint) Board {
+func MakeBoard(size, init uint) *Board {
 	board := Board{
 		northPits: make([]uint, int(size)),
 		southPits: make([]uint, int(size)),
@@ -70,7 +83,39 @@ func makeBoard(size, init uint) Board {
 	}
 	board.init = init
 
-	return board
+	return &board
+}
+
+func Parse(spec string) (*Board, error) {
+	match := repr.FindStringSubmatch(spec)
+	if match == nil {
+		return nil, errors.New("invalid specification")
+	}
+
+	var data []uint
+	for _, part := range strings.Split(match[1], ",") {
+		part = strings.TrimSpace(part)
+		n, err := strconv.ParseUint(part, 10, 16)
+		if err != nil {
+			return nil, err
+		}
+		data = append(data, uint(n))
+	}
+
+	size := data[0]
+	if size == 0 || uint(len(data)) != 1+2+size*2 {
+		return nil, errors.New("invalid size")
+	}
+
+	b := MakeBoard(size, math.MaxUint)
+	b.south = data[1]
+	b.north = data[2]
+	for i := uint(0); i < size; i++ {
+		b.southPits[i] = data[3+i]
+		b.northPits[i] = data[3+size+i]
+	}
+	return b, nil
+
 }
 
 // Mirror returns a mirrored represenation of the board
@@ -101,15 +146,18 @@ func (b *Board) String() string {
 }
 
 // Legal returns true if SIDE may play move PIT
-func (b *Board) Legal(side Side, pit int) bool {
-	if side == SideNorth {
+func (b *Board) Legal(side Side, pit uint) bool {
+	if pit >= uint(len(b.northPits)) {
+		panic("Illegal access")
+	}
+	if side == North {
 		return b.northPits[pit] > 0
 	}
 	return b.southPits[pit] > 0
 }
 
-func (b *Board) Moves(side Side) (count, last int) {
-	for i := 0; i < len(b.northPits); i++ {
+func (b *Board) Moves(side Side) (count, last uint) {
+	for i := uint(0); i < uint(len(b.northPits)); i++ {
 		if b.Legal(side, i) {
 			last = i
 			count++
@@ -120,10 +168,10 @@ func (b *Board) Moves(side Side) (count, last int) {
 }
 
 // Random returns a random legal move for SIDE
-func (b *Board) Random(side Side) (move int) {
-	legal := make([]int, 0, len(b.northPits))
+func (b *Board) Random(side Side) (move uint) {
+	legal := make([]uint, 0, len(b.northPits))
 
-	for i := 0; i < len(b.northPits); i++ {
+	for i := uint(0); i < uint(len(b.northPits)); i++ {
 		if b.Legal(side, i) {
 			legal = append(legal, i)
 		}
@@ -135,7 +183,7 @@ func (b *Board) Random(side Side) (move int) {
 }
 
 // Sow modifies the board by sowing PIT for player SELF
-func (b *Board) Sow(self Side, pit int) bool {
+func (b *Board) Sow(self Side, pit uint) bool {
 	if len(b.northPits) != len(b.southPits) {
 		panic("Illegal board")
 	}
@@ -154,7 +202,7 @@ func (b *Board) Sow(self Side, pit int) bool {
 	}
 
 	// pick up stones from pit
-	if self == SideNorth {
+	if self == North {
 		stones = b.northPits[pit]
 		b.northPits[pit] = 0
 	} else {
@@ -168,7 +216,7 @@ func (b *Board) Sow(self Side, pit int) bool {
 			panic("Out of bounds")
 		} else if int(pos) == size {
 			if side == self {
-				if self == SideNorth {
+				if self == North {
 					b.north++
 				} else {
 					b.south++
@@ -179,7 +227,7 @@ func (b *Board) Sow(self Side, pit int) bool {
 			side = !side
 			pos = 0
 		} else {
-			if side == SideNorth {
+			if side == North {
 				b.northPits[pos]++
 			} else {
 				b.southPits[pos]++
@@ -198,11 +246,11 @@ func (b *Board) Sow(self Side, pit int) bool {
 		return true
 	} else if side == self && pos > 0 {
 		last := int(pos - 1)
-		if side == SideNorth && b.northPits[last] == 1 && b.southPits[size-1-last] > 0 {
+		if side == North && b.northPits[last] == 1 && b.southPits[size-1-last] > 0 {
 			b.north += b.southPits[size-1-last] + 1
 			b.southPits[size-1-last] = 0
 			b.northPits[last] = 0
-		} else if side == SideSouth && b.southPits[last] == 1 && b.northPits[size-1-last] > 0 {
+		} else if side == South && b.southPits[last] == 1 && b.northPits[size-1-last] > 0 {
 			b.south += b.northPits[size-1-last] + 1
 			b.northPits[size-1-last] = 0
 			b.southPits[last] = 0
@@ -216,43 +264,47 @@ func (b *Board) Sow(self Side, pit int) bool {
 	return false
 }
 
-// OverFor returns true if the game has finished for a side
-func (b *Board) OverFor(side Side) bool {
+// OverFor returns true if the game has finished for a SIDE
+//
+// The second argument designates the right-most pit that would be a
+// legal move, iff the game is not over for SIDE.
+func (b *Board) OverFor(side Side) (bool, uint) {
 	var pits []uint
 	switch side {
-	case SideNorth:
+	case North:
 		pits = b.northPits
-	case SideSouth:
+	case South:
 		pits = b.southPits
 	}
 
-	for _, pit := range pits {
-		if pit > 0 {
-			return false
+	for i := range pits {
+		if pits[i] > 0 {
+			return false, uint(i)
 		}
 	}
-	return true
+	return true, 0
 }
 
 // Over returns true if the game is over for either side
 func (b *Board) Over() bool {
-	if conf.Game.EarlyWin {
-		var stones uint
+	var stones uint
 
-		for _, pit := range b.northPits {
-			stones += pit
-		}
-		for _, pit := range b.southPits {
-			stones += pit
-		}
-		stones += b.north
-		stones += b.south
-
-		if b.north > stones/2 || b.south > stones/2 {
-			return true
-		}
+	for _, pit := range b.northPits {
+		stones += pit
 	}
-	return b.OverFor(SideNorth) || b.OverFor(SideSouth)
+	for _, pit := range b.southPits {
+		stones += pit
+	}
+	stones += b.north
+	stones += b.south
+
+	if b.north > stones/2 || b.south > stones/2 {
+		return true
+	}
+
+	north, _ := b.OverFor(North)
+	south, _ := b.OverFor(South)
+	return north || south
 }
 
 // Calculate the outcome for SIDE
@@ -275,13 +327,13 @@ func (b *Board) Outcome(side Side) Outcome {
 
 	switch {
 	case north > south:
-		if side == SideNorth {
+		if side == North {
 			return WIN
 		} else {
 			return LOSS
 		}
 	case north < south:
-		if side == SideNorth {
+		if side == North {
 			return LOSS
 		} else {
 			return WIN

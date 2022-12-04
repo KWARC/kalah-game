@@ -1,6 +1,6 @@
 // Kalah Board Implementation Tests
 //
-// Copyright (c) 2021  Philip Kaludercic
+// Copyright (c) 2021, 2022  Philip Kaludercic
 //
 // This file is part of go-kgp.
 //
@@ -17,7 +17,7 @@
 // License, version 3, along with go-kgp. If not, see
 // <http://www.gnu.org/licenses/>
 
-package main
+package kgp
 
 import (
 	"reflect"
@@ -27,7 +27,7 @@ import (
 func TestLegal(t *testing.T) {
 	for i, test := range []struct {
 		start *Board
-		move  int
+		move  uint
 		side  Side
 		legal bool
 	}{
@@ -39,7 +39,7 @@ func TestLegal(t *testing.T) {
 				southPits: []uint{3, 3, 3},
 			},
 			move:  0,
-			side:  SideNorth,
+			side:  North,
 			legal: true,
 		}, {
 			start: &Board{
@@ -49,7 +49,7 @@ func TestLegal(t *testing.T) {
 				southPits: []uint{5, 5, 5, 5},
 			},
 			move:  2,
-			side:  SideNorth,
+			side:  North,
 			legal: true,
 		}, {
 			start: &Board{
@@ -59,7 +59,7 @@ func TestLegal(t *testing.T) {
 				southPits: []uint{3, 3, 3},
 			},
 			move:  2,
-			side:  SideNorth,
+			side:  North,
 			legal: true,
 		}, {
 			start: &Board{
@@ -69,7 +69,7 @@ func TestLegal(t *testing.T) {
 				southPits: []uint{3, 3, 3},
 			},
 			move:  1,
-			side:  SideSouth,
+			side:  South,
 			legal: true,
 		}, {
 			start: &Board{
@@ -79,7 +79,7 @@ func TestLegal(t *testing.T) {
 				southPits: []uint{9, 9, 9},
 			},
 			move:  0,
-			side:  SideNorth,
+			side:  North,
 			legal: true,
 		}, {
 			start: &Board{
@@ -89,7 +89,7 @@ func TestLegal(t *testing.T) {
 				southPits: []uint{1, 0, 3},
 			},
 			move:  0,
-			side:  SideSouth,
+			side:  South,
 			legal: true,
 		}, {
 			start: &Board{
@@ -99,7 +99,7 @@ func TestLegal(t *testing.T) {
 				southPits: []uint{3, 3, 3},
 			},
 			move:  0,
-			side:  SideNorth,
+			side:  North,
 			legal: true,
 		}, {
 			start: &Board{
@@ -109,7 +109,7 @@ func TestLegal(t *testing.T) {
 				southPits: []uint{3, 3, 3},
 			},
 			move:  0,
-			side:  SideNorth,
+			side:  North,
 			legal: false,
 		}, {
 			start: &Board{
@@ -119,7 +119,7 @@ func TestLegal(t *testing.T) {
 				southPits: []uint{3, 3, 3},
 			},
 			move:  0,
-			side:  SideNorth,
+			side:  North,
 			legal: false,
 		},
 	} {
@@ -131,12 +131,11 @@ func TestLegal(t *testing.T) {
 }
 
 func TestSow(t *testing.T) {
-	conf.Game.EarlyWin = false
-	conf.Game.SkipTriv = false
+	// FIXME: adapt test cases
 
 	for i, test := range []struct {
 		start, end *Board
-		move       int
+		move       uint
 		side       Side
 		again      bool
 	}{
@@ -154,7 +153,7 @@ func TestSow(t *testing.T) {
 				southPits: []uint{3, 3, 3},
 			},
 			move:  0,
-			side:  SideNorth,
+			side:  North,
 			again: true,
 		}, {
 			start: &Board{
@@ -170,7 +169,7 @@ func TestSow(t *testing.T) {
 				southPits: []uint{6, 6, 6, 5},
 			},
 			move: 2,
-			side: SideNorth,
+			side: North,
 		}, {
 			start: &Board{
 				north:     0,
@@ -185,7 +184,7 @@ func TestSow(t *testing.T) {
 				southPits: []uint{4, 4, 3},
 			},
 			move: 2,
-			side: SideNorth,
+			side: North,
 		}, {
 			start: &Board{
 				north:     1,
@@ -200,7 +199,7 @@ func TestSow(t *testing.T) {
 				southPits: []uint{3, 0, 4},
 			},
 			move: 1,
-			side: SideSouth,
+			side: South,
 		}, {
 			start: &Board{
 				north:     0,
@@ -215,7 +214,7 @@ func TestSow(t *testing.T) {
 				southPits: []uint{10, 10, 10},
 			},
 			move: 0,
-			side: SideNorth,
+			side: North,
 		}, {
 			start: &Board{
 				north:     0,
@@ -230,7 +229,7 @@ func TestSow(t *testing.T) {
 				southPits: []uint{0, 0, 3},
 			},
 			move: 0,
-			side: SideSouth,
+			side: South,
 		}, {
 			start: &Board{
 				north:     0,
@@ -245,7 +244,7 @@ func TestSow(t *testing.T) {
 				southPits: []uint{4, 4, 0},
 			},
 			move: 0,
-			side: SideNorth,
+			side: North,
 		}, {
 			start: &Board{
 				north:     0,
@@ -260,7 +259,7 @@ func TestSow(t *testing.T) {
 				southPits: []uint{0, 0, 1},
 			},
 			move: 0,
-			side: SideNorth,
+			side: North,
 		},
 	} {
 		again := test.start.Sow(test.side, test.move)
@@ -285,7 +284,7 @@ func TestOverFor(t *testing.T) {
 				south:     0,
 				southPits: []uint{3, 3, 3},
 			},
-			side: SideNorth,
+			side: North,
 			over: false,
 		}, {
 			board: &Board{
@@ -294,7 +293,7 @@ func TestOverFor(t *testing.T) {
 				south:     0,
 				southPits: []uint{3, 3, 3},
 			},
-			side: SideSouth,
+			side: South,
 			over: false,
 		}, {
 			board: &Board{
@@ -303,7 +302,7 @@ func TestOverFor(t *testing.T) {
 				south:     0,
 				southPits: []uint{3, 3, 3},
 			},
-			side: SideNorth,
+			side: North,
 			over: true,
 		}, {
 			board: &Board{
@@ -312,7 +311,7 @@ func TestOverFor(t *testing.T) {
 				south:     0,
 				southPits: []uint{3, 3, 3},
 			},
-			side: SideSouth,
+			side: South,
 			over: false,
 		}, {
 			board: &Board{
@@ -321,7 +320,7 @@ func TestOverFor(t *testing.T) {
 				south:     0,
 				southPits: []uint{0, 0, 0},
 			},
-			side: SideNorth,
+			side: North,
 			over: false,
 		}, {
 			board: &Board{
@@ -330,7 +329,7 @@ func TestOverFor(t *testing.T) {
 				south:     0,
 				southPits: []uint{0, 0, 0},
 			},
-			side: SideSouth,
+			side: South,
 			over: true,
 		}, {
 			board: &Board{
@@ -339,7 +338,7 @@ func TestOverFor(t *testing.T) {
 				south:     0,
 				southPits: []uint{0, 0, 0},
 			},
-			side: SideNorth,
+			side: North,
 			over: true,
 		}, {
 			board: &Board{
@@ -348,11 +347,12 @@ func TestOverFor(t *testing.T) {
 				south:     0,
 				southPits: []uint{0, 0, 0},
 			},
-			side: SideSouth,
+			side: South,
 			over: true,
 		},
 	} {
-		if test.board.OverFor(test.side) != test.over {
+		over, _ := test.board.OverFor(test.side)
+		if over != test.over {
 			t.Fail()
 		}
 	}
@@ -403,9 +403,97 @@ func TestOutcome(t *testing.T) {
 			outcome: LOSS,
 		},
 	} {
-		outcome := test.board.Outcome(SideSouth)
+		outcome := test.board.Outcome(South)
 		if outcome != test.outcome {
 			t.Errorf("(%d) Expected %d, got %d", i, test.outcome, outcome)
+		}
+	}
+}
+
+func TestParse(t *testing.T) {
+	for i, test := range []struct {
+		input  string
+		output *Board
+		fail   bool
+	}{
+		{
+			input: "<3,0,0,0,0,0,3,3,3>", output: &Board{
+				north:     0,
+				northPits: []uint{3, 3, 3},
+				south:     0,
+				southPits: []uint{0, 0, 0},
+			},
+		},
+		{
+			input: "<2, 0,0, 0,1, 0,0>",
+			output: &Board{
+				north:     0,
+				northPits: []uint{0, 0},
+				south:     0,
+				southPits: []uint{0, 1},
+			},
+		},
+		{
+			input: "<2,1,2,3,4,5,6>", output: &Board{
+				north:     2,
+				northPits: []uint{5, 6},
+				south:     1,
+				southPits: []uint{3, 4},
+			},
+		},
+		{
+			input: "<5,1,2,3,4,5,6,7,8,9,10,11,12>", output: &Board{
+				north:     2,
+				northPits: []uint{8, 9, 10, 11, 12},
+				south:     1,
+				southPits: []uint{3, 4, 5, 6, 7},
+			},
+		},
+		{
+			input: "<1,0,0,0,0>", output: &Board{
+				north:     0,
+				northPits: []uint{0},
+				south:     0,
+				southPits: []uint{0},
+			},
+		},
+		{
+			input: " <1	,0 , 0,0 , 	 0>  ", output: &Board{
+				north:     0,
+				northPits: []uint{0},
+				south:     0,
+				southPits: []uint{0},
+			},
+		},
+		{
+			input: " < 1 , 0 , 0 , 0 , 0 > ", output: &Board{
+				north:     0,
+				northPits: []uint{0},
+				south:     0,
+				southPits: []uint{0},
+			},
+		},
+		{input: "<0>", fail: true},
+		{input: "<0,1,1>", fail: true},
+		{input: "<1,1,1,1>", fail: true},
+		{input: "<1,1,1,1,1,1>", fail: true},
+		{input: "1,1,1,1,1", fail: true},
+		{input: "<1,1,1,1,1", fail: true},
+		{input: "1,1,1,1,1>", fail: true},
+		{input: "<1,1,1,1,a>", fail: true},
+	} {
+		parse, err := Parse(test.input)
+		if test.fail {
+			if err == nil {
+				t.Errorf("(%d) Expected error", i)
+			}
+		} else {
+			if err != nil {
+				t.Errorf("(%d) Failed with %q", i, err)
+			} else if parse.String() != test.output.String() {
+				t.Errorf("(%d) Expected %s, got %s",
+					i, test.output, parse)
+			}
 		}
 	}
 }

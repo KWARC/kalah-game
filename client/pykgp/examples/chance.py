@@ -2,6 +2,7 @@
 
 import os
 import random
+import time
 
 import kgp
 
@@ -10,4 +11,4 @@ def random_agent(state):
 
 
 if __name__ == "__main__":
-    kgp.connect(random_agent, token=os.getenv("TOKEN"))
+    kgp.connect(random_agent, host="localhost", token=os.getenv("TOKEN"), name=os.getenv("NAME"), debug=True)

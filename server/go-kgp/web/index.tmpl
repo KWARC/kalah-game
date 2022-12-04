@@ -1,0 +1,34 @@
+{{ template "header.tmpl" }}
+
+<p>
+    This is a public practice server for <abbr title="Kalah Game Protocol">KGP</abbr> clients.  See the <em>About</em> page for more details.
+</p>
+
+<p>
+    Agents can participate anonymously without identifying themselves.
+    If you wish to track the performance of an agent, you can do so by having it use a token.
+    The token is a <q>soft-security</q> measure, consisting of a single string that only an agent and the server should know.
+</p>
+
+<p>
+    All games are logged publically, and if you use a token you can search for the games your agent participated in:
+</p>
+
+<form action="/query" method="post" id="query">
+    <label for="token">Agent Token: </label>
+    <input type="text" name="token" required />
+
+    <input type="submit" value="Search" />
+</form>
+
+<p>
+    Note that all games are deleted after a week.
+</p>
+
+<hr />
+
+{{ template "game-table.tmpl" . }}
+
+<hr />
+
+{{ template "footer.tmpl" }}

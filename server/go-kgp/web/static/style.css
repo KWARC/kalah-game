@@ -1,0 +1,131 @@
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+}
+
+html {
+    margin: auto;
+    font-family: sans-serif;
+    line-height: 1.4;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    max-width: 800px;
+    margin: 8px auto;
+}
+
+header {
+    white-space: nowrap;
+}
+
+footer {
+    text-align: center;
+    font-size: 80%;
+    padding: 8px 0;
+}
+
+main, nav {
+    padding: 0 8px;
+}
+
+a {
+    color: #058;
+    text-decoration: none
+}
+
+table, td {
+    border-collapse: collapse;
+    border-color: #9ad;
+}
+
+table.list {
+    margin: auto;
+}
+
+table.list tr {
+    border-bottom: 1px solid grey;
+    overflow-x: auto;
+}
+
+table.list.move tr {
+    border-bottom-width: 0;
+}
+
+table.list.move tr svg {
+    display: block;
+    margin: auto;
+}
+
+table.list.move tr:nth-child(even), 
+table.list.move thead {
+    border-bottom: 1px solid grey;
+}
+
+thead {
+    font-weight: bold;
+    font-size: 0.9em;
+}
+
+td {
+    padding: 8px;
+}
+
+.self {
+    text-decoration: underline;
+    text-decoration-style: dotted;
+}
+
+.won, .lost, .draw, .resign {
+    padding: 4px;
+    border: 1px solid rgba(0,0,0,0.5);
+}
+.won { background: lightgreen; }
+.lost { background: lightpink; }
+.draw { background: lightgray; }
+.resign { background: black; color: white; }
+
+form#query, table#attr {
+    background: whitesmoke;
+    border: 1px solid gray;
+    padding: 8px;
+    border-radius: 4px;
+}
+
+form#query {
+    display: table;
+    text-align: center;
+    margin: auto;
+}
+
+table#attr {
+    float: right;
+    margin-top: 12px;
+    max-width: 300px;
+}
+
+
+table#attr tr td:nth-child(1) {
+    font-weight: bold;
+}
+
+hr {
+    border-width: 0;
+    border-bottom: 1px solid #9ad;
+}
+
+blockquote {
+    margin: 
+}
+
+#tcenter, nav#pageination {
+    text-align: center;
+    padding: 4px;
+}

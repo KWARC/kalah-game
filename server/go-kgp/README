@@ -4,19 +4,18 @@ extensions.  Currently, it only supports the "freeplay" and "simple"
 mode.
 
 The only build-dependency is the Go toolchain, version 1.16 or newer.
-To compile the server, run
+To run the server, type
 
-	$ go build
-
-which produces the "go-kgp" binary.
+	$ go run ./cmd/server
 
 The server can be configured when invoked using a number of flags
-(invoke go-kgp with the "-help" flag for a listing) or persistently
-using a TOML configuration file.  By default go-kgp checks the current
-working directory for a file called "server.toml" and tries to load
-it.  The default configuration can be dumped
+(invoke the above command with the "-help" flag for an overview of the
+avaliable options) or persistently using a TOML configuration file.
+By default go-kgp checks the current working directory for a file
+called "server.toml" and tries to load it.  The default configuration
+can be dumped
 
-	$ go-kgp -dump-config > server.toml
+	$ go run ./cmd/server -dump-config > server.toml
 
 and modified.
 

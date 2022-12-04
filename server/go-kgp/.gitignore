@@ -1,2 +1,4 @@
-go-kgp
-kalah.db*
+cmd/server/server
+*.db
+*.db-shm
+*.db-wal
