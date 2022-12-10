@@ -33,6 +33,7 @@ class MinMaxAgent extends Agent {
     public void search(KalahState ks) throws IOException {
 
         // submit some move so there is one in case we're running out of time
+        
         submitMove(ks.randomLegalMove());
 
         // iterative deepening

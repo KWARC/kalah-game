@@ -39,6 +39,8 @@ SOUTH = not NORTH
 
 
 class Board:
+    """Board state representation."""
+
     @staticmethod
     def parse(raw):
         """Turn a KGP board representation into a board object."""
@@ -66,6 +68,7 @@ class Board:
         self.size = len(north_pits)
 
     def __eq__(self, other):
+        """True if the same board as OTHER."""
         return (self.north == other.north and
                 self.south == other.south and
                 self.north_pits == other.north_pits and
@@ -82,6 +85,15 @@ class Board:
         return '<{}>'.format(','.join(map(str, data)))
 
     def __getitem__(self, key):
+        """
+        Convenience assessor for stores and pits.
+
+        If key is NORTH or SOUTH, return the number of stones in the
+        respective pits.
+
+        If key is a part of either NORTH or SOUTH and a 0-indexed pit,
+        call the method pit.
+        """
         if key == NORTH:
             return self.north
         elif key == SOUTH:
@@ -90,6 +102,15 @@ class Board:
         return self.pit(side, pit)
 
     def __setitem__(self, key, value):
+        """
+        Convenience modifier for stores and pits.
+
+        If key is NORTH or SOUTH, set the number of stones in the
+        respective pits.
+
+        If key is a part of either NORTH or SOUTH and a 0-indexed pit,
+        set the stone count for the pit.
+        """
         if key == NORTH:
             self.north = value
         elif key == SOUTH:

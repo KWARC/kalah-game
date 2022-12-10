@@ -10,5 +10,9 @@ execute via "java -cp "jkgp.jar" YourAgent.java".
 You can find a pre-built Jar-file here:
 
     https://wwwcip.informatik.uni-erlangen.de/~el82onyk/jkgp.jar
+    
+The documentation is available at:
+    
+    https://wwwcip.informatik.uni-erlangen.de/~el82onyk/jkgp_doc/info/kwarc/kalah/package-summary.html
 
 Happy coding!

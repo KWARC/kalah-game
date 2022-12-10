@@ -56,6 +56,10 @@ def search(state, depth, side):
 # Note that the agent is invoked in a separate process that will be
 # abruptly killed as soon as it's time has come.  By default you
 # cannot share resources between invocation.
+#
+# If you need to synchronise state between searches, use the
+# multiprocessing module (specifically multiprocessing.Value or
+# multiprocessing.Array might be of interest).
 
 def agent(state):
     for depth in range(1, 16):
