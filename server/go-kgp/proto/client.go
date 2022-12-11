@@ -23,10 +23,8 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"encoding/base64"
 	"fmt"
 	"io"
-	"net"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -129,11 +127,7 @@ func (cli *client) Request(game *kgp.Game) (*kgp.Move, bool) {
 // String will return a string representation for a client for
 // internal use
 func (cli *client) String() string {
-	hash := base64.StdEncoding.EncodeToString([]byte(cli.user.Token))
-	if conn, ok := cli.rwc.(net.Conn); ok {
-		return fmt.Sprintf("%s (%q)", conn.RemoteAddr(), hash)
-	}
-	return fmt.Sprintf("%p (%q)", cli, hash)
+	return fmt.Sprintf("%p (%q)", cli.rwc, cli.user.Token)
 }
 
 // Send is a shorthand to respond without a reference
