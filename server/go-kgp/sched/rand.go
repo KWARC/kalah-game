@@ -106,7 +106,7 @@ func (f *rand) Start() {
 			}
 		}
 		for i, a := range q {
-			if ni != 0 {
+			if i != ni {
 				south = a
 				si = i
 				break
