@@ -24,7 +24,10 @@ import (
 	"database/sql"
 	"embed"
 	"errors"
+	"fmt"
+	"io"
 	"io/fs"
+	"log"
 	"os"
 	"os/signal"
 	"path"
@@ -43,16 +46,19 @@ import (
 var sql_dir embed.FS
 
 type db struct {
-	// The database connection
-	db *sql.DB
+	// The database connections
+	read  *sql.DB
+	write *sql.DB
 
 	// The used configuration
 	conf *conf.Conf
 
-	// The SQL queries are stored under ./sql/, and they are loaded by the
-	// database manager.  These are prepared and stored in QUERIES, that
-	// the database actions use.
-	queries map[string]*sql.Stmt
+	// The SQL queries are stored under ./sql/, and they are
+	// loaded by the database manager.  QUERIES are the commands
+	// handle by READ, and COMMANDS are the queries handled by
+	// WRITE.
+	queries  map[string]*sql.Stmt
+	commands map[string]*sql.Stmt
 }
 
 type user kgp.User
@@ -66,7 +72,7 @@ func (u *user) User() *kgp.User {
 }
 
 func (db *db) RegisterTournament(ctx context.Context, name string) int64 {
-	res, err := db.queries["insert-tournament"].ExecContext(ctx, name)
+	res, err := db.commands["insert-tournament"].ExecContext(ctx, name)
 	if err != nil {
 		db.conf.Log.Fatal(err)
 	}
@@ -83,7 +89,7 @@ func (db *db) RecordScore(ctx context.Context, cli *kgp.User, game *kgp.Game, ti
 		return
 	}
 
-	_, err := db.queries["insert-score"].ExecContext(ctx,
+	_, err := db.commands["insert-score"].ExecContext(ctx,
 		cli.Id, game.Id, tid, score)
 	if err != nil {
 		db.conf.Log.Print(err)
@@ -93,7 +99,7 @@ func (db *db) RecordScore(ctx context.Context, cli *kgp.User, game *kgp.Game, ti
 func (db *db) updateDatabase(ctx context.Context, u *kgp.User, query bool) {
 	var name, descr *string
 
-	res, err := db.queries["insert-agent"].ExecContext(ctx,
+	res, err := db.commands["insert-agent"].ExecContext(ctx,
 		u.Token,
 		u.Name,
 		u.Descr,
@@ -125,7 +131,7 @@ func (db *db) updateDatabase(ctx context.Context, u *kgp.User, query bool) {
 }
 
 func (db *db) Forget(ctx context.Context, token []byte) {
-	_, err := db.queries["delete-agent"].ExecContext(ctx, token)
+	_, err := db.commands["delete-agent"].ExecContext(ctx, token)
 	if err != nil {
 		db.conf.Log.Print(err)
 	}
@@ -311,7 +317,7 @@ func (db *db) QueryUsers(ctx context.Context, c chan<- *kgp.User, page int) {
 }
 
 func (db *db) SaveGame(ctx context.Context, game *kgp.Game) {
-	tx, err := db.db.BeginTx(ctx, nil)
+	tx, err := db.write.BeginTx(ctx, nil)
 	if err != nil {
 		db.conf.Log.Print(err)
 		return
@@ -341,7 +347,7 @@ func (db *db) saveGame(ctx context.Context, tx *sql.Tx, game *kgp.Game) bool {
 		size, init := game.State.Type()
 		db.conf.Debug.Printf("Saving game with SID %d and NID %d",
 			south.Id, north.Id)
-		res, err := tx.Stmt(db.queries["insert-game"]).ExecContext(ctx,
+		res, err := tx.Stmt(db.commands["insert-game"]).ExecContext(ctx,
 			size, init, north.Id, south.Id, game.Outcome)
 		if err != nil {
 			db.conf.Log.Print(err)
@@ -355,7 +361,7 @@ func (db *db) saveGame(ctx context.Context, tx *sql.Tx, game *kgp.Game) bool {
 		}
 		game.Id = uint64(id)
 	} else {
-		_, err := tx.Stmt(db.queries["update-game"]).ExecContext(ctx,
+		_, err := tx.Stmt(db.commands["update-game"]).ExecContext(ctx,
 			game.Outcome, game.Id)
 		if err != nil {
 			db.conf.Log.Print(err)
@@ -374,8 +380,7 @@ func (db *db) saveUser(ctx context.Context, tx *sql.Tx, u *kgp.User) bool {
 	if u.Token != "" {
 		var id *int64
 		var name, desc *string
-		res, err := tx.Stmt(db.queries["select-agent-token"]).
-			QueryContext(ctx, u.Token)
+		res, err := db.queries["select-agent-token"].QueryContext(ctx, u.Token)
 		if err != nil {
 			// FIXME: The user should be allowed to update
 			//        their metadata.
@@ -410,7 +415,7 @@ func (db *db) saveUser(ctx context.Context, tx *sql.Tx, u *kgp.User) bool {
 insert:
 
 	db.conf.Debug.Printf("Saving user with %q token %q", u.Name, u.Token)
-	res, err := tx.Stmt(db.queries["insert-agent"]).ExecContext(ctx,
+	res, err := tx.Stmt(db.commands["insert-agent"]).ExecContext(ctx,
 		u.Token, u.Name, u.Descr, u.Author)
 	if err != nil {
 		db.conf.Log.Print(err)
@@ -427,7 +432,7 @@ insert:
 }
 
 func (db *db) SaveMove(ctx context.Context, move *kgp.Move) {
-	tx, err := db.db.BeginTx(ctx, nil)
+	tx, err := db.write.BeginTx(ctx, nil)
 	if err != nil {
 		db.conf.Log.Print(err)
 		return
@@ -446,7 +451,7 @@ func (db *db) SaveMove(ctx context.Context, move *kgp.Move) {
 		return
 	}
 
-	_, err = tx.Stmt(db.queries["insert-move"]).ExecContext(ctx,
+	_, err = tx.Stmt(db.commands["insert-move"]).ExecContext(ctx,
 		game.Id,
 		move.Agent.User().Id,
 		game.Side(move.Agent),
@@ -473,11 +478,11 @@ func (db *db) Start() {
 		select {
 		case <-c:
 			// https://www.sqlite.org/lang_vacuum.html
-			_, err = db.db.Exec("VACUUM;")
+			_, err = db.write.Exec("VACUUM;")
 		case <-tick.C:
-			db.queries["delete-moves"].Exec()
+			db.commands["delete-moves"].Exec()
 			// https://www.sqlite.org/pragma.html#pragma_optimize
-			_, err = db.db.Exec("PRAGMA optimize;")
+			_, err = db.write.Exec("PRAGMA optimize;")
 		}
 		if err != nil {
 			db.conf.Log.Print(err)
@@ -489,12 +494,17 @@ func (db *db) Shutdown() {
 	var err error
 
 	// https://www.sqlite.org/pragma.html#pragma_optimize
-	_, err = db.db.Exec("PRAGMA optimize;")
+	_, err = db.write.Exec("PRAGMA optimize;")
 	if err != nil {
 		db.conf.Log.Print(err)
 	}
 
-	err = db.db.Close()
+	err = db.write.Close()
+	if err != nil {
+		db.conf.Log.Print(err)
+	}
+
+	err = db.read.Close()
 	if err != nil {
 		db.conf.Log.Print(err)
 	}
@@ -504,16 +514,23 @@ func (*db) String() string { return "Database Manager" }
 
 // Initialise the database and database managers
 func Prepare(config *conf.Conf) {
+	fatal := config.Log.Fatal
+
 	var err error
-	conn, err := sql.Open("sqlite3", config.Database)
+	read, err := sql.Open("sqlite3", config.Database)
 	if err != nil {
 		config.Log.Fatal(err, ": ", config.Database)
 	}
+	read.SetConnMaxLifetime(0)
+	read.SetMaxIdleConns(1)
 
-	fatal := config.Log.Fatal
-
-	conn.SetConnMaxLifetime(0)
-	conn.SetMaxIdleConns(1)
+	write, err := sql.Open("sqlite3", config.Database)
+	if err != nil {
+		config.Log.Fatal(err, ": ", config.Database)
+	}
+	write.SetConnMaxLifetime(0)
+	write.SetMaxIdleConns(1)
+	write.SetMaxOpenConns(1)
 
 	for _, pragma := range []string{
 		// https://www.sqlite.org/pragma.html#pragma_journal_mode
@@ -528,7 +545,7 @@ func Prepare(config *conf.Conf) {
 		"foreign_keys = on",
 	} {
 		config.Debug.Printf("Run PRAGMA %v", pragma)
-		_, err = conn.Exec("PRAGMA " + pragma + ";")
+		_, err = write.Exec("PRAGMA " + pragma + ";")
 		if err != nil {
 			fatal(err)
 		}
@@ -539,6 +556,7 @@ func Prepare(config *conf.Conf) {
 		fatal(err)
 	}
 	queries := make(map[string]*sql.Stmt)
+	commands := make(map[string]*sql.Stmt)
 	for _, entry := range entries {
 		if !entry.Type().IsRegular() || strings.HasPrefix(".", entry.Name()) {
 			continue
@@ -551,12 +569,17 @@ func Prepare(config *conf.Conf) {
 		}
 
 		if strings.HasPrefix(base, "create-") || strings.HasPrefix(base, "run-") {
-			_, err = conn.Exec(string(data))
+			_, err = write.Exec(string(data))
 			config.Debug.Printf("Executed query %v", base)
 		} else {
 			query := strings.TrimSuffix(base, ".sql")
-			queries[query], err = conn.Prepare(string(data))
-			config.Debug.Printf("Registered query %v", query)
+			if strings.HasPrefix(query, "select-") {
+				queries[query], err = read.Prepare(string(data))
+				config.Debug.Printf("Registered query %v", query)
+			} else {
+				commands[query], err = write.Prepare(string(data))
+				config.Debug.Printf("Registered command %v", query)
+			}
 		}
 		if err != nil {
 			fatal(entry.Name(), ": ", err)
@@ -568,9 +591,11 @@ func Prepare(config *conf.Conf) {
 	}
 
 	var man conf.DatabaseManager = &db{
-		db:      conn,
-		queries: queries,
-		conf:    config,
+		read:     read,
+		write:    write,
+		queries:  queries,
+		commands: commands,
+		conf:     config,
 	}
 	config.Register(man)
 }
