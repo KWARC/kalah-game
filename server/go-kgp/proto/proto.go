@@ -226,17 +226,17 @@ func (cli *client) interpret(input string) error {
 
 		switch key {
 		case "info:name":
-			if cli.user != defaultUser {
+			if cli.user == defaultUser {
 				cli.user = &kgp.User{Token: val}
 			}
 			cli.user.Name = val
 		case "info:authors", "info:author":
-			if cli.user != defaultUser {
+			if cli.user == defaultUser {
 				cli.user = &kgp.User{Token: val}
 			}
 			cli.user.Author = val
 		case "info:description":
-			if cli.user != defaultUser {
+			if cli.user == defaultUser {
 				cli.user = &kgp.User{Token: val}
 			}
 			cli.user.Descr = val
