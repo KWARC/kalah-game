@@ -1,3 +1,9 @@
+{{/* FIXME: this is a cheep, broken approach that should be improved
+on.  Instead of passing a page number, we should pass references to
+the first or last object in the list and use that to determine the
+next or previous items in the list.  It would also simplify checking
+if there is a next or previous page. */}}
+
 <nav id="pageination">
 {{ if ge . 1 }}
 {{ if ne . 1 }}
