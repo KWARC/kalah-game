@@ -50,7 +50,17 @@ var (
 			return i - 1
 		},
 		"timefmt": func(t time.Time) string {
-			return t.Format(time.Stamp)
+			s := time.Since(t).Round(time.Second)
+			switch {
+			case s < time.Second*5:
+				return "now"
+			case s < time.Minute:
+				return fmt.Sprintf("%.1gs ago", s.Seconds())
+			case s < 10*time.Minute:
+				return fmt.Sprintf("%.3gm ago", s.Minutes())
+			default:
+				return t.Format(time.Stamp)
+			}
 		},
 		"result": func(a *kgp.User, g kgp.Game) template.HTML {
 			var msg string

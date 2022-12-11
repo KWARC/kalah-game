@@ -186,7 +186,7 @@ func (db *db) QueryGame(ctx context.Context, gid int, gc chan<- *kgp.Game, mc ch
 			m    = &kgp.Move{}
 			side bool
 		)
-		err = rows.Scan(&side, &m.Comment, &m.Choice)
+		err = rows.Scan(&side, &m.Comment, &m.Choice, &m.Stamp)
 		if err != nil {
 			db.conf.Log.Print(err)
 			return

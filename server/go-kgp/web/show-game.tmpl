@@ -48,6 +48,7 @@ on the north side.
 	  <td>Pit</td>
 	  <td>Agent</td>
 	  <td>Comment</td>
+	  <td>When</td>
       </tr>
   </thead>
   <tbody>
@@ -77,10 +78,11 @@ on the north side.
 	<em>No comment</em>
 	{{ end }}
 	</td>
+	<td>{{ timefmt .Stamp }}</td>
        </tr>
-       <tr><td colspan="4">{{ draw . $game }}</td></tr>
+       <tr><td colspan="5">{{ draw . $game }}</td></tr>
     {{ else }}
-       <tr><td colspan="4"><em>No moves</em></td></tr>
+       <tr><td colspan="5"><em>No moves</em></td></tr>
     {{ end }}
   </tbody>
 </table>
