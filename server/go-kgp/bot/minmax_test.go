@@ -85,7 +85,7 @@ func TestSearch(t *testing.T) {
 			state:    "<4, 0,0, 0,3,1,0, 1,1,1,1>",
 			side:     kgp.South,
 			depth:    10,
-			expected: 1,
+			expected: 2,
 		},
 	} {
 		state, err := kgp.Parse(test.state)
