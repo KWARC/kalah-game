@@ -147,8 +147,14 @@ func MakeMinMax(depth uint) kgp.Agent {
 		user: &kgp.User{
 			Token: fmt.Sprintf("%s-mm%d", nonce,
 				depth),
-			Name:  fmt.Sprintf("MinMax-%d", depth),
-			Descr: `Simple reference implementation for a MinMax agent.`,
+			Name: fmt.Sprintf("MinMax-%d", depth),
+			Descr: fmt.Sprintf(`
+Simple reference implementation for a MinMax agent.
+
+This agent is a bot and is provided by the practice server to make
+comparing the performanceeasier.  Note that bots are not time-bound
+and will always complete their search.  This agent will always search
+%d plies ahead and return the best move it can find.`, depth),
 		},
 		depth: depth,
 	}
