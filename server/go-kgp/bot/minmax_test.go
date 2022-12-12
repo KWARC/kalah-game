@@ -20,6 +20,7 @@
 package bot
 
 import (
+	"fmt"
 	"testing"
 
 	"go-kgp"
@@ -104,5 +105,20 @@ func TestSearch(t *testing.T) {
 			t.Errorf("[%d] Expected move %d, but got %d (%d)",
 				i, test.expected, move, ev)
 		}
+	}
+}
+
+func BenchmarkSearch(b *testing.B) {
+	board, err := kgp.Parse(`<8, 0,0, 8,8,8,8,8,8,8,8, 8,8,8,8,8,8,8,8>`)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	for n := uint(2); n <= 8; n++ {
+		b.Run(fmt.Sprintf("search_%d", n), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				search(board, kgp.South, n)
+			}
+		})
 	}
 }
