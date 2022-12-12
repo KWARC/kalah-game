@@ -469,6 +469,74 @@ func (db *db) SaveMove(ctx context.Context, move *kgp.Move) {
 	}
 }
 
+func (db *db) DrawGraph(ctx context.Context, w io.Writer) error {
+	res, err := db.queries["select-graph"].QueryContext(ctx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			log.Println("Empty response")
+			return nil
+		}
+		return err
+	}
+	defer res.Close()
+
+	seen := make(map[int]struct{})
+	node := func(id int, name string) (string, error) {
+		node := fmt.Sprintf("n%d", id)
+		if _, ok := seen[id]; ok {
+			return node, nil
+		}
+		if name == "" {
+			name = fmt.Sprintf("Unnamed (%d)", id)
+		}
+		name = strings.ReplaceAll(name, `"`, `\"`)
+		_, err = fmt.Fprintf(w, `%s [label="%s" href="/agent/%d"];`,
+			node, name, id)
+		if err != nil {
+			return "", err
+		}
+		return node, nil
+	}
+
+	_, err = fmt.Fprintf(w, `strict digraph dominance { ratio = compress ;`)
+	if err != nil {
+		return err
+	}
+
+	for res.Next() {
+		var (
+			wname, lname string
+			wid, lid     int
+		)
+
+		err = res.Scan(&wname, &wid, &lname, &lid)
+		if err != nil {
+			return err
+		}
+
+		t, err := node(wid, wname)
+		if err != nil {
+			return err
+		}
+		f, err := node(lid, lname)
+		if err != nil {
+			return err
+		}
+
+		_, err = fmt.Fprint(w, f, "->", t, ";")
+		if err != nil {
+			return err
+		}
+	}
+
+	_, err = fmt.Fprint(w, `}`)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (db *db) Start() {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGUSR1)

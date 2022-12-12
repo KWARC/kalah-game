@@ -20,11 +20,16 @@
 package web
 
 import (
+	"context"
 	"fmt"
 	"html/template"
+	"io"
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
+	"sync/atomic"
+	"time"
 
 	"go-kgp/conf"
 )
@@ -46,6 +51,88 @@ func (s *web) listen() {
 	}
 }
 
+func (s *web) drawGraphs() {
+	var (
+		dbg  = s.conf.Debug.Println
+		draw = s.conf.DB.DrawGraph
+	)
+
+	gen := func() ([]byte, error) {
+		bg := context.Background()
+		ctx, cancel := context.WithCancel(bg)
+		defer cancel()
+
+		dbg("(Re-)generating dominance graph")
+		cmd := exec.Command(`dot`, `-Tsvg`)
+		stdin, err := cmd.StdinPipe()
+		if err != nil {
+			return nil, err
+		}
+		stdout, err := cmd.StdoutPipe()
+		if err != nil {
+			return nil, err
+		}
+		stderr, err := cmd.StderrPipe()
+		if err != nil {
+			return nil, err
+		}
+		err = cmd.Start()
+		if err != nil {
+			return nil, err
+		}
+
+		go func() {
+			err := draw(ctx, stdin)
+			if err != nil {
+				dbg(err)
+				return
+			}
+			err = stdin.Close()
+			if err != nil {
+				dbg(err)
+				return
+			}
+		}()
+
+		data, err := io.ReadAll(stdout)
+		if err != nil {
+			return nil, err
+		}
+		io.Copy(io.Discard, io.TeeReader(stderr, os.Stderr))
+
+		err = cmd.Wait()
+		if err != nil {
+			return data, err
+		}
+		dbg("Finished generating dominance graph")
+		return data, nil
+	}
+
+	var (
+		it   uint64
+		next = time.Now()
+		data []byte
+	)
+
+	h := func(w http.ResponseWriter, r *http.Request) {
+		if time.Now().After(next) {
+			// FIXME: Will overflow after 3.50725227655e13 years.
+			if atomic.CompareAndSwapUint64(&it, it, it+1) {
+				var err error
+				data, err = gen()
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+				}
+			}
+
+			// Allow the graph to be regenerated on demand every minute
+			next = time.Now().Add(time.Minute)
+		}
+		w.Write(data)
+	}
+	s.mux.HandleFunc("/graph", h)
+}
+
 func (s *web) Start() {
 	// Prepare HTTP Multiplexer
 	s.mux = http.NewServeMux()
@@ -63,6 +150,13 @@ func (s *web) Start() {
 	if s.conf.Data != "" {
 		dir := http.FileServer(http.Dir(s.conf.Data))
 		s.mux.Handle("/data/", http.StripPrefix("/data/", dir))
+	}
+
+	if _, err := exec.LookPath("dot"); err == nil {
+		funcs["hasgraph"] = func() bool { return true }
+		s.drawGraphs()
+	} else {
+		funcs["hasgraph"] = func() bool { return false }
 	}
 
 	// Install the WebSocket handler

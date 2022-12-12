@@ -22,6 +22,7 @@ package conf
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
 
@@ -54,6 +55,9 @@ type DatabaseManager interface {
 	// Store interface
 	SaveMove(context.Context, *kgp.Move)
 	SaveGame(context.Context, *kgp.Game)
+
+	// Miscellaneous
+	DrawGraph(context.Context, io.Writer) error
 }
 
 func (c *Conf) Register(m Manager) {
