@@ -121,7 +121,7 @@ var defaultConfig = Conf{
 	// Public Tournament configuration
 	BoardInit: 8,
 	BoardSize: 8,
-	BotTypes:  map[uint]uint{2: 8, 3: 4, 4: 2, 5: 1, 10: 1, 20: 1},
+	BotTypes:  map[uint]uint{2: 4, 4: 4, 6: 4, 8: 4},
 
 	// Website configuration
 	WebInterface: true,
