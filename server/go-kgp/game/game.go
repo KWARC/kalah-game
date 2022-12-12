@@ -112,13 +112,6 @@ func Play(g *kgp.Game, conf *conf.Conf) {
 			if resign {
 				dbg("Game %d: %s resigned", g.Id, g.Current)
 
-				switch g.Current {
-				case kgp.North:
-					g.North = nil
-				case kgp.South:
-					g.South = nil
-				}
-
 				g.Outcome = kgp.RESIGN
 				goto save
 			}
