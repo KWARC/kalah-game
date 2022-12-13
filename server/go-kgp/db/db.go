@@ -514,11 +514,11 @@ func (db *db) DrawGraph(ctx context.Context, w io.Writer) error {
 			return err
 		}
 
-		t, err := node(wid, wname)
+		t, err := node(lid, lname)
 		if err != nil {
 			return err
 		}
-		f, err := node(lid, lname)
+		f, err := node(wid, wname)
 		if err != nil {
 			return err
 		}
