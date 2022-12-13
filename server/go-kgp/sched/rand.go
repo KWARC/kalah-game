@@ -124,7 +124,7 @@ func (f *rand) Start() {
 
 		// Start a game, but shuffle the order to avoid an
 		// advantage for bots or non-bots.
-		if random.Int()&1 == 0 {
+		if random.Intn(2) == 0 {
 			north, south = south, north
 		}
 
