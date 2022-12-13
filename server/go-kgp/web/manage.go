@@ -128,6 +128,7 @@ func (s *web) drawGraphs() {
 			// Allow the graph to be regenerated on demand every minute
 			next = time.Now().Add(time.Minute)
 		}
+		w.Header().Add("Cache-Control", "max-age=60")
 		w.Write(data)
 	}
 	s.mux.HandleFunc("/graph", h)
