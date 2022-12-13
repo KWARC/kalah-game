@@ -1,4 +1,4 @@
 -- -*- sql-product: sqlite; -*-
 
 DELETE FROM move
-WHERE played < date('weekday 1', '-1 week');
+WHERE played < strftime("%Y-%m-%d %H:%M:%S.000000000+00:00", "now", "-1 week");
