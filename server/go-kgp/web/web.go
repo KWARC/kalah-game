@@ -24,6 +24,7 @@ import (
 	"embed"
 	"fmt"
 	"html/template"
+	"math"
 	"time"
 
 	"go-kgp"
@@ -55,9 +56,10 @@ var (
 			case s < time.Second*5:
 				return "now"
 			case s < time.Minute:
-				return fmt.Sprintf("%.1gs ago", s.Seconds())
+				return fmt.Sprintf("%fs ago", s.Seconds())
 			case s < 10*time.Minute:
-				return fmt.Sprintf("%.3gm ago", s.Minutes())
+				minutes := math.Floor(s.Minutes())
+				return fmt.Sprintf("%.0fm%fs ago", minutes, s.Seconds())
 			default:
 				return t.Format(time.Stamp)
 			}
