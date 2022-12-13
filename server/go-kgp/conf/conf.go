@@ -56,16 +56,8 @@ type conf struct {
 	} `toml:"web"`
 }
 
-type Mode uint8
-
-const (
-	MODE_OPEN = iota
-	MODE_TOURNAMENT
-)
-
 // Public configuration
 type Conf struct {
-	Mode  Mode
 	Log   *log.Logger
 	Debug *log.Logger
 
@@ -116,7 +108,6 @@ var defaultConfig = Conf{
 
 	// Game Configuration
 	MoveTimeout: time.Second * 5,
-	Mode:        MODE_OPEN,
 
 	// Public Tournament configuration
 	BoardInit: 8,

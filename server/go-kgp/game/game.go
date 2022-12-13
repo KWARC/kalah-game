@@ -42,14 +42,7 @@ func (m *coord) Start() {
 func (m *coord) Shutdown() {}
 
 func Prepare(config *conf.Conf) {
-	var man conf.GameManager
-
-	switch config.Mode {
-	case conf.MODE_OPEN:
-		man = sched.MakeRandom(config)
-	case conf.MODE_TOURNAMENT:
-		panic("Not implemented")
-	}
+	man := conf.GameManager(sched.MakeRandom(config))
 	config.Register(man)
 	config.Register(&coord{config})
 }

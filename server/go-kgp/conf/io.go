@@ -65,15 +65,6 @@ func load(r io.Reader, debug bool) (*Conf, error) {
 	c.WebInterface = data.Web.Enabled
 	c.About = data.Web.About
 	c.WebPort = uint16(data.Proto.Port)
-	switch data.Game.Mode {
-	case "open", "training", "public", "":
-		c.Mode = MODE_OPEN
-	case "tournament", "closed", "evaluation":
-		c.Mode = MODE_TOURNAMENT
-	default:
-		msg := fmt.Sprintf("Unknown mode %v", data.Game.Mode)
-		return nil, errors.New(msg)
-	}
 	data.Game.Open.Init = c.BoardInit
 	data.Game.Open.Size = c.BoardSize
 	for _, d := range data.Game.Open.Bots {
@@ -127,13 +118,6 @@ func (c *Conf) Dump(wr io.Writer) error {
 	data.Web.Enabled = c.WebInterface
 	data.Web.About = c.About
 	data.Web.Port = uint(c.WebPort)
-
-	switch c.Mode {
-	case MODE_OPEN:
-		data.Game.Mode = "open"
-	case MODE_TOURNAMENT:
-		data.Game.Mode = "tournament"
-	}
 
 	return toml.NewEncoder(wr).Encode(data)
 }
