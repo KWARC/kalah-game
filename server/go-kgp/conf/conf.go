@@ -101,7 +101,7 @@ var defaultConfig = Conf{
 	// Protocol Configuration
 	TCPPort:    2671,
 	Ping:       true,
-	TCPTimeout: time.Minute,
+	TCPTimeout: time.Second * 20,
 	WebSocket:  true,
 
 	// Database configuration
