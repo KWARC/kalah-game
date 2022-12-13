@@ -104,7 +104,7 @@ var defaultConfig = Conf{
 	WebSocket:  true,
 
 	// Database configuration
-	Database: "kgp.db",
+	Database: "data.db",
 
 	// Game Configuration
 	MoveTimeout: time.Second * 5,
