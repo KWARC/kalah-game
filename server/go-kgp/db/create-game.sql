@@ -6,5 +6,5 @@ CREATE TABLE IF NOT EXISTS game (
 	init INTEGER,
 	north REFERENCES agent(id),
 	south REFERENCES agent(id),
-	outcome INTEGER		-- See Outcome in common.go
+	state TEXT CHECK(state IN ("o", "nw", "sw", "u", "nr", "sr", "a"))
 );

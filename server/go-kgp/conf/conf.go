@@ -70,7 +70,7 @@ type Conf struct {
 	Debug *log.Logger
 
 	// Protocol Configuration
-	TCPPort    uint16        // Port for accepting connections
+	TCPPort    uint          // Port for accepting connections
 	Ping       bool          // Should KGP send ping requests
 	TCPTimeout time.Duration // Disconnect after this timeout
 	WebSocket  bool          // Are Websocket connection enabled
@@ -88,7 +88,7 @@ type Conf struct {
 	WebInterface bool   // Has the web interface been enabled?
 	Data         string // Path to a data directory
 	About        string // Path to a template file containing the "about" site
-	WebPort      uint16 // Port that the web server listens on
+	WebPort      uint   // Port that the web server listens on
 
 	// Public Tournament configuration
 	BoardInit uint

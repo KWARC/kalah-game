@@ -90,11 +90,11 @@ func (cli *client) Request(game *kgp.Game) (*kgp.Move, bool) {
 	}
 
 	c := make(chan *kgp.Move, 1)
-	state := game.State
+	board := game.Board
 	if game.North == cli {
-		state = state.Mirror()
+		board = board.Mirror()
 	}
-	id := cli.send("state", state)
+	id := cli.send("state", board)
 	defer cli.respond(id, "stop")
 
 	cli.glock.Lock()
@@ -104,7 +104,7 @@ func (cli *client) Request(game *kgp.Game) (*kgp.Move, bool) {
 	cli.req <- &request{c, id}
 
 	move := &kgp.Move{
-		Choice:  game.State.Random(game.Side(cli)),
+		Choice:  game.Board.Random(game.Side(cli)),
 		Comment: "[random move]",
 		Agent:   cli,
 		Game:    game,

@@ -1,7 +1,7 @@
 -- -*- sql-product: sqlite; -*-
 
 -- If the server stopped and the database had an ongoing game, we will
--- regard it as a resignation.
+-- regard it as aborted.
 UPDATE OR IGNORE game
-SET outcome = 4
-WHERE outcome = 0;
+SET state = "a"
+WHERE state = "o";

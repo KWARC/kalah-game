@@ -20,6 +20,7 @@
 package kgp
 
 import (
+	"errors"
 	"fmt"
 	"time"
 )
@@ -27,31 +28,37 @@ import (
 type (
 	Side    bool
 	Outcome uint8
+	State   uint8
 )
 
 const (
 	// Possible agent modes
 	South, North Side = false, true
-	// Possible game states
-	ONGOING Outcome = iota
+
+	// Possible game outcomes
+	_ Outcome = iota
 	WIN
-	DRAW
 	LOSS
-	RESIGN
+	DRAW
+
+	// Possible game states
+	ONGOING State = iota
+	NORTH_WON
+	SOUTH_WON
+	NORTH_RESIGNED
+	SOUTH_RESIGNED
+	UNDECIDED
+	ABORTED
 )
 
 func (o Outcome) String() string {
 	switch o {
-	case ONGOING:
-		return "Ongoing"
 	case WIN:
 		return "Win"
 	case DRAW:
 		return "Draw"
 	case LOSS:
 		return "Loss"
-	case RESIGN:
-		return "Resign"
 	default:
 		panic(fmt.Sprintf("Illegal outcome: %d", o))
 	}
@@ -65,6 +72,54 @@ func (b Side) String() string {
 		return "North"
 	}
 	panic("Illegal side")
+}
+
+func (s *State) String() string {
+	switch *s {
+	case ONGOING:
+		return "o"
+	case NORTH_WON:
+		return "nw"
+	case SOUTH_WON:
+		return "sw"
+	case NORTH_RESIGNED:
+		return "nr"
+	case SOUTH_RESIGNED:
+		return "sr"
+	case UNDECIDED:
+		return "u"
+	case ABORTED:
+		return "a"
+	default:
+		panic(fmt.Sprintf("Illegal state: %d", *s))
+	}
+}
+
+func (s *State) Scan(src interface{}) error {
+	str, ok := src.(string)
+	if !ok {
+		return errors.New(`invalid type`)
+	}
+
+	switch str {
+	case "o":
+		*s = ONGOING
+	case "nw":
+		*s = NORTH_WON
+	case "sw":
+		*s = SOUTH_WON
+	case "nr":
+		*s = NORTH_RESIGNED
+	case "sr":
+		*s = SOUTH_RESIGNED
+	case "u":
+		*s = UNDECIDED
+	case "a":
+		*s = ABORTED
+	default:
+		return errors.New(`unknown state`)
+	}
+	return nil
 }
 
 type Agent interface {
@@ -83,12 +138,12 @@ type User struct {
 
 type Game struct {
 	// The board the game is being played on
-	State     *Board
+	Board     *Board
 	Id        uint64
 	North     Agent
 	South     Agent
 	Current   Side
-	Outcome   Outcome
+	State     State
 	MoveCount uint
 }
 

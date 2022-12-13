@@ -55,14 +55,14 @@ func Prepare(config *conf.Conf) {
 }
 
 func Move(g *kgp.Game, m *kgp.Move) bool {
-	if !g.State.Legal(g.Current, m.Choice) {
+	if !g.Board.Legal(g.Current, m.Choice) {
 		return false
 	}
 
 	if g.Current != g.Side(m.Agent) {
 		panic("Unexpected side")
 	}
-	repeat := g.State.Sow(g.Current, m.Choice)
+	repeat := g.Board.Sow(g.Current, m.Choice)
 	if !repeat {
 		g.Current = !g.Current
 	}
@@ -71,7 +71,7 @@ func Move(g *kgp.Game, m *kgp.Move) bool {
 
 func MoveCopy(g *kgp.Game, m *kgp.Move) (*kgp.Game, bool) {
 	c := &kgp.Game{
-		State:   g.State.Copy(),
+		Board:   g.Board.Copy(),
 		South:   g.South,
 		North:   g.North,
 		Current: g.Current,
@@ -83,13 +83,12 @@ func Play(g *kgp.Game, conf *conf.Conf) {
 	dbg := conf.Debug.Printf
 	bg := context.Background()
 
+	g.State = kgp.ONGOING
 	conf.DB.SaveGame(bg, g)
-
-	g.Outcome = kgp.ONGOING
-	for !g.State.Over() {
+	for !g.Board.Over() {
 		var m *kgp.Move
 
-		count, last := g.State.Moves(g.Current)
+		count, last := g.Board.Moves(g.Current)
 		dbg("Game %d: %s has %d moves",
 			g.Id, g.State.String(), count)
 		switch count {
@@ -112,19 +111,30 @@ func Play(g *kgp.Game, conf *conf.Conf) {
 			if resign {
 				dbg("Game %d: %s resigned", g.Id, g.Current)
 
-				g.Outcome = kgp.RESIGN
+				switch g.Current {
+				case kgp.South:
+					g.State = kgp.SOUTH_RESIGNED
+				case kgp.North:
+					g.State = kgp.NORTH_RESIGNED
+				}
+
 				goto save
 			}
 		}
 		dbg("Game %d: %s made the move %d (%s)",
 			g.Id, g.State.String(), m.Choice, m.Comment)
 
+		side := g.Current
 		if !Move(g, m) {
 			dbg("Game %d: %s made illegal move %d",
 				g.Id, g.Current, m.Choice)
 
-			// TODO: Assign a more accurate outcome
-			g.Outcome = kgp.RESIGN
+			switch side {
+			case kgp.South:
+				g.State = kgp.SOUTH_RESIGNED
+			case kgp.North:
+				g.State = kgp.NORTH_RESIGNED
+			}
 			goto save
 		}
 
@@ -134,10 +144,19 @@ func Play(g *kgp.Game, conf *conf.Conf) {
 		dbg("Game %d: %s", g.Id, g.State.String())
 	}
 
-	g.Outcome = g.State.Outcome(kgp.South)
+	switch g.Board.Outcome(kgp.South) {
+	case kgp.WIN, kgp.LOSS:
+		if g.Board.Store(kgp.North) > g.Board.Store(kgp.South) {
+			g.State = kgp.NORTH_WON
+		} else {
+			g.State = kgp.SOUTH_WON
+		}
+	case kgp.DRAW:
+		g.State = kgp.UNDECIDED
+	}
 save:
 	conf.DB.SaveGame(bg, g)
-	conf.Debug.Printf("Game %d finished (%s)", g.Id, g.Outcome)
+	conf.Debug.Printf("Game %d finished (%s)", g.Id, &g.State)
 
 	if g.South != nil {
 		conf.GM.Schedule(g.South)

@@ -132,7 +132,7 @@ func (f *rand) Start() {
 			f.conf.BoardSize,
 			f.conf.BoardInit)
 		f.conf.Play <- &kgp.Game{
-			State: board,
+			Board: board,
 			South: north,
 			North: south,
 		}

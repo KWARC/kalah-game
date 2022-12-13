@@ -205,7 +205,7 @@ func (db *db) QueryGame(ctx context.Context, gid int, gc chan<- *kgp.Game, mc ch
 		} else {
 			g = next
 		}
-		m.State = g.State.Copy()
+		m.State = g.Board.Copy()
 
 		mc <- m
 	}
@@ -225,12 +225,12 @@ func (db *db) scanGame(ctx context.Context, scan func(dest ...interface{}) error
 		&game.Id,
 		&size, &init,
 		&nid, &sid,
-		&game.Outcome,
+		&game.State,
 		&game.MoveCount)
 	if err != nil {
 		return
 	}
-	game.State = kgp.MakeBoard(size, init)
+	game.Board = kgp.MakeBoard(size, init)
 
 	var south, north *kgp.User
 	south, err = db.queryUser(ctx, sid)
@@ -344,11 +344,11 @@ func (db *db) saveGame(ctx context.Context, tx *sql.Tx, game *kgp.Game) bool {
 	if game.Id == 0 {
 		north, south := game.North.User(), game.South.User()
 
-		size, init := game.State.Type()
+		size, init := game.Board.Type()
 		db.conf.Debug.Printf("Saving game with SID %d and NID %d",
 			south.Id, north.Id)
 		res, err := tx.Stmt(db.commands["insert-game"]).ExecContext(ctx,
-			size, init, north.Id, south.Id, game.Outcome)
+			size, init, north.Id, south.Id, game.State.String())
 		if err != nil {
 			db.conf.Log.Print(err)
 			return false
@@ -362,7 +362,7 @@ func (db *db) saveGame(ctx context.Context, tx *sql.Tx, game *kgp.Game) bool {
 		game.Id = uint64(id)
 	} else {
 		_, err := tx.Stmt(db.commands["update-game"]).ExecContext(ctx,
-			game.Outcome, game.Id)
+			game.State.String(), game.Id)
 		if err != nil {
 			db.conf.Log.Print(err)
 			return false

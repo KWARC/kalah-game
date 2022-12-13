@@ -319,7 +319,7 @@ func (b *Board) Outcome(side Side) Outcome {
 	}
 
 	if !b.Over() {
-		return RESIGN
+		panic("Cannot determine outcome of unfinished game")
 	}
 
 	north += b.north

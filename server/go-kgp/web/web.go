@@ -66,17 +66,21 @@ var (
 		},
 		"result": func(a *kgp.User, g kgp.Game) template.HTML {
 			var msg string
-			switch g.Outcome {
-			case kgp.WIN:
-				msg = "South won"
-			case kgp.DRAW:
-				msg = "Draw"
-			case kgp.LOSS:
-				msg = "North won"
-			case kgp.RESIGN:
-				msg = "Resignation"
+			switch g.State {
 			case kgp.ONGOING:
-				return "Ongoing"
+				msg = "Ongoing"
+			case kgp.NORTH_WON:
+				msg = "North won"
+			case kgp.SOUTH_WON:
+				msg = "South won"
+			case kgp.NORTH_RESIGNED:
+				msg = "North resigned"
+			case kgp.SOUTH_RESIGNED:
+				msg = "South resigned"
+			case kgp.UNDECIDED:
+				msg = "Undecided"
+			case kgp.ABORTED:
+				msg = "Aborted"
 			default:
 				panic("Unknown outcome")
 			}
@@ -86,28 +90,25 @@ var (
 
 			switch {
 			case g.North != nil && g.North.User() != nil && a.Id == g.North.User().Id:
-				// Reminder: the outcome is stored
-				// from the perspective of the
-				// southern player
-				switch g.Outcome {
-				case kgp.LOSS:
+				switch g.State {
+				case kgp.NORTH_WON:
 					msg = `<span class="won">` + msg + `</span>`
-				case kgp.WIN:
+				case kgp.SOUTH_WON:
 					msg = `<span class="lost">` + msg + `</span>`
-				case kgp.DRAW:
+				case kgp.UNDECIDED:
 					msg = `<span class="draw">` + msg + `</span>`
-				case kgp.RESIGN:
+				case kgp.NORTH_RESIGNED:
 					msg = `<span class="resign">` + msg + `</span>`
 				}
 			case g.South != nil && g.South.User() != nil && a.Id == g.South.User().Id:
-				switch g.Outcome {
-				case kgp.LOSS:
+				switch g.State {
+				case kgp.NORTH_WON:
 					msg = `<span class="lost">` + msg + `</span>`
-				case kgp.WIN:
+				case kgp.SOUTH_WON:
 					msg = `<span class="won">` + msg + `</span>`
-				case kgp.DRAW:
+				case kgp.UNDECIDED:
 					msg = `<span class="draw">` + msg + `</span>`
-				case kgp.RESIGN:
+				case kgp.SOUTH_RESIGNED:
 					msg = `<span class="resign">` + msg + `</span>`
 				}
 			}
@@ -132,20 +133,60 @@ var (
 		"user": func(a kgp.Agent) *kgp.User {
 			return a.User()
 		},
-		"describe": func(outcome kgp.Outcome) string {
-			switch outcome {
+		"describe": func(g *kgp.Game) template.HTML {
+			var msg string
+			switch g.State {
 			case kgp.ONGOING:
-				return "The match is still ongoing."
-			case kgp.WIN:
-				return "The southern player won the match."
-			case kgp.DRAW:
-				return "The match resulted in a draw."
-			case kgp.LOSS:
-				return "The northern player won the match."
-			case kgp.RESIGN:
-				return "The match was prematurely terminated."
+				msg = "The match is ongoing"
+
+			case kgp.NORTH_WON:
+				if g.North.User() != nil {
+					user := g.North.User()
+					name := user.Name
+					id := user.Id
+					msg = fmt.Sprintf(`<a href="/agent/%d">%s</a> (north) won`, id, name)
+				} else {
+					msg = "North won"
+				}
+			case kgp.SOUTH_WON:
+				if g.North.User() != nil {
+					user := g.South.User()
+					name := user.Name
+					id := user.Id
+					msg = fmt.Sprintf(`<a href="/agent/%d">%s</a> (south) won`, id, name)
+				} else {
+					msg = "South won"
+				}
+
+			case kgp.NORTH_RESIGNED:
+				if g.North.User() != nil {
+					user := g.North.User()
+					name := user.Name
+					id := user.Id
+					msg = fmt.Sprintf(`<a href="/agent/%d">%s</a> (north) resigned`, id, name)
+				} else {
+					msg = "North resigned"
+				}
+			case kgp.SOUTH_RESIGNED:
+				if g.North.User() != nil {
+					user := g.South.User()
+					name := user.Name
+					id := user.Id
+					msg = fmt.Sprintf(`<a href="/agent/%d">%s</a> (south) resigned`, id, name)
+				} else {
+					msg = "South resigned"
+				}
+
+			case kgp.UNDECIDED:
+				msg = "The game ended in a draw"
+
+			case kgp.ABORTED:
+				msg = "The game was aborted"
+			default:
+				panic("Illegal game state")
 			}
-			panic("Illegal game state")
+
+			return template.HTML(msg)
 		},
 		"board": func(b *kgp.Board) string {
 			size, init := b.Type()

@@ -119,11 +119,11 @@ func search(Σ *kgp.Board, π kgp.Side, Δ uint) (uint, int64) {
 }
 
 func (m *minmax) Request(g *kgp.Game) (*kgp.Move, bool) {
-	if g.State.Over() {
+	if g.Board.Over() {
 		panic("Unexpected final state")
 	}
-	move, ev := search(g.State, g.Side(m), m.depth)
-	if !g.State.Legal(g.Side(m), move) {
+	move, ev := search(g.Board, g.Side(m), m.depth)
+	if !g.Board.Legal(g.Side(m), move) {
 		panic(fmt.Sprintf("Proposing illegal move %d for %s given %s",
 			move, g.Side(m), g.State))
 	}
@@ -131,7 +131,7 @@ func (m *minmax) Request(g *kgp.Game) (*kgp.Move, bool) {
 		Choice:  move,
 		Comment: fmt.Sprintf("Evaluation: %d", ev),
 		Agent:   m,
-		State:   g.State,
+		State:   g.Board,
 		Game:    g,
 		Stamp:   time.Now(),
 	}, false
