@@ -25,7 +25,6 @@ import (
 
 	"go-kgp"
 	"go-kgp/conf"
-	"go-kgp/sched"
 )
 
 type coord struct{ conf *conf.Conf }
@@ -42,8 +41,6 @@ func (m *coord) Start() {
 func (m *coord) Shutdown() {}
 
 func Prepare(config *conf.Conf) {
-	man := conf.GameManager(sched.MakeRandom(config))
-	config.Register(man)
 	config.Register(&coord{config})
 }
 

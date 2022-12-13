@@ -28,6 +28,7 @@ import (
 	"go-kgp/db"
 	"go-kgp/game"
 	"go-kgp/proto"
+	"go-kgp/sched"
 	"go-kgp/web"
 )
 
@@ -65,11 +66,20 @@ func main() {
 		os.Exit(0)
 	}
 
-	// Initialise the server components
+	// Enable the database
 	db.Prepare(config)
+
+	// Start the game manager
 	game.Prepare(config)
+
+	// Enable the web interface
 	web.Prepare(config)
+
+	// Allow TCP connections
 	proto.Prepare(config)
+
+	// Use the random scheduler
+	config.Register(conf.GameManager(sched.MakeRandom(config)))
 
 	// Launch the server
 	config.Start()
