@@ -20,6 +20,7 @@
 package conf
 
 import (
+	"flag"
 	"io"
 	"log"
 	"time"
@@ -118,4 +119,21 @@ var defaultConfig = Conf{
 	WebInterface: true,
 	WebPort:      8080,
 	About:        "about.html",
+}
+
+func init() {
+	flag.StringVar(&defaultConfig.About, "about", defaultConfig.About,
+		"File to use for the about template")
+	flag.UintVar(&defaultConfig.WebPort, "wwwport", defaultConfig.WebPort,
+		"Port to use for the HTTP server")
+	flag.UintVar(&defaultConfig.BoardInit, "board-init", defaultConfig.BoardInit,
+		"Default number of stones to use for Kalah boards")
+	flag.UintVar(&defaultConfig.BoardSize, "board-size", defaultConfig.BoardSize,
+		"Default size to use for Kalah boards")
+	flag.StringVar(&defaultConfig.Database, "db", defaultConfig.Database,
+		"File to use for the database")
+	flag.BoolVar(&defaultConfig.Ping, "ping", defaultConfig.Ping,
+		"Enable ping as a keepalive check")
+	flag.UintVar(&defaultConfig.TCPPort, "tcpport", defaultConfig.TCPPort,
+		"Port to use for TCP connections")
 }

@@ -20,8 +20,6 @@
 package conf
 
 import (
-	"errors"
-	"fmt"
 	"io"
 	"log"
 	"os"
@@ -56,7 +54,7 @@ func load(r io.Reader, debug bool) (*Conf, error) {
 
 	// Apply configuration requests
 	c.debug(data.Debug || debug)
-	c.TCPPort = uint16(data.Proto.Port)
+	c.TCPPort = data.Proto.Port
 	c.TCPTimeout = time.Duration(data.Proto.Timeout) * time.Millisecond
 	c.Ping = data.Proto.Ping
 	c.WebSocket = data.Proto.Websocket
@@ -64,7 +62,7 @@ func load(r io.Reader, debug bool) (*Conf, error) {
 	c.MoveTimeout = time.Duration(data.Game.Timeout) * time.Millisecond
 	c.WebInterface = data.Web.Enabled
 	c.About = data.Web.About
-	c.WebPort = uint16(data.Proto.Port)
+	c.WebPort = uint(data.Proto.Port)
 	data.Game.Open.Init = c.BoardInit
 	data.Game.Open.Size = c.BoardSize
 	for _, d := range data.Game.Open.Bots {
