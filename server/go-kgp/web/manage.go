@@ -109,20 +109,20 @@ func (s *web) drawGraphs() {
 	}
 
 	var (
-		it   uint64
+		it   uint32
 		next = time.Now()
 		data []byte
 	)
 
 	h := func(w http.ResponseWriter, r *http.Request) {
 		if time.Now().After(next) {
-			// FIXME: Will overflow after 3.50725227655e13 years.
-			if atomic.CompareAndSwapUint64(&it, it, it+1) {
+			if atomic.CompareAndSwapUint32(&it, 0, 1) {
 				var err error
 				data, err = gen()
 				if err != nil {
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 				}
+				atomic.StoreUint32(&it, 0)
 			}
 
 			// Allow the graph to be regenerated on demand every minute
