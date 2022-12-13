@@ -71,6 +71,10 @@ func (u *user) User() *kgp.User {
 	return (*kgp.User)(u)
 }
 
+func (u *user) Alive() bool {
+	return false // users aren't live agents
+}
+
 func (db *db) RegisterTournament(ctx context.Context, name string) int64 {
 	res, err := db.commands["insert-tournament"].ExecContext(ctx, name)
 	if err != nil {

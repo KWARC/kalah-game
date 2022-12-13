@@ -140,6 +140,7 @@ func (m *minmax) Request(g *kgp.Game) (*kgp.Move, bool) {
 func (m *minmax) User() *kgp.User { return m.user }
 func (m *minmax) String() string  { return fmt.Sprintf("MM%d", m.depth) }
 func (*minmax) IsBot()            {}
+func (*minmax) Alive() bool       { return true } // bots never die
 
 func MakeMinMax(depth uint) kgp.Agent {
 	return &minmax{

@@ -125,6 +125,7 @@ func (s *State) Scan(src interface{}) error {
 type Agent interface {
 	Request(*Game) (*Move, bool)
 	User() *User
+	Alive() bool
 }
 
 type User struct {

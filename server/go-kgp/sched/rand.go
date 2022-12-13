@@ -64,15 +64,6 @@ func (f *rand) Start() {
 	//
 	// Non-Priority: Avoid frequent encounters
 	for {
-		nonbots := 0
-		for _, a := range q {
-			if !isBot(a) {
-				nonbots++
-			}
-		}
-		if nonbots >= 2 {
-			goto skip
-		}
 		select {
 		case a := <-f.add:
 			f.conf.Debug.Println("Schedule", a)
@@ -89,8 +80,17 @@ func (f *rand) Start() {
 			}
 			continue
 		}
-	skip:
 		f.conf.Debug.Print(q)
+
+		// Remove all dead agents
+		i := 0
+		for _, a := range q {
+			if a.Alive() {
+				q[i] = a
+				i++
+			}
+		}
+		q = q[:i]
 
 		// Try and select two agents, where at least one is
 		// not a bot

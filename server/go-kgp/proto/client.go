@@ -124,6 +124,12 @@ func (cli *client) Request(game *kgp.Game) (*kgp.Move, bool) {
 	}
 }
 
+func (cli *client) Alive() bool {
+	defer cli.iolock.Unlock()
+	cli.iolock.Lock()
+	return cli.rwc != nil
+}
+
 // String will return a string representation for a client for
 // internal use
 func (cli *client) String() string {
