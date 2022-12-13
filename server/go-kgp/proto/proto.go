@@ -34,7 +34,7 @@ import (
 const (
 	majorVersion = 1
 	minorVersion = 0
-	patchVersion = 0
+	patchVersion = 1
 )
 
 var (

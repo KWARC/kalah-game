@@ -11,7 +11,7 @@ association between requests and answers.
 A server might use the `freeplay` mode to implement a tournament, as
 seen in this example:
 
-	s: kgp 1 0 0
+	s: kgp 1 0 1
 	c: mode freeplay
 	s: 4 state <3,0,0,3,3,3,3,3,3>
 	c: @4 move 1

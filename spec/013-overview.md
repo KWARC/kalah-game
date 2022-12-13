@@ -5,7 +5,7 @@ The communication MUST begin by the server sending the client a `kgp`
 command, with three arguments indicating the major, minor and patch
 version of the implemented protocol, e.g.:
 
-	kgp 1 0 0
+	kgp 1 0 1
 	
 The client MUST parse this command and that it implements everything
 that is necessary to communicate. The major version indicates
