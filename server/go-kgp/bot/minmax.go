@@ -125,7 +125,7 @@ func (m *minmax) Request(g *kgp.Game) (*kgp.Move, bool) {
 	move, ev := search(g.Board, g.Side(m), m.depth)
 	if !g.Board.Legal(g.Side(m), move) {
 		panic(fmt.Sprintf("Proposing illegal move %d for %s given %s",
-			move, g.Side(m), g.State))
+			move, g.Side(m), g.Board))
 	}
 	return &kgp.Move{
 		Choice:  move,
