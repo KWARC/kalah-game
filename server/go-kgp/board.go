@@ -115,7 +115,6 @@ func Parse(spec string) (*Board, error) {
 		b.northPits[i] = data[3+size+i]
 	}
 	return b, nil
-
 }
 
 // Mirror returns a mirrored represenation of the board
