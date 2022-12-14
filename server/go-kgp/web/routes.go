@@ -84,7 +84,7 @@ func (s *web) query(w http.ResponseWriter, r *http.Request) {
 func (s *web) about(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "text/html")
 	tmpl.ExecuteTemplate(w, "header.tmpl", nil)
-	tmpl.ExecuteTemplate(w, "about.tmpl", struct{}{})
+	tmpl.ExecuteTemplate(w, "about.tmpl", s.conf)
 	tmpl.ExecuteTemplate(w, "footer.tmpl", nil)
 }
 
