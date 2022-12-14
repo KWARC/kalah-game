@@ -136,4 +136,6 @@ func init() {
 		"Enable ping as a keepalive check")
 	flag.UintVar(&defaultConfig.TCPPort, "tcpport", defaultConfig.TCPPort,
 		"Port to use for TCP connections")
+	flag.StringVar(&defaultConfig.Data, "data", defaultConfig.Data,
+		"Directory to use for hosting /data/ requests")
 }
