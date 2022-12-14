@@ -163,6 +163,7 @@ func (s *web) Start() {
 	s.mux.HandleFunc("/", s.index)
 
 	if _, err := exec.LookPath("dot"); err == nil {
+		s.conf.Debug.Print("Enabling graph generation")
 		funcs["hasgraph"] = func() bool { return true }
 		s.drawGraphs()
 	} else {
