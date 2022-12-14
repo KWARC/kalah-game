@@ -145,13 +145,22 @@ func (s *web) Start() {
 	s.mux.HandleFunc("/robots.txt", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "User-agent: *\nDisallow: /")
 	})
-	s.mux.HandleFunc("/", s.index)
 
 	s.mux.Handle("/static/", http.FileServer(http.FS(static)))
 	if s.conf.Data != "" {
+		if stat, err := os.Stat(s.conf.Data); err != nil {
+			s.conf.Log.Fatalf("Fail to access data directory %s: %s",
+				s.conf.Data, err)
+		} else if !stat.IsDir() {
+			s.conf.Log.Fatalf("Data directory is not a directory %s",
+				s.conf.Data)
+		}
+		s.conf.Debug.Printf("Serving a /data/ directory (%s)", s.conf.Data)
 		dir := http.FileServer(http.Dir(s.conf.Data))
 		s.mux.Handle("/data/", http.StripPrefix("/data/", dir))
 	}
+
+	s.mux.HandleFunc("/", s.index)
 
 	if _, err := exec.LookPath("dot"); err == nil {
 		funcs["hasgraph"] = func() bool { return true }
