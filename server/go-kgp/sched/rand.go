@@ -26,6 +26,7 @@ import (
 	"go-kgp"
 	"go-kgp/bot"
 	"go-kgp/conf"
+	"go-kgp/game"
 )
 
 // The intent is not to have a secure source of random values, but
@@ -128,14 +129,13 @@ func (f *rand) Start() {
 			north, south = south, north
 		}
 
-		board := kgp.MakeBoard(
-			f.conf.BoardSize,
-			f.conf.BoardInit)
-		f.conf.Play <- &kgp.Game{
-			Board: board,
+		go game.Play(&kgp.Game{
+			Board: kgp.MakeBoard(
+				f.conf.BoardSize,
+				f.conf.BoardInit),
 			South: north,
 			North: south,
-		}
+		}, f.conf)
 	}
 	panic("Quitting Random Scheduler")
 }

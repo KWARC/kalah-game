@@ -26,7 +26,6 @@ import (
 
 	"go-kgp/conf"
 	"go-kgp/db"
-	"go-kgp/game"
 	"go-kgp/proto"
 	"go-kgp/sched"
 	"go-kgp/web"
@@ -68,9 +67,6 @@ func main() {
 
 	// Enable the database
 	db.Prepare(config)
-
-	// Start the game manager
-	game.Prepare(config)
 
 	// Enable the web interface
 	web.Prepare(config)

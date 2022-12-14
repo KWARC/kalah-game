@@ -27,23 +27,6 @@ import (
 	"go-kgp/conf"
 )
 
-type coord struct{ conf *conf.Conf }
-
-func (*coord) String() string { return "Coordinator" }
-
-func (m *coord) Start() {
-	for game := range m.conf.Play {
-		m.conf.Debug.Println("Starting", game)
-		go Play(game, m.conf)
-	}
-}
-
-func (m *coord) Shutdown() {}
-
-func Prepare(config *conf.Conf) {
-	config.Register(&coord{config})
-}
-
 func Move(g *kgp.Game, m *kgp.Move) bool {
 	if !g.Board.Legal(g.Current, m.Choice) {
 		return false
