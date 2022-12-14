@@ -1,36 +1,18 @@
-FROM docker.io/library/alpine:3.14 as os
+FROM docker.io/library/golang:alpine
 
-# install ca-certificates
-RUN apk add --update --no-cache ca-certificates
+# Fetch build dependencies
+RUN apk add --no-cache sqlite graphviz gcc libc-dev
 
-# create www-data
-RUN set -x ; \
-  addgroup -g 82 -S www-data ; \
-  adduser -u 82 -D -S -G www-data www-data && exit 0 ; exit 1
-
-# build the backend
-FROM docker.io/library/golang:1.17-bullseye as builder
+# Copy source into container and build the program
 ADD . /app/
 WORKDIR /app/
-RUN go get .
-RUN CGO_ENABLED=1 GOOS=linux go build -a -ldflags "-linkmode external -extldflags '-static'" -o go-kgp ./
+RUN go mod download
+RUN go build -v -o /go-kgp ./cmd/server
 
-# add it into a new image
-FROM docker.io/library/debian:bullseye-slim
-
-# add the user
-COPY --from=os /etc/passwd /etc/passwd
-COPY --from=os /etc/group /etc/group
-
-# create a volume at /data/
-RUN mkdir /data/ && chown -R www-data:www-data /data/
+# Mount an external volume and use it as a working directory
 VOLUME /data/
 
-# add the app
-COPY --from=builder /app/go-kgp /go-kgp
-
-# and set the entry command
+# Expose end-points and start the server
 EXPOSE 8080
 EXPOSE 2671
-USER www-data:www-data
-CMD ["/go-kgp", "-conf", "conf-example/training.toml"]
+ENTRYPOINT ["/go-kgp"]
