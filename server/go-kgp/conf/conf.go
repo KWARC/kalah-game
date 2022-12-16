@@ -118,7 +118,7 @@ var defaultConfig = Conf{
 	// Website configuration
 	WebInterface: true,
 	WebPort:      8080,
-	About:        "about.html",
+	About:        "",
 }
 
 func init() {
