@@ -21,6 +21,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"os"
 
@@ -43,7 +44,10 @@ func main() {
 
 	flag.Parse()
 	if flag.NArg() != 0 {
-		flag.Usage()
+		fmt.Fprintf(flag.CommandLine.Output(),
+			"Too many arguments passed to %s.\nUsage:\n",
+			os.Args[0])
+		flag.PrintDefaults()
 		os.Exit(1)
 	}
 
