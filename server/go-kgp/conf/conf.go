@@ -42,8 +42,7 @@ type conf struct {
 		Websocket bool `toml:"websocket"`
 	} `toml:"proto"`
 	Game struct {
-		Timeout uint   `toml:"timeout"`
-		Mode    string `toml:"mode"`
+		Timeout uint `toml:"timeout"`
 		Open    struct {
 			Init uint   `toml:"init"`
 			Size uint   `toml:"size"`
