@@ -46,7 +46,7 @@ type conf struct {
 		Mode    string `toml:"mode"`
 		Open    struct {
 			Init uint   `toml:"init"`
-			Size uint   `toml:"init"`
+			Size uint   `toml:"size"`
 			Bots []uint `toml:"bots"`
 		} `toml:"open"`
 	} `toml:"game"`
