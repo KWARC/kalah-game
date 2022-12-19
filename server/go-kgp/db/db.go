@@ -204,7 +204,7 @@ func (db *db) QueryGame(ctx context.Context, gid int, gc chan<- *kgp.Game, mc ch
 		m.Agent = g.Player(kgp.Side(side))
 
 		if next, repeat := game.MoveCopy(g, m); !repeat {
-			db.conf.Log.Printf("Illegal move %d on %s", m.Choice, g.State)
+			db.conf.Log.Printf("Illegal move %d on %s", m.Choice, g.Board)
 			break
 		} else {
 			g = next
