@@ -20,6 +20,7 @@
 package conf
 
 import (
+	"context"
 	"io"
 	"log"
 	"os"
@@ -100,6 +101,7 @@ func Load() (c *Conf) {
 	if debug {
 		c.Log.SetOutput(os.Stderr)
 	}
+	c.Ctx, c.Kill = context.WithCancel(context.Background())
 
 	// Dump the configuration onto the disk if requested
 	if dump {

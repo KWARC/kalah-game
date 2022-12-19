@@ -20,6 +20,7 @@
 package conf
 
 import (
+	"context"
 	"flag"
 	"io"
 	"log"
@@ -61,6 +62,8 @@ type conf struct {
 type Conf struct {
 	Log   *log.Logger
 	Debug *log.Logger
+	Ctx   context.Context
+	Kill  context.CancelFunc
 
 	// Protocol Configuration
 	TCPPort    uint          // Port for accepting connections

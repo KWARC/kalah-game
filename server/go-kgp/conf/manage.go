@@ -86,8 +86,12 @@ func (c *Conf) Start() {
 	// Catch an interrupt request...
 	intr := make(chan os.Signal, 1)
 	signal.Notify(intr, os.Interrupt)
-	<-intr
-	c.Debug.Println("Caught interrupt")
+	select {
+	case <-intr:
+		c.Debug.Println("Caught interrupt")
+	case <-c.Ctx.Done():
+		c.Debug.Println("Requested shutdown")
+	}
 
 	// ...and request all managers to shut down.
 	c.Debug.Println("Waiting for managers to shutdown...")
