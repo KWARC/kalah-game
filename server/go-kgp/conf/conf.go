@@ -134,6 +134,8 @@ func init() {
 		"File to use for the database")
 	flag.BoolVar(&defaultConfig.Ping, "ping", defaultConfig.Ping,
 		"Enable ping as a keepalive check")
+	flag.BoolVar(&defaultConfig.WebSocket, "websocket", defaultConfig.WebSocket,
+		"Enable WebSocket connections")
 	flag.UintVar(&defaultConfig.TCPPort, "tcpport", defaultConfig.TCPPort,
 		"Port to use for TCP connections")
 	flag.StringVar(&defaultConfig.Data, "data", defaultConfig.Data,
