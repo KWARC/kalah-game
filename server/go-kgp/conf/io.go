@@ -123,6 +123,7 @@ func (c *Conf) Dump(wr io.Writer) error {
 	data.Proto.Ping = c.Ping
 	data.Proto.Timeout = uint(c.TCPTimeout / time.Millisecond)
 	data.Proto.Port = uint(c.TCPPort)
+	data.Proto.Websocket = c.WebSocket
 	data.Game.Timeout = uint(c.MoveTimeout / time.Millisecond)
 	data.Game.Open.Init = c.BoardInit
 	data.Game.Open.Size = c.BoardSize
