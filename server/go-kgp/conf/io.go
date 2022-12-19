@@ -54,9 +54,6 @@ func load(r io.Reader) (*Conf, error) {
 	c := defaultConfig
 
 	// Apply configuration requests
-	if debug {
-		c.Log.SetOutput(os.Stderr)
-	}
 	c.TCPPort = data.Proto.Port
 	c.TCPTimeout = time.Duration(data.Proto.Timeout) * time.Millisecond
 	c.Ping = data.Proto.Ping
@@ -96,11 +93,10 @@ func Load() (c *Conf) {
 	}
 	defer file.Close()
 
-	// Initialise the configuration object
-	c.Play = make(chan *kgp.Game, 1)
 	if debug {
-		c.Log.SetOutput(os.Stderr)
+		c.Debug.SetOutput(os.Stderr)
 	}
+	c.Play = make(chan *kgp.Game, 1)
 	c.Ctx, c.Kill = context.WithCancel(context.Background())
 
 	// Dump the configuration onto the disk if requested
