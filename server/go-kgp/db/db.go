@@ -101,7 +101,7 @@ func (db *db) RecordScore(ctx context.Context, cli *kgp.User, game *kgp.Game, ti
 }
 
 func (db *db) updateDatabase(ctx context.Context, u *kgp.User, query bool) {
-	var name, descr *string
+	var name, descr sql.NullString
 
 	res, err := db.commands["insert-agent"].ExecContext(ctx,
 		u.Token,
@@ -125,11 +125,11 @@ func (db *db) updateDatabase(ctx context.Context, u *kgp.User, query bool) {
 			return
 		}
 
-		if name != nil {
-			u.Name = *name
+		if name.Valid {
+			u.Name = name.String
 		}
-		if descr != nil {
-			u.Descr = *descr
+		if descr.Valid {
+			u.Descr = descr.String
 		}
 	}
 }
@@ -382,8 +382,8 @@ func (db *db) saveUser(ctx context.Context, tx *sql.Tx, u *kgp.User) bool {
 	}
 
 	if u.Token != "" {
-		var id *int64
-		var name, desc *string
+		var id sql.NullInt64
+		var name, desc sql.NullString
 		res, err := db.queries["select-agent-token"].QueryContext(ctx, u.Token)
 		if err != nil {
 			// FIXME: The user should be allowed to update
@@ -396,20 +396,20 @@ func (db *db) saveUser(ctx context.Context, tx *sql.Tx, u *kgp.User) bool {
 		}
 		err = res.Scan(&id, &name, &desc)
 		if err == nil {
-			if id != nil {
-				u.Id = *id
+			if id.Valid {
+				u.Id = id.Int64
 			}
-			if name != nil {
-				if u.Name != *name {
+			if name.Valid {
+				if u.Name != name.String {
 					goto insert
 				}
-				u.Name = *name
+				u.Name = name.String
 			}
-			if desc != nil {
-				if u.Descr != *desc {
+			if desc.Valid {
+				if u.Descr != desc.String {
 					goto insert
 				}
-				u.Descr = *desc
+				u.Descr = desc.String
 			}
 			return true
 		} else {
