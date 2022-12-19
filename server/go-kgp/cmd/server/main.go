@@ -39,7 +39,6 @@ func main() {
 	var (
 		confFile = flag.String("conf", defconf, "Name of configuration file")
 		dumpConf = flag.Bool("dump-config", false, "Dump default configuration")
-		debug    = flag.Bool("debug", false, "Enable debugging mode")
 	)
 
 	flag.Parse()
@@ -52,11 +51,11 @@ func main() {
 	}
 
 	// Load the configuration from disk (if available)
-	config, err := conf.Open(*confFile, *debug)
+	config, err := conf.Open(*confFile)
 	if err != nil && (!os.IsNotExist(err) || *confFile != defconf) {
 		log.Fatal(err)
 	} else {
-		config = conf.Default(*debug)
+		config = conf.Default()
 	}
 	config.Debug.Println("Debug logging has been enabled")
 

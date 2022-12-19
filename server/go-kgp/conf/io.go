@@ -21,7 +21,6 @@ package conf
 
 import (
 	"io"
-	"log"
 	"os"
 	"time"
 
@@ -30,18 +29,10 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-func (c *Conf) debug(enabled bool) {
-	if enabled {
-		flags := log.Ltime | log.Lshortfile | log.Lmicroseconds
-		c.Debug = log.New(os.Stderr, "[debug] ", flags)
-		c.Log.SetFlags(c.Log.Flags() | flags)
-	} else {
-		c.Debug = log.New(io.Discard, "", 0)
-	}
-}
+var debug bool = false
 
 // Parse a configuration from R into CONF
-func load(r io.Reader, debug bool) (*Conf, error) {
+func load(r io.Reader) (*Conf, error) {
 	// Load configuration data
 	var data conf
 	_, err := toml.NewDecoder(r).Decode(&data)
@@ -53,7 +44,9 @@ func load(r io.Reader, debug bool) (*Conf, error) {
 	c := defaultConfig
 
 	// Apply configuration requests
-	c.debug(data.Debug || debug)
+	if debug {
+		c.Log.SetOutput(os.Stderr)
+	}
 	c.TCPPort = data.Proto.Port
 	c.TCPTimeout = time.Duration(data.Proto.Timeout) * time.Millisecond
 	c.Ping = data.Proto.Ping
@@ -76,23 +69,25 @@ func load(r io.Reader, debug bool) (*Conf, error) {
 }
 
 // Open a configuration file and return it
-func Open(name string, debug bool) (*Conf, error) {
+func Open(name string) (*Conf, error) {
 	file, err := os.Open(name)
 	if err != nil {
 		return nil, err
 	}
 	defer file.Close()
 
-	c, err := load(file, debug)
+	c, err := load(file)
 	c.Play = make(chan *kgp.Game, 1)
 	return c, err
 }
 
 // Return a reference to the default configuration
-func Default(debug bool) *Conf {
+func Default() *Conf {
 	conf := &defaultConfig
 	conf.Play = make(chan *kgp.Game, 1)
-	conf.debug(debug)
+	if debug {
+		conf.Log.SetOutput(os.Stderr)
+	}
 
 	return conf
 }

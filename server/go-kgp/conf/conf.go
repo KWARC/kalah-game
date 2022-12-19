@@ -96,7 +96,7 @@ type Conf struct {
 // Configuration object used by default
 var defaultConfig = Conf{
 	Log:   log.Default(),
-	Debug: log.New(io.Discard, "", 0),
+	Debug: log.New(io.Discard, "[debug]", log.Ltime|log.Lshortfile|log.Lmicroseconds),
 
 	// Protocol Configuration
 	TCPPort:    2671,
@@ -140,4 +140,6 @@ func init() {
 		"Port to use for TCP connections")
 	flag.StringVar(&defaultConfig.Data, "data", defaultConfig.Data,
 		"Directory to use for hosting /data/ requests")
+	flag.BoolVar(&debug, "debug", false,
+		"Enable debug output")
 }
