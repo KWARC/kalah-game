@@ -21,6 +21,7 @@ package conf
 
 import (
 	"io"
+	"log"
 	"os"
 	"time"
 
@@ -29,7 +30,15 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-var debug bool = false
+const (
+	defconf = "go-kgp.toml"
+)
+
+var (
+	debug bool   = false
+	dump  bool   = false
+	cfile string = defconf
+)
 
 // Parse a configuration from R into CONF
 func load(r io.Reader) (*Conf, error) {
@@ -69,27 +78,39 @@ func load(r io.Reader) (*Conf, error) {
 }
 
 // Open a configuration file and return it
-func Open(name string) (*Conf, error) {
-	file, err := os.Open(name)
+func Load() (c *Conf) {
+	file, err := os.Open(cfile)
 	if err != nil {
-		return nil, err
+		if !os.IsNotExist(err) || cfile != defconf {
+			log.Fatal(err)
+		} else {
+			c = &defaultConfig
+		}
+	} else {
+		c, err = load(file)
+		if err != nil {
+			log.Print(err)
+			c = &defaultConfig
+		}
 	}
 	defer file.Close()
 
-	c, err := load(file)
+	// Initialise the configuration object
 	c.Play = make(chan *kgp.Game, 1)
-	return c, err
-}
-
-// Return a reference to the default configuration
-func Default() *Conf {
-	conf := &defaultConfig
-	conf.Play = make(chan *kgp.Game, 1)
 	if debug {
-		conf.Log.SetOutput(os.Stderr)
+		c.Log.SetOutput(os.Stderr)
 	}
 
-	return conf
+	// Dump the configuration onto the disk if requested
+	if dump {
+		err = c.Dump(os.Stdout)
+		if err != nil {
+			log.Fatalln("Failed to dump default configuration:", err)
+		}
+		os.Exit(0)
+	}
+
+	return c
 }
 
 // Serialise the configuration into a writer

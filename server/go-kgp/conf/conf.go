@@ -140,6 +140,7 @@ func init() {
 		"Port to use for TCP connections")
 	flag.StringVar(&defaultConfig.Data, "data", defaultConfig.Data,
 		"Directory to use for hosting /data/ requests")
-	flag.BoolVar(&debug, "debug", false,
-		"Enable debug output")
+	flag.BoolVar(&debug, "debug", dump, "Enable debug output")
+	flag.BoolVar(&dump, "dump-config", dump, "Dump configuration to standard output")
+	flag.StringVar(&cfile, "conf", cfile, "Path to configuration file")
 }

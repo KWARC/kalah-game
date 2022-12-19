@@ -22,7 +22,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"os"
 
 	"go-kgp/conf"
@@ -32,15 +31,7 @@ import (
 	"go-kgp/web"
 )
 
-// Default file name for the configuration file
-const defconf = "server.toml"
-
 func main() {
-	var (
-		confFile = flag.String("conf", defconf, "Name of configuration file")
-		dumpConf = flag.Bool("dump-config", false, "Dump default configuration")
-	)
-
 	flag.Parse()
 	if flag.NArg() != 0 {
 		fmt.Fprintf(flag.CommandLine.Output(),
@@ -51,22 +42,8 @@ func main() {
 	}
 
 	// Load the configuration from disk (if available)
-	config, err := conf.Open(*confFile)
-	if err != nil && (!os.IsNotExist(err) || *confFile != defconf) {
-		log.Fatal(err)
-	} else {
-		config = conf.Default()
-	}
+	config := conf.Load()
 	config.Debug.Println("Debug logging has been enabled")
-
-	// Dump the configuration onto the disk if requested
-	if *dumpConf {
-		err = config.Dump(os.Stdout)
-		if err != nil {
-			log.Fatalln("Failed to dump default configuration:", err)
-		}
-		os.Exit(0)
-	}
 
 	// Enable the database
 	db.Prepare(config)
