@@ -52,8 +52,8 @@ type conf struct {
 	Web struct {
 		Enabled bool   `toml:"enabled"`
 		Port    uint   `toml:"port"`
-		About   string `toml:"about"`
-		Data    string `toml:"data"`
+		About   string `toml:"about,omitempty"`
+		Data    string `toml:"data,omitempty"`
 	} `toml:"web"`
 }
 
