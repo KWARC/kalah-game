@@ -231,7 +231,7 @@ var (
 			for i := int(size - 1); i >= 0; i-- {
 				n := b.Pit(kgp.North, uint(i))
 				hl := g.North == m.Agent && m.Choice == uint(i)
-				circle(float64(1+i), 0, n, hl)
+				circle(float64(int(size+1)-(1+i)), 0, n, hl)
 			}
 			for i := int(0); i < int(size); i++ {
 				s := b.Pit(kgp.South, uint(i))
