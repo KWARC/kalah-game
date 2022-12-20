@@ -47,6 +47,9 @@ var (
 		"inc": func(i int) int {
 			return i + 1
 		},
+		"uinc": func(i uint) uint {
+			return i + 1
+		},
 		"dec": func(i int) int {
 			return i - 1
 		},

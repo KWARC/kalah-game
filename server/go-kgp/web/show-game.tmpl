@@ -55,7 +55,7 @@ on the north side.
     {{ range $i, $m := $moves }}
       <tr>
 	<td>{{ $i }}</td>
-	<td>{{ $m.Choice }}</td>
+	<td>{{ uinc $m.Choice }}</td>
 	<td>
 	{{ with user $m.Agent }}
 	  {{ if ne .Id 0 }}
