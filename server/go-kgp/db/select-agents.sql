@@ -5,5 +5,5 @@ FROM agent
 CROSS JOIN game ON agent.id == game.north OR agent.id == game.south
 GROUP BY agent.id
 ORDER BY agent.id DESC
-LIMIT ?2
+LIMIT 50
 OFFSET ?1 * ?2;

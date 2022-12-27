@@ -290,7 +290,7 @@ func (db *db) QueryGames(ctx context.Context, aid int, c chan<- *kgp.Game, page 
 
 func (db *db) QueryUsers(ctx context.Context, c chan<- *kgp.User, page int) {
 	defer close(c)
-	rows, err := db.queries["select-agents"].QueryContext(ctx, page, 50)
+	rows, err := db.queries["select-agents"].QueryContext(ctx, page)
 	if err != nil {
 		if err != sql.ErrNoRows {
 			db.conf.Log.Print(err)
