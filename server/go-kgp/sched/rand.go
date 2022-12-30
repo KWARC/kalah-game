@@ -39,16 +39,6 @@ type rand struct {
 	rem  chan kgp.Agent
 }
 
-type Bot interface {
-	kgp.Agent
-	IsBot()
-}
-
-func isBot(a kgp.Agent) bool {
-	_, ok := a.(Bot)
-	return ok
-}
-
 func (f *rand) Start() {
 	var q []kgp.Agent
 
@@ -100,7 +90,7 @@ func (f *rand) Start() {
 			ni, si       int = -1, -1
 		)
 		for i, a := range q {
-			if !isBot(a) {
+			if !bot.IsBot(a) {
 				north = a
 				ni = i
 				break
