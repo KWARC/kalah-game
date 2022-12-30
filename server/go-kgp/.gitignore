@@ -1,4 +1,3 @@
-cmd/server/server
 *.db
 *.db-shm
 *.db-wal
