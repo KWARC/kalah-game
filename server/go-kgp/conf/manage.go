@@ -93,11 +93,21 @@ func (c *Conf) Start() {
 		c.Debug.Println("Requested shutdown")
 	}
 
-	// ...and request all managers to shut down.
-	c.Debug.Println("Waiting for managers to shutdown...")
-	for _, m := range c.man {
-		c.Debug.Printf("Shutting %s down", m)
-		m.Shutdown()
+	done := make(chan struct{})
+	go func() {
+		// ...and request all managers to shut down.
+		c.Debug.Println("Waiting for managers to shutdown...")
+		for _, m := range c.man {
+			c.Debug.Printf("Shutting %s down", m)
+			m.Shutdown()
+		}
+		done <- struct{}{}
+	}()
+
+	select {
+	case <-intr:
+		c.Debug.Println("Forced shutdown")
+	case <-done:
+		c.Debug.Println("Shutting down regularly")
 	}
-	c.Debug.Println("Shutting down")
 }
