@@ -129,13 +129,17 @@ func (f *rand) Start() {
 			north, south = south, north
 		}
 
-		go game.Play(&kgp.Game{
-			Board: kgp.MakeBoard(
-				f.conf.BoardSize,
-				f.conf.BoardInit),
-			South: north,
-			North: south,
-		}, f.conf)
+		go func(north, south kgp.Agent) {
+			game.Play(&kgp.Game{
+				Board: kgp.MakeBoard(
+					f.conf.BoardSize,
+					f.conf.BoardInit),
+				South: north,
+				North: south,
+			}, f.conf)
+			f.Schedule(south)
+			f.Schedule(north)
+		}(north, south)
 	}
 	panic("Quitting Random Scheduler")
 }

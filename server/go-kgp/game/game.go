@@ -130,11 +130,4 @@ func Play(g *kgp.Game, conf *conf.Conf) {
 save:
 	conf.DB.SaveGame(bg, g)
 	conf.Debug.Printf("Game %d finished (%s)", g.Id, &g.State)
-
-	if g.South != nil {
-		conf.GM.Schedule(g.South)
-	}
-	if g.North != nil {
-		conf.GM.Schedule(g.North)
-	}
 }
