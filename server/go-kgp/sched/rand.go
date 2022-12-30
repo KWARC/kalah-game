@@ -135,9 +135,12 @@ func (f *rand) Start() {
 	panic("Quitting Random Scheduler")
 }
 
+func (*rand) Shutdown() {
+	select {}
+}
+
 func (f *rand) Schedule(a kgp.Agent)   { f.add <- a }
 func (f *rand) Unschedule(a kgp.Agent) { f.rem <- a }
-func (*rand) Shutdown()                {}
 func (*rand) String() string           { return "Random Scheduler" }
 
 func MakeRandom(config *conf.Conf) conf.GameManager {
