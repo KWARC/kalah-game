@@ -112,7 +112,7 @@ func parse(raw string, params ...interface{}) error {
 }
 
 // Interpret parses and evaluates INPUT
-func (cli *client) interpret(input string) error {
+func (cli *Client) interpret(input string) error {
 	dbg := cli.conf.Debug.Printf
 
 	input = strings.TrimSpace(input)

@@ -88,6 +88,6 @@ func upgrader(conf *conf.Conf) http.HandlerFunc {
 		}
 
 		conf.Debug.Printf("New connection from %s", conn.RemoteAddr())
-		proto.MakeClient(&wsrwc{Conn: conn}, conf)
+		go proto.MakeClient(&wsrwc{Conn: conn}, conf).Connect()
 	}
 }

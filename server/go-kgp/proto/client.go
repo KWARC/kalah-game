@@ -47,7 +47,7 @@ type response struct {
 }
 
 // Client wraps a network connection into a player
-type client struct {
+type Client struct {
 	conf *conf.Conf
 
 	// Agent Metadata
@@ -68,23 +68,23 @@ type client struct {
 	comm   string
 }
 
-func MakeClient(rwc io.ReadWriteCloser, conf *conf.Conf) {
-	go (&client{
+func MakeClient(rwc io.ReadWriteCloser, conf *conf.Conf) *Client {
+	return &Client{
 		user:  defaultUser,
 		games: make(map[uint64]*kgp.Game),
 		req:   make(chan *request, 1),
 		resp:  make(chan *response, 1),
 		rwc:   rwc,
 		conf:  conf,
-	}).handle()
+	}
 }
 
-func (cli *client) User() *kgp.User {
+func (cli *Client) User() *kgp.User {
 	return cli.user
 }
 
 // Request a client to make a move
-func (cli *client) Request(game *kgp.Game) (*kgp.Move, bool) {
+func (cli *Client) Request(game *kgp.Game) (*kgp.Move, bool) {
 	if cli.rwc == nil {
 		return nil, true
 	}
@@ -124,7 +124,7 @@ func (cli *client) Request(game *kgp.Game) (*kgp.Move, bool) {
 	}
 }
 
-func (cli *client) Alive() bool {
+func (cli *Client) Alive() bool {
 	defer cli.iolock.Unlock()
 	cli.iolock.Lock()
 	return cli.rwc != nil
@@ -132,17 +132,17 @@ func (cli *client) Alive() bool {
 
 // String will return a string representation for a client for
 // internal use
-func (cli *client) String() string {
+func (cli *Client) String() string {
 	return fmt.Sprintf("%p (%q)", cli.rwc, cli.user.Token)
 }
 
 // Send is a shorthand to respond without a reference
-func (cli *client) send(command string, args ...interface{}) uint64 {
+func (cli *Client) send(command string, args ...interface{}) uint64 {
 	return cli.respond(0, command, args...)
 }
 
 // Error is a shorthand to respond with an error message
-func (cli *client) error(to uint64, args ...interface{}) {
+func (cli *Client) error(to uint64, args ...interface{}) {
 	cli.respond(to, "error", args...)
 }
 
@@ -153,7 +153,7 @@ func (cli *client) error(to uint64, args ...interface{}) {
 // if the arguments have the right types for COMMAND.
 //
 // If TO is 0, no reference will be added.
-func (cli *client) respond(to uint64, command string, args ...interface{}) uint64 {
+func (cli *Client) respond(to uint64, command string, args ...interface{}) uint64 {
 	if cli == nil {
 		return 0
 	}
@@ -208,7 +208,7 @@ func (cli *client) respond(to uint64, command string, args ...interface{}) uint6
 }
 
 // Pinger regularly sends out a ping and checks if a pong was received.
-func (cli *client) pinger(ctx context.Context) {
+func (cli *Client) pinger(ctx context.Context) {
 	if cli.conf.TCPTimeout == 0 {
 		panic("TCP Timeout must be greater than 0")
 	}
@@ -254,7 +254,7 @@ func (cli *client) pinger(ctx context.Context) {
 // It will start a ping thread (if the configuration requires it), a
 // goroutine to handle and interpret input and then wait for the
 // client to be killed.
-func (cli *client) handle() {
+func (cli *Client) Connect() {
 	dbg := cli.conf.Debug.Println
 
 	// Ensure that the client has a channel that is being
