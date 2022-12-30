@@ -55,7 +55,7 @@ func main() {
 	proto.Prepare(config)
 
 	// Use the random scheduler
-	config.Register(conf.GameManager(sched.MakeRandom(config)))
+	config.Register(conf.GameManager(sched.MakeFIFO(config)))
 
 	// Launch the server
 	config.Start()

@@ -33,13 +33,13 @@ import (
 // just to avoid a predictive shuffling of north/south positions.
 func init() { random.Seed(time.Now().UnixMicro()) }
 
-type rand struct {
+type fifo struct {
 	conf *conf.Conf
 	add  chan kgp.Agent
 	rem  chan kgp.Agent
 }
 
-func (f *rand) Start() {
+func (f *fifo) Start() {
 	var q []kgp.Agent
 
 	for d, n := range f.conf.BotTypes {
@@ -135,16 +135,16 @@ func (f *rand) Start() {
 	panic("Quitting Random Scheduler")
 }
 
-func (*rand) Shutdown() {
+func (*fifo) Shutdown() {
 	select {}
 }
 
-func (f *rand) Schedule(a kgp.Agent)   { f.add <- a }
-func (f *rand) Unschedule(a kgp.Agent) { f.rem <- a }
-func (*rand) String() string           { return "Random Scheduler" }
+func (f *fifo) Schedule(a kgp.Agent)   { f.add <- a }
+func (f *fifo) Unschedule(a kgp.Agent) { f.rem <- a }
+func (*fifo) String() string           { return "Random Scheduler" }
 
-func MakeRandom(config *conf.Conf) conf.GameManager {
-	var man conf.GameManager = &rand{
+func MakeFIFO(config *conf.Conf) conf.GameManager {
+	var man conf.GameManager = &fifo{
 		add:  make(chan kgp.Agent, 1),
 		rem:  make(chan kgp.Agent, 1),
 		conf: config,
