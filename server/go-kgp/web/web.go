@@ -20,11 +20,11 @@
 package web
 
 import (
-	"bytes"
 	"embed"
 	"fmt"
 	"html/template"
 	"math"
+	"strings"
 	"time"
 
 	"go-kgp"
@@ -197,7 +197,7 @@ var (
 		},
 		"draw": func(m *kgp.Move, g *kgp.Game) template.HTML {
 			var (
-				B       bytes.Buffer
+				B       strings.Builder
 				b       = m.State
 				size, _ = b.Type()
 				u       = 50.0

@@ -20,7 +20,6 @@
 package kgp
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"math"
@@ -130,7 +129,7 @@ func (b *Board) Mirror() *Board {
 
 // String converts a board into a KGP representation
 func (b *Board) String() string {
-	var buf bytes.Buffer
+	var buf strings.Builder
 
 	fmt.Fprintf(&buf, "<%d,%d,%d", len(b.northPits), b.south, b.north)
 	for _, pit := range b.southPits {
