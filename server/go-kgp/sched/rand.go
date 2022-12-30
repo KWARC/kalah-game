@@ -137,6 +137,7 @@ func (f *rand) Start() {
 				South: north,
 				North: south,
 			}, f.conf)
+			time.Sleep(5 * time.Second)
 			f.Schedule(south)
 			f.Schedule(north)
 		}(north, south)
