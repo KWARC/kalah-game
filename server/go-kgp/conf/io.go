@@ -92,6 +92,7 @@ func Load() (c *Conf) {
 	switch {
 	case debug:
 		kgp.Debug.SetOutput(os.Stderr)
+		log.Default().SetFlags(log.LstdFlags | log.Lshortfile)
 		fallthrough
 	case silent:
 		log.Default().SetOutput(io.Discard)

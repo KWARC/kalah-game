@@ -1,6 +1,6 @@
 // Common Interfaces and constants
 //
-// Copyright (c) 2021, 2022  Philip Kaludercic
+// Copyright (c) 2021, 2022, 2023  Philip Kaludercic
 //
 // This file is part of go-kgp.
 //
@@ -146,6 +146,7 @@ type Game struct {
 	Current   Side
 	State     State
 	MoveCount uint
+	LastMove  time.Time
 }
 
 func (g *Game) Side(a Agent) Side {

@@ -9,6 +9,7 @@
 	  <td>South</td>
 	  <td>Result</td>
 	  <td>#Moves</td>
+	  <td>Last Move</td>
       </tr>
   </thead>
   <tbody>
@@ -56,6 +57,9 @@
 	<td>
 	  {{ .MoveCount }}
 	</td>
+	{{ with .LastMove }}
+	  <td>{{ timefmt . }}</td>
+	{{ end }}
       </tr>
     {{ else }}
        <tr><td colspan="7"><em>No games for the query</em></td></tr>

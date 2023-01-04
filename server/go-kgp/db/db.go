@@ -222,6 +222,7 @@ func (db *db) scanGame(ctx context.Context, scan func(dest ...interface{}) error
 	var (
 		nid, sid   int
 		size, init uint
+		lastmove   sql.NullString
 	)
 
 	game = &kgp.Game{}
@@ -230,7 +231,8 @@ func (db *db) scanGame(ctx context.Context, scan func(dest ...interface{}) error
 		&size, &init,
 		&nid, &sid,
 		&game.State,
-		&game.MoveCount)
+		&game.MoveCount,
+		&lastmove)
 	if err != nil {
 		return
 	}
@@ -248,6 +250,13 @@ func (db *db) scanGame(ctx context.Context, scan func(dest ...interface{}) error
 
 	game.North = (*user)(north)
 	game.South = (*user)(south)
+
+	if lastmove.Valid {
+		// 2023-01-04 12:35:09.0648946+01:00
+		// tfmt := `2006-01-02 15:04:05.9999999+07:00`
+		tfmt := `2006-01-02 15:04:05.999999999-07:00`
+		game.LastMove, err = time.Parse(tfmt, lastmove.String)
+	}
 
 	return
 }
