@@ -37,6 +37,8 @@ type fifo struct {
 	conf *conf.Conf
 	add  chan kgp.Agent
 	rem  chan kgp.Agent
+	shut chan struct{}
+	wait sync.WaitGroup
 }
 
 func (f *fifo) Start() {
@@ -44,6 +46,7 @@ func (f *fifo) Start() {
 		bots []kgp.Agent
 		q    []kgp.Agent
 		bi   int // bot index
+		done bool
 	)
 
 	for _, d := range f.conf.BotTypes {
@@ -57,7 +60,15 @@ func (f *fifo) Start() {
 	// Non-Priority: Avoid frequent encounters
 	for {
 		select {
+		case <-f.shut:
+			// Stop accepting new connections
+			done = true
+			continue
 		case a := <-f.add:
+			if done {
+				kgp.Debug.Println("Ignore", a)
+				continue
+			}
 			kgp.Debug.Println("Schedule", a)
 			if !bot.IsBot(a) {
 				q = append(q, a)
@@ -119,6 +130,7 @@ func (f *fifo) Start() {
 			north, south = south, north
 		}
 
+		f.wait.Add(1)
 		go func(north, south kgp.Agent) {
 			game.Play(&kgp.Game{
 				Board: kgp.MakeBoard(
@@ -130,13 +142,16 @@ func (f *fifo) Start() {
 			time.Sleep(5 * time.Second)
 			f.Schedule(south)
 			f.Schedule(north)
+			f.wait.Done()
 		}(north, south)
 	}
 	panic("Quitting Random Scheduler")
 }
 
-func (*fifo) Shutdown() {
-	select {}
+func (f *fifo) Shutdown() {
+	log.Println("Waiting for ongoing games to finish.")
+	f.shut <- struct{}{}
+	f.wait.Wait()
 }
 
 func (f *fifo) Schedule(a kgp.Agent)   { f.add <- a }
@@ -147,6 +162,7 @@ func MakeFIFO(config *conf.Conf) conf.GameManager {
 	var man conf.GameManager = &fifo{
 		add:  make(chan kgp.Agent, 1),
 		rem:  make(chan kgp.Agent, 1),
+		shut: make(chan struct{}),
 		conf: config,
 	}
 	return man
