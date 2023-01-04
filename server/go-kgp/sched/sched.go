@@ -1,6 +1,6 @@
 // Generic Scheduler Pool
 //
-// Copyright (c) 2022  Philip Kaludercic
+// Copyright (c) 2022, 2023  Philip Kaludercic
 //
 // This file is part of go-kgp.
 //
@@ -20,6 +20,7 @@
 package sched
 
 import (
+	"log"
 	"runtime"
 	"sync"
 
@@ -51,12 +52,12 @@ func (s *scheduler) run(wait *sync.WaitGroup) {
 				var err error
 				g.South, err = isol.Start(g.South)
 				if err != nil {
-					s.conf.Log.Print(err)
+					log.Print(err)
 					goto skip
 				}
 				g.North, err = isol.Start(g.North)
 				if err != nil {
-					s.conf.Log.Print(err)
+					log.Print(err)
 					goto skip
 				}
 

@@ -58,12 +58,12 @@ func (f *fifo) Start() {
 	for {
 		select {
 		case a := <-f.add:
-			f.conf.Debug.Println("Schedule", a)
+			kgp.Debug.Println("Schedule", a)
 			if !bot.IsBot(a) {
 				q = append(q, a)
 			}
 		case a := <-f.rem:
-			f.conf.Debug.Println("Remove", a)
+			kgp.Debug.Println("Remove", a)
 			for i := range q {
 				if q[i] != a {
 					continue
@@ -74,7 +74,7 @@ func (f *fifo) Start() {
 			}
 			continue
 		}
-		f.conf.Debug.Print(q)
+		kgp.Debug.Print(q)
 
 		// Remove all dead agents
 		i := 0
@@ -106,7 +106,7 @@ func (f *fifo) Start() {
 			q[1] = q[len(q)-2]
 			q = q[:len(q)-2]
 		}
-		f.conf.Debug.Println("Selected", north, south)
+		kgp.Debug.Println("Selected", north, south)
 
 		// Ensure that we actually have two agents
 		if north == nil || south == nil {

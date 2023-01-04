@@ -1,6 +1,6 @@
 // Configuration Management
 //
-// Copyright (c) 2021, 2022  Philip Kaludercic
+// Copyright (c) 2021, 2022, 2023  Philip Kaludercic
 //
 // This file is part of go-kgp.
 //
@@ -23,6 +23,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"os/signal"
 
@@ -78,7 +79,7 @@ func (c *Conf) Register(m Manager) {
 func (c *Conf) Start() {
 	// Start the service
 	for _, m := range c.man {
-		c.Debug.Printf("Starting %s", m)
+		kgp.Debug.Printf("Starting %s", m)
 		go m.Start()
 	}
 	c.run = true
@@ -88,17 +89,17 @@ func (c *Conf) Start() {
 	signal.Notify(intr, os.Interrupt)
 	select {
 	case <-intr:
-		c.Debug.Println("Caught interrupt")
+		log.Println("Caught interrupt")
 	case <-c.Ctx.Done():
-		c.Debug.Println("Requested shutdown")
+		log.Println("Requested shutdown")
 	}
 
 	done := make(chan struct{})
 	go func() {
 		// ...and request all managers to shut down.
-		c.Debug.Println("Waiting for managers to shutdown...")
+		kgp.Debug.Println("Waiting for managers to shutdown...")
 		for _, m := range c.man {
-			c.Debug.Printf("Shutting %s down", m)
+			kgp.Debug.Printf("Shutting %s down", m)
 			m.Shutdown()
 		}
 		done <- struct{}{}
@@ -106,8 +107,8 @@ func (c *Conf) Start() {
 
 	select {
 	case <-intr:
-		c.Debug.Println("Forced shutdown")
+		log.Println("Forced shutdown")
 	case <-done:
-		c.Debug.Println("Shutting down regularly")
+		log.Println("Shutting down regularly")
 	}
 }

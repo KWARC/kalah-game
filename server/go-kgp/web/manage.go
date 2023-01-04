@@ -1,6 +1,6 @@
 // Web interface manager
 //
-// Copyright (c) 2021, 2022  Philip Kaludercic
+// Copyright (c) 2021, 2022, 2023  Philip Kaludercic
 //
 // This file is part of go-kgp.
 //
@@ -31,6 +31,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"go-kgp"
 	"go-kgp/conf"
 )
 
@@ -43,17 +44,17 @@ type web struct {
 
 func (s *web) listen() {
 	addr := fmt.Sprintf(":%d", s.conf.WebPort)
-	s.conf.Debug.Printf("Listening via HTTP on %s", addr)
+	log.Printf("Listening via HTTP on %s", addr)
 
 	err := http.ListenAndServe(addr, s.mux)
 	if err != nil {
-		s.conf.Log.Print(err)
+		log.Print(err)
 	}
 }
 
 func (s *web) drawGraphs() {
 	var (
-		dbg  = s.conf.Debug.Println
+		dbg  = kgp.Debug.Println
 		draw = s.conf.DB.DrawGraph
 	)
 
@@ -149,13 +150,13 @@ func (s *web) Start() {
 	s.mux.Handle("/static/", http.FileServer(http.FS(static)))
 	if s.conf.Data != "" {
 		if stat, err := os.Stat(s.conf.Data); err != nil {
-			s.conf.Log.Fatalf("Fail to access data directory %s: %s",
+			log.Fatalf("Fail to access data directory %s: %s",
 				s.conf.Data, err)
 		} else if !stat.IsDir() {
-			s.conf.Log.Fatalf("Data directory is not a directory %s",
+			log.Fatalf("Data directory is not a directory %s",
 				s.conf.Data)
 		}
-		s.conf.Debug.Printf("Serving a /data/ directory (%s)", s.conf.Data)
+		log.Printf("Serving a /data/ directory (%s)", s.conf.Data)
 		dir := http.FileServer(http.Dir(s.conf.Data))
 		s.mux.Handle("/data/", http.StripPrefix("/data/", dir))
 	}
@@ -163,7 +164,7 @@ func (s *web) Start() {
 	s.mux.HandleFunc("/", s.index)
 
 	if _, err := exec.LookPath("dot"); err == nil {
-		s.conf.Debug.Print("Enabling graph generation")
+		log.Print("Enabling graph generation")
 		funcs["hasgraph"] = func() bool { return true }
 		s.drawGraphs()
 	} else {
@@ -172,7 +173,7 @@ func (s *web) Start() {
 
 	// Install the WebSocket handler
 	if s.conf.WebSocket {
-		s.conf.Debug.Print("Accepting websocket connections on /socket")
+		log.Print("Accepting websocket connections on /socket")
 		s.mux.HandleFunc("/socket", upgrader(s.conf))
 	}
 

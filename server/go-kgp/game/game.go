@@ -1,6 +1,6 @@
 // Game Model
 //
-// Copyright (c) 2021, 2022  Philip Kaludercic
+// Copyright (c) 2021, 2022, 2023  Philip Kaludercic
 //
 // This file is part of go-kgp.
 //
@@ -53,7 +53,7 @@ func MoveCopy(g *kgp.Game, m *kgp.Move) (*kgp.Game, bool) {
 }
 
 func Play(g *kgp.Game, conf *conf.Conf) {
-	dbg := conf.Debug.Printf
+	dbg := kgp.Debug.Printf
 	bg := context.Background()
 
 	g.State = kgp.ONGOING
@@ -129,5 +129,5 @@ func Play(g *kgp.Game, conf *conf.Conf) {
 	}
 save:
 	conf.DB.SaveGame(bg, g)
-	conf.Debug.Printf("Game %d finished (%s)", g.Id, &g.State)
+	kgp.Debug.Printf("Game %d finished (%s)", g.Id, &g.State)
 }

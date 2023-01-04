@@ -1,6 +1,6 @@
 // Client Communication Management
 //
-// Copyright (c) 2021, 2022  Philip Kaludercic
+// Copyright (c) 2021, 2022, 2023  Philip Kaludercic
 //
 // This file is part of go-kgp.
 //
@@ -25,6 +25,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -196,11 +197,11 @@ func (cli *Client) respond(to uint64, command string, args ...interface{}) uint6
 		return 0
 	}
 
-	cli.conf.Debug.Println(cli, ">", buf.String())
+	kgp.Debug.Println(cli, ">", buf.String())
 	fmt.Fprint(&buf, "\r\n")
 	_, err := io.Copy(cli.rwc, &buf)
 	if err != nil {
-		cli.conf.Debug.Print(err)
+		kgp.Debug.Print(err)
 		return 0
 	}
 
@@ -242,7 +243,7 @@ func (cli *Client) pinger(ctx context.Context) {
 			}
 			cli.iolock.Unlock()
 
-			cli.conf.Debug.Printf("%s did not respond to a ping in time", cli)
+			kgp.Debug.Printf("%s did not respond to a ping in time", cli)
 			cli.kill()
 			break
 		}
@@ -255,7 +256,7 @@ func (cli *Client) pinger(ctx context.Context) {
 // goroutine to handle and interpret input and then wait for the
 // client to be killed.
 func (cli *Client) Connect() {
-	dbg := cli.conf.Debug.Println
+	dbg := kgp.Debug.Println
 
 	// Ensure that the client has a channel that is being
 	// communicated upon.
@@ -295,7 +296,7 @@ func (cli *Client) Connect() {
 			dbg(cli, "<", input)
 			err := cli.interpret(input)
 			if err != nil {
-				cli.conf.Log.Print(err)
+				log.Print(err)
 			}
 
 		}
@@ -303,7 +304,7 @@ func (cli *Client) Connect() {
 		// See https://github.com/golang/go/commit/e9ad52e46dee4b4f9c73ff44f44e1e234815800f
 		err := scanner.Err()
 		if err != nil && !strings.Contains(err.Error(), "use of closed network connection") {
-			cli.conf.Log.Print(err)
+			log.Print(err)
 		}
 		cli.kill()
 	}()

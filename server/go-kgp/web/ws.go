@@ -1,6 +1,6 @@
 // Websocket interface
 //
-// Copyright (c) 2021, 2022  Philip Kaludercic
+// Copyright (c) 2021, 2022, 2023  Philip Kaludercic
 // Copyright (c) 2021  Tom Wiesing
 //
 // This file is part of go-kgp.
@@ -21,7 +21,9 @@
 package web
 
 import (
+	"go-kgp"
 	"io"
+	"log"
 	"net/http"
 
 	"go-kgp/conf"
@@ -82,12 +84,12 @@ func upgrader(conf *conf.Conf) http.HandlerFunc {
 			WriteBufferSize: 1024,
 		}).Upgrade(w, r, nil)
 		if err != nil {
-			conf.Debug.Printf("Unable to upgrade connection: %s", err)
+			kgp.Debug.Printf("Unable to upgrade connection: %s", err)
 			w.WriteHeader(400)
 			return
 		}
 
-		conf.Debug.Printf("New connection from %s", conn.RemoteAddr())
+		log.Printf("New connection from %s", conn.RemoteAddr())
 		go proto.MakeClient(&wsrwc{Conn: conn}, conf).Connect()
 	}
 }

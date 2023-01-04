@@ -36,9 +36,10 @@ const (
 )
 
 var (
-	debug bool   = false
-	dump  bool   = false
-	cfile string = defconf
+	debug  bool   = false
+	silent bool   = false
+	dump   bool   = false
+	cfile  string = defconf
 )
 
 // Parse a configuration from R into CONF
@@ -88,8 +89,12 @@ func Load() (c *Conf) {
 	}
 	defer file.Close()
 
-	if debug {
-		c.Debug.SetOutput(os.Stderr)
+	switch {
+	case debug:
+		kgp.Debug.SetOutput(os.Stderr)
+		fallthrough
+	case silent:
+		log.Default().SetOutput(io.Discard)
 	}
 	c.Play = make(chan *kgp.Game, 1)
 	c.Ctx, c.Kill = context.WithCancel(context.Background())

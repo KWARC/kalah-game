@@ -1,6 +1,6 @@
 // Web request handlers
 //
-// Copyright (c) 2021, 2022  Philip Kaludercic
+// Copyright (c) 2021, 2022, 2023  Philip Kaludercic
 //
 // This file is part of go-kgp.
 //
@@ -22,6 +22,7 @@ package web
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"path"
 	"strconv"
@@ -53,7 +54,7 @@ func (s *web) index(w http.ResponseWriter, r *http.Request) {
 		User  *kgp.User // intentionally unused
 	}{c, page, nil})
 	if err != nil {
-		s.conf.Log.Print(err)
+		log.Print(err)
 	}
 }
 
@@ -122,7 +123,7 @@ func (s *web) showAgent(w http.ResponseWriter, r *http.Request) {
 		Page  int
 	}{user, gc, page})
 	if err != nil {
-		s.conf.Log.Print(err)
+		log.Print(err)
 	}
 }
 
@@ -146,7 +147,7 @@ func (s *web) showAgents(w http.ResponseWriter, r *http.Request) {
 		Page  int
 	}{uc, page})
 	if err != nil {
-		s.conf.Log.Print(err)
+		log.Print(err)
 	}
 }
 
@@ -173,6 +174,6 @@ func (s *web) showGame(w http.ResponseWriter, r *http.Request) {
 		Moves chan *kgp.Move
 	}{<-gc, mc})
 	if err != nil {
-		s.conf.Log.Print(err)
+		log.Print(err)
 	}
 }

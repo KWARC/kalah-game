@@ -1,6 +1,6 @@
 // Docker-Based Client Isolation
 //
-// Copyright (c) 2022  Philip Kaludercic
+// Copyright (c) 2022, 2023  Philip Kaludercic
 //
 // This file is part of go-kgp.
 //
@@ -51,7 +51,7 @@ func (d *docker) Alive() bool {
 	ctx := context.Background()
 	resp, err := d.cont.ContainerInspect(ctx, d.id)
 	if err != nil {
-		d.conf.Debug.Print(err)
+		kgp.Debug.Print(err)
 		return false
 	}
 	return !resp.State.Dead // XXX: Is this enough?

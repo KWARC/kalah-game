@@ -1,6 +1,6 @@
 // TCP interface
 //
-// Copyright (c) 2021, 2022  Philip Kaludercic
+// Copyright (c) 2021, 2022, 2023, 2023  Philip Kaludercic
 //
 // This file is part of go-kgp.
 //
@@ -21,6 +21,7 @@ package proto
 
 import (
 	"fmt"
+	"log"
 	"net"
 	"strconv"
 	"strings"
@@ -49,7 +50,7 @@ func (t *Listener) init() {
 	tcp := fmt.Sprintf(":%d", t.port)
 	t.conn, err = net.Listen("tcp", tcp)
 	if err != nil {
-		t.conf.Log.Fatal(err)
+		log.Fatal(err)
 	}
 	if t.port == 0 {
 		// Extract port number the operating system bound the listener
@@ -57,11 +58,11 @@ func (t *Listener) init() {
 		addr := t.conn.Addr().String()
 		i := strings.LastIndexByte(addr, ':')
 		if i == -1 && i+1 == len(addr) {
-			t.conf.Log.Fatal("Invalid address ", addr)
+			log.Fatal("Invalid address ", addr)
 		}
 		port, err := strconv.ParseUint(addr[i+1:], 10, 16)
 		if err != nil {
-			t.conf.Log.Fatal("Unexpected error ", err)
+			log.Fatal("Unexpected error ", err)
 		}
 		t.port = uint16(port)
 
@@ -74,7 +75,7 @@ func (t *Listener) Start() {
 	}
 	t.init()
 
-	t.conf.Debug.Printf("Accepting connections on :%d", t.port)
+	log.Printf("Accepting connections on :%d", t.port)
 	for {
 		conn, err := t.conn.Accept()
 		if err != nil {
@@ -93,7 +94,7 @@ func (t *Listener) Port() uint16 {
 
 func (t *Listener) Shutdown() {
 	if err := t.conn.Close(); err != nil {
-		t.conf.Log.Print(err)
+		log.Print(err)
 	}
 }
 

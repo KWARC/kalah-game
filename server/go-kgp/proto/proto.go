@@ -1,6 +1,6 @@
 // Protocol Handling
 //
-// Copyright (c) 2021, 2022  Philip Kaludercic
+// Copyright (c) 2021, 2022, 2023  Philip Kaludercic
 //
 // This file is part of go-kgp.
 //
@@ -113,7 +113,7 @@ func parse(raw string, params ...interface{}) error {
 
 // Interpret parses and evaluates INPUT
 func (cli *Client) interpret(input string) error {
-	dbg := cli.conf.Debug.Printf
+	dbg := kgp.Debug.Printf
 
 	input = strings.TrimSpace(input)
 	if input == "" { // Ignore empty lines

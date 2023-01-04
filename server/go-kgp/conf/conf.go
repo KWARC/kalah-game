@@ -22,8 +22,6 @@ package conf
 import (
 	"context"
 	"flag"
-	"io"
-	"log"
 	"time"
 
 	"go-kgp"
@@ -59,10 +57,8 @@ type conf struct {
 
 // Public configuration
 type Conf struct {
-	Log   *log.Logger
-	Debug *log.Logger
-	Ctx   context.Context
-	Kill  context.CancelFunc
+	Ctx  context.Context
+	Kill context.CancelFunc
 
 	// Protocol Configuration
 	TCPPort    uint          // Port for accepting connections
@@ -97,9 +93,6 @@ type Conf struct {
 
 // Configuration object used by default
 var defaultConfig = Conf{
-	Log:   log.Default(),
-	Debug: log.New(io.Discard, "[debug]", log.Ltime|log.Lshortfile|log.Lmicroseconds),
-
 	// Protocol Configuration
 	TCPPort:    2671,
 	Ping:       true,
@@ -143,6 +136,7 @@ func init() {
 	flag.StringVar(&defaultConfig.Data, "data", defaultConfig.Data,
 		"Directory to use for hosting /data/ requests")
 	flag.BoolVar(&debug, "debug", dump, "Enable debug output")
+	flag.BoolVar(&silent, "silent", silent, "Enable verbose output")
 	flag.BoolVar(&dump, "dump-config", dump, "Dump configuration to standard output")
 	flag.StringVar(&cfile, "conf", cfile, "Path to configuration file")
 }

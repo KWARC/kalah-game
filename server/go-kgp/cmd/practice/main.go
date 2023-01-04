@@ -1,6 +1,6 @@
 // Entry point
 //
-// Copyright (c) 2021, 2022  Philip Kaludercic
+// Copyright (c) 2021, 2022, 2023  Philip Kaludercic
 //
 // This file is part of go-kgp.
 //
@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"os"
 
+	"go-kgp"
 	"go-kgp/conf"
 	"go-kgp/db"
 	"go-kgp/proto"
@@ -43,7 +44,7 @@ func main() {
 
 	// Load the configuration from disk (if available)
 	config := conf.Load()
-	config.Debug.Println("Debug logging has been enabled")
+	kgp.Debug.Println("Debug logging has been enabled")
 
 	// Enable the database
 	db.Prepare(config)
