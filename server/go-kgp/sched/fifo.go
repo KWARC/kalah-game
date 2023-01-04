@@ -20,7 +20,9 @@
 package sched
 
 import (
-	random "math/rand"
+	"log"
+	"math/rand"
+	"sync"
 	"time"
 
 	"go-kgp"
@@ -31,7 +33,7 @@ import (
 
 // The intent is not to have a secure source of random values, but
 // just to avoid a predictive shuffling of north/south positions.
-func init() { random.Seed(time.Now().UnixMicro()) }
+func init() { rand.Seed(time.Now().UnixMicro()) }
 
 type fifo struct {
 	conf *conf.Conf
@@ -53,11 +55,6 @@ func (f *fifo) Start() {
 		bots = append(bots, bot.MakeMinMax(d))
 	}
 
-	// Idea: FIFO but get lucky and you might be pulled ahead
-	//
-	// Priority: Reduce average waiting time
-	//
-	// Non-Priority: Avoid frequent encounters
 	for {
 		select {
 		case <-f.shut:
@@ -72,6 +69,18 @@ func (f *fifo) Start() {
 			kgp.Debug.Println("Schedule", a)
 			if !bot.IsBot(a) {
 				q = append(q, a)
+
+				// The idea here is to give clients
+				// the chance to meet up, instead of
+				// directly pairing them up with a
+				// bot.  The disadvantage is that
+				// fewer games are played, but this
+				// also reduces the server load.
+				time.Sleep(5 * time.Second)
+				kgp.Debug.Println("Waiting:", len(f.add))
+				if len(f.add) > 0 {
+					continue
+				}
 			}
 		case a := <-f.rem:
 			kgp.Debug.Println("Remove", a)
@@ -90,12 +99,13 @@ func (f *fifo) Start() {
 		// Remove all dead agents
 		i := 0
 		for _, a := range q {
-			if a.Alive() {
+			if a != nil && a.Alive() {
 				q[i] = a
 				i++
 			}
 		}
 		q = q[:i]
+		kgp.Debug.Print(q)
 
 		// Select two agents, or two agents and a bot if only
 		// one agent is available.
@@ -116,6 +126,16 @@ func (f *fifo) Start() {
 			q[0] = q[len(q)-1]
 			q[1] = q[len(q)-2]
 			q = q[:len(q)-2]
+
+			// Prevent an agent from playing against
+			// himself (note that this does not prevent
+			// two separate agents with the same token to
+			// challenge one another)
+			if north == south {
+				q = append(q, north)
+				continue
+			}
+
 		}
 		kgp.Debug.Println("Selected", north, south)
 
@@ -126,7 +146,7 @@ func (f *fifo) Start() {
 
 		// Start a game, but shuffle the order to avoid an
 		// advantage for bots or non-bots.
-		if random.Intn(2) == 0 {
+		if rand.Intn(2) == 0 {
 			north, south = south, north
 		}
 
@@ -139,13 +159,11 @@ func (f *fifo) Start() {
 				South: north,
 				North: south,
 			}, f.conf)
-			time.Sleep(5 * time.Second)
 			f.Schedule(south)
 			f.Schedule(north)
 			f.wait.Done()
 		}(north, south)
 	}
-	panic("Quitting Random Scheduler")
 }
 
 func (f *fifo) Shutdown() {
@@ -160,8 +178,8 @@ func (*fifo) String() string           { return "FIFO Scheduler" }
 
 func MakeFIFO(config *conf.Conf) conf.GameManager {
 	var man conf.GameManager = &fifo{
-		add:  make(chan kgp.Agent, 1),
-		rem:  make(chan kgp.Agent, 1),
+		add:  make(chan kgp.Agent, 16),
+		rem:  make(chan kgp.Agent, 16),
 		shut: make(chan struct{}),
 		conf: config,
 	}
