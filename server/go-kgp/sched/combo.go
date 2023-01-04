@@ -1,6 +1,6 @@
 // Scheduler Combinator
 //
-// Copyright (c) 2021, 2022  Philip Kaludercic
+// Copyright (c) 2021, 2022, 2023  Philip Kaludercic
 //
 // This file is part of go-kgp.
 //
@@ -37,14 +37,14 @@ type combo struct {
 	wait sync.WaitGroup
 	ag   map[kgp.Agent]struct{}
 	ms   []conf.GameManager
-	i    atomic.Uint64
+	i    uint64
 }
 
 func (c *combo) Start() {
 	c.wait.Add(1)
 
 	next := c.ag
-	for m := c.ms[0]; m != nil; m = c.ms[c.i.Add(1)] {
+	for m := c.ms[0]; m != nil; m = c.ms[atomic.AddUint64(&c.i, 1)] {
 		c, ok := m.(composable)
 		if ok {
 			c.initialize(next)
@@ -60,11 +60,11 @@ func (c *combo) Start() {
 }
 
 func (c *combo) Schedule(a kgp.Agent) {
-	c.ms[c.i.Load()].Schedule(a)
+	c.ms[atomic.LoadUint64(&c.i)].Schedule(a)
 }
 
 func (c *combo) Unschedule(a kgp.Agent) {
-	c.ms[c.i.Load()].Unschedule(a)
+	c.ms[atomic.LoadUint64(&c.i)].Unschedule(a)
 }
 
 func (c *combo) Shutdown() {
