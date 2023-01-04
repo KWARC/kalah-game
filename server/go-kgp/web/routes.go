@@ -58,7 +58,7 @@ func (s *web) index(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Generate the index page
+// Redirect a query
 func (s *web) query(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()
 	if err != nil {
