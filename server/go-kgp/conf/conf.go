@@ -29,7 +29,6 @@ import (
 
 // Internal representation
 type conf struct {
-	Debug    bool `toml:"debug"`
 	Database struct {
 		File string `toml:"file"`
 	} `toml:"database"`
