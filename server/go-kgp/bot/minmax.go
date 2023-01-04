@@ -1,6 +1,6 @@
 // Primitive MinMax Agent
 //
-// Copyright (c) 2022  Philip Kaludercic
+// Copyright (c) 2022, 2023  Philip Kaludercic
 //
 // This file is part of go-kgp.
 //
@@ -152,7 +152,7 @@ func MakeMinMax(depth uint) kgp.Agent {
 Simple reference implementation for a MinMax agent.
 
 This agent is a bot and is provided by the practice server to make
-comparing the performanceeasier.  Note that bots are not time-bound
+comparing the performance easier.  Note that bots are not time-bound
 and will always complete their search.  This agent will always search
 %d plies ahead and return the best move it can find.`, depth),
 		},
