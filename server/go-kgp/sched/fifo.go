@@ -156,7 +156,7 @@ func (f *fifo) Shutdown() {
 
 func (f *fifo) Schedule(a kgp.Agent)   { f.add <- a }
 func (f *fifo) Unschedule(a kgp.Agent) { f.rem <- a }
-func (*fifo) String() string           { return "Random Scheduler" }
+func (*fifo) String() string           { return "FIFO Scheduler" }
 
 func MakeFIFO(config *conf.Conf) conf.GameManager {
 	var man conf.GameManager = &fifo{
