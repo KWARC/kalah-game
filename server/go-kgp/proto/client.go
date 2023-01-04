@@ -35,7 +35,10 @@ import (
 	"go-kgp/conf"
 )
 
-var defaultUser = &kgp.User{Descr: `Pseudo-user of all unidentified agents.`}
+var defaultUser = &kgp.User{
+	Name:  "Anonymous",
+	Descr: `Pseudo-user of all unidentified agents.`,
+}
 
 type request struct {
 	move chan<- *kgp.Move
