@@ -266,9 +266,7 @@ func (db *db) QueryGames(ctx context.Context, aid int, c chan<- *kgp.Game, page 
 			aid, page)
 	}
 	if err != nil {
-		if err != sql.ErrNoRows {
-			log.Print(err)
-		}
+		log.Print(err)
 		return
 	}
 	defer rows.Close()
@@ -276,9 +274,7 @@ func (db *db) QueryGames(ctx context.Context, aid int, c chan<- *kgp.Game, page 
 	for rows.Next() {
 		game, err := db.scanGame(ctx, rows.Scan)
 		if err != nil {
-			if err != sql.ErrNoRows {
-				log.Print(err)
-			}
+			log.Print(err)
 			return
 		}
 		c <- game
@@ -292,9 +288,7 @@ func (db *db) QueryUsers(ctx context.Context, c chan<- *kgp.User, page int) {
 	defer close(c)
 	rows, err := db.queries["select-agents"].QueryContext(ctx, page)
 	if err != nil {
-		if err != sql.ErrNoRows {
-			log.Print(err)
-		}
+		log.Print(err)
 		return
 	}
 	defer rows.Close()
