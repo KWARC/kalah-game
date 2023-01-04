@@ -98,7 +98,8 @@ func (c *Conf) Start() {
 	go func() {
 		// ...and request all managers to shut down.
 		kgp.Debug.Println("Waiting for managers to shutdown...")
-		for _, m := range c.man {
+		for i := len(c.man) - 1; i >= 0; i-- {
+			m := c.man[i]
 			kgp.Debug.Printf("Shutting %s down", m)
 			m.Shutdown()
 		}
