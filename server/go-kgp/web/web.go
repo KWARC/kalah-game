@@ -23,7 +23,6 @@ import (
 	"embed"
 	"fmt"
 	"html/template"
-	"math"
 	"strings"
 	"time"
 
@@ -54,18 +53,7 @@ var (
 			return i - 1
 		},
 		"timefmt": func(t time.Time) string {
-			s := time.Since(t).Round(time.Second)
-			switch {
-			case s < time.Second*5:
-				return "now"
-			case s < time.Minute:
-				return fmt.Sprintf("%fs ago", s.Seconds())
-			case s < 10*time.Minute:
-				minutes := math.Floor(s.Minutes())
-				return fmt.Sprintf("%.0fm%fs ago", minutes, s.Seconds())
-			default:
-				return t.Format(time.Stamp)
-			}
+			return t.Format(time.Stamp)
 		},
 		"result": func(a *kgp.User, g kgp.Game) template.HTML {
 			var msg string
