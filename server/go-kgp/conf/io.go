@@ -1,6 +1,6 @@
 // Configuration loading and dumping
 //
-// Copyright (c) 2021, 2022  Philip Kaludercic
+// Copyright (c) 2021, 2022, 2023  Philip Kaludercic
 //
 // This file is part of go-kgp.
 //
@@ -65,12 +65,7 @@ func load(r io.Reader) (*Conf, error) {
 	c.WebPort = uint(data.Proto.Port)
 	data.Game.Open.Init = c.BoardInit
 	data.Game.Open.Size = c.BoardSize
-	for _, d := range data.Game.Open.Bots {
-		if _, ok := c.BotTypes[d]; !ok {
-			c.BotTypes[d] = 0
-		}
-		c.BotTypes[d]++
-	}
+	c.BotTypes = data.Game.Open.Bots
 
 	return &c, nil
 }
@@ -123,11 +118,7 @@ func (c *Conf) Dump(wr io.Writer) error {
 	data.Game.Timeout = uint(c.MoveTimeout / time.Millisecond)
 	data.Game.Open.Init = c.BoardInit
 	data.Game.Open.Size = c.BoardSize
-	for d, n := range c.BotTypes {
-		for i := uint(0); i < n; i++ {
-			data.Game.Open.Bots = append(data.Game.Open.Bots, d)
-		}
-	}
+	data.Game.Open.Bots = c.BotTypes
 	data.Web.Enabled = c.WebInterface
 	data.Web.About = c.About
 	data.Web.Port = uint(c.WebPort)

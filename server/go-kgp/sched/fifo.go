@@ -1,6 +1,6 @@
 // Connection Queue Handling
 //
-// Copyright (c) 2021, 2022  Philip Kaludercic
+// Copyright (c) 2021, 2022, 2023  Philip Kaludercic
 //
 // This file is part of go-kgp.
 //
@@ -40,13 +40,14 @@ type fifo struct {
 }
 
 func (f *fifo) Start() {
-	var q []kgp.Agent
+	var (
+		bots []kgp.Agent
+		q    []kgp.Agent
+		bi   int // bot index
+	)
 
-	for d, n := range f.conf.BotTypes {
-		for i := uint(0); i < n; i++ {
-			f.conf.Debug.Printf("Add MinMax bot with depth %d", d)
-			q = append(q, bot.MakeMinMax(d))
-		}
+	for _, d := range f.conf.BotTypes {
+		bots = append(bots, bot.MakeMinMax(d))
 	}
 
 	// Idea: FIFO but get lucky and you might be pulled ahead
@@ -58,7 +59,9 @@ func (f *fifo) Start() {
 		select {
 		case a := <-f.add:
 			f.conf.Debug.Println("Schedule", a)
-			q = append(q, a)
+			if !bot.IsBot(a) {
+				q = append(q, a)
+			}
 		case a := <-f.rem:
 			f.conf.Debug.Println("Remove", a)
 			for i := range q {
@@ -83,35 +86,32 @@ func (f *fifo) Start() {
 		}
 		q = q[:i]
 
-		// Try and select two agents, where at least one is
-		// not a bot
-		var (
-			north, south kgp.Agent
-			ni, si       int = -1, -1
-		)
-		for i, a := range q {
-			if !bot.IsBot(a) {
-				north = a
-				ni = i
-				break
-			}
-		}
-		for i, a := range q {
-			if i != ni {
-				south = a
-				si = i
-				break
-			}
+		// Select two agents, or two agents and a bot if only
+		// one agent is available.
+		var north, south kgp.Agent
+		switch len(q) {
+		case 0:
+			continue
+		case 1:
+			south = q[0]
+			q = nil
+
+			// rotate through all bots
+			bi = (bi + 1) % len(bots)
+			north = bots[bi]
+		default:
+			south = q[0]
+			north = q[1]
+			q[0] = q[len(q)-1]
+			q[1] = q[len(q)-2]
+			q = q[:len(q)-2]
 		}
 		f.conf.Debug.Println("Selected", north, south)
 
-		// Only proceed if we actually found two agents
+		// Ensure that we actually have two agents
 		if north == nil || south == nil {
-			continue
+			panic("Illegal state")
 		}
-		q[ni] = q[len(q)-1]
-		q[si] = q[len(q)-2]
-		q = q[:len(q)-2]
 
 		// Start a game, but shuffle the order to avoid an
 		// advantage for bots or non-bots.

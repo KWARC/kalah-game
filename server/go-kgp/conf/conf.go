@@ -1,6 +1,6 @@
 // Configuration Specification and Management
 //
-// Copyright (c) 2021, 2022  Philip Kaludercic
+// Copyright (c) 2021, 2022, 2023  Philip Kaludercic
 //
 // This file is part of go-kgp.
 //
@@ -88,7 +88,7 @@ type Conf struct {
 	// Public Tournament configuration
 	BoardInit uint
 	BoardSize uint
-	BotTypes  map[uint]uint
+	BotTypes  []uint
 
 	// Internal state
 	man []Manager // List of system managers
@@ -115,7 +115,7 @@ var defaultConfig = Conf{
 	// Public Tournament configuration
 	BoardInit: 8,
 	BoardSize: 8,
-	BotTypes:  map[uint]uint{2: 4, 4: 4, 6: 4, 8: 4},
+	BotTypes:  []uint{2, 4, 6, 8},
 
 	// Website configuration
 	WebInterface: true,
