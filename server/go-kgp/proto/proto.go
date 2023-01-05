@@ -24,7 +24,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"sync/atomic"
 	"time"
 	"unicode"
 
@@ -212,7 +211,7 @@ func (cli *Client) interpret(input string) error {
 		// We do not expect the client to confirm or reject anything,
 		// so we can ignore these response messages.
 	case "pong":
-		atomic.StoreUint32(&cli.pinged, 0)
+		cli.alive <- struct{}{}
 	case "set":
 		// Note that VAL doesn't have to be a string per spec,
 		// but we will parse it as such to keep it in it's

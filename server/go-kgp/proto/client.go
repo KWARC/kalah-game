@@ -64,10 +64,10 @@ type Client struct {
 	rid    uint64
 	last   uint64
 	kill   context.CancelFunc
-	pinged uint32 // actually bool
 	games  map[uint64]*kgp.Game
 	req    chan *request
 	resp   chan *response
+	alive  chan struct{}
 	init   bool
 	comm   string
 }
@@ -78,6 +78,7 @@ func MakeClient(rwc io.ReadWriteCloser, conf *conf.Conf) *Client {
 		games: make(map[uint64]*kgp.Game),
 		req:   make(chan *request, 1),
 		resp:  make(chan *response, 1),
+		alive: make(chan struct{}, 1),
 		rwc:   rwc,
 		conf:  conf,
 	}
@@ -118,6 +119,7 @@ func (cli *Client) Request(game *kgp.Game) (*kgp.Move, bool) {
 	for {
 		select {
 		case <-time.After(cli.conf.MoveTimeout):
+			cli.ping()
 			return move, false
 		case m := <-c:
 			if m == nil {
@@ -129,9 +131,7 @@ func (cli *Client) Request(game *kgp.Game) (*kgp.Move, bool) {
 }
 
 func (cli *Client) Alive() bool {
-	defer cli.iolock.Unlock()
-	cli.iolock.Lock()
-	return cli.rwc != nil
+	return cli.ping()
 }
 
 // String will return a string representation for a client for
@@ -211,45 +211,24 @@ func (cli *Client) respond(to uint64, command string, args ...interface{}) uint6
 	return id
 }
 
-// Pinger regularly sends out a ping and checks if a pong was received.
-func (cli *Client) pinger(ctx context.Context) {
-	if cli.conf.TCPTimeout == 0 {
-		panic("TCP Timeout must be greater than 0")
+// Ping a client, block and return if it is still alive
+func (cli *Client) ping() bool {
+	if !cli.conf.Ping {
+		return cli.rwc != nil
 	}
-	ticker := time.NewTicker(cli.conf.TCPTimeout)
-	defer ticker.Stop()
 
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			// If the timer fired, check the ping flag and
-			// kill the client if it is still set
-			if cli.rwc == nil {
-				continue
-			}
-		}
+	id := cli.send("ping")
+	if id == 0 {
+		return false
+	}
 
-		// To prevent race conditions, we atomically check and
-		// reset the pinged flag.  We try to set the flag, but
-		// will fail if it is already set.  Failure will lead
-		// to us aborting the connection.  Otherwise we send
-		// the client a ping request.
-		if atomic.CompareAndSwapUint32(&cli.pinged, 0, 1) {
-			cli.send("ping")
-		} else {
-			// Attempt to send an error message, ignoring errors
-			cli.iolock.Lock()
-			if cli.rwc != nil {
-				fmt.Fprint(cli.rwc, "error \"Received no pong\"\r\n")
-			}
-			cli.iolock.Unlock()
-
-			kgp.Debug.Printf("%s did not respond to a ping in time", cli)
-			cli.kill()
-			break
-		}
+	select {
+	case <-time.After(cli.conf.TCPTimeout):
+		cli.error(id, "received no pong")
+		cli.kill()
+		return false
+	case <-cli.alive:
+		return cli.rwc != nil
 	}
 }
 
@@ -274,15 +253,6 @@ func (cli *Client) Connect() {
 	// Initiate the protocol with the client
 	cli.send("kgp", majorVersion, minorVersion, patchVersion)
 
-	// Optionally start a thread to periodically send ping
-	// requests to the client
-	var done context.CancelFunc
-	if cli.conf.Ping {
-		var pctx context.Context
-		pctx, done = context.WithCancel(context.Background())
-		go cli.pinger(pctx)
-	}
-
 	// Start a thread to read the user input from rwc
 	dead := false
 	go func() {
@@ -301,7 +271,6 @@ func (cli *Client) Connect() {
 			if err != nil {
 				log.Print(err)
 			}
-
 		}
 
 		// See https://github.com/golang/go/commit/e9ad52e46dee4b4f9c73ff44f44e1e234815800f
@@ -362,11 +331,6 @@ shutdown:
 
 	// Kill input processing thread
 	dead = true
-
-	// Kill ping thread if requested for the connection
-	if done != nil {
-		done()
-	}
 
 	// Unset the ReadWriteCloser
 	cli.rwc = nil
