@@ -54,6 +54,11 @@ func (f *fifo) Start() {
 		bots = append(bots, bot.MakeMinMax(d))
 	}
 
+	// Start the scheduler at a the beginning of a full minute, to
+	// make the behaviour more predictable.
+	wait := time.Until(time.Now().Round(time.Minute)) + time.Minute
+	time.Sleep(wait)
+
 	// The actual scheduler runs every 20 seconds, so that clients
 	// have time to gather in the queue and play against one
 	// another, instead of just immediately falling back to a bot.
