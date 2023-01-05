@@ -555,7 +555,19 @@ func (db *db) Start() {
 			// https://www.sqlite.org/lang_vacuum.html
 			_, err = db.write.Exec("VACUUM;")
 		case <-tick.C:
-			db.commands["delete-moves"].Exec()
+			var res sql.Result
+			res, err = db.commands["delete-moves"].Exec()
+			if err != nil {
+				break
+			}
+
+			var n int64
+			n, err = res.RowsAffected()
+			if err != nil {
+				log.Print(err)
+				break
+			}
+			kgp.Debug.Println("Deleted", n, "moves")
 			// https://www.sqlite.org/pragma.html#pragma_optimize
 			_, err = db.write.Exec("PRAGMA optimize;")
 		}
