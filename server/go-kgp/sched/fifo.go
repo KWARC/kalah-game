@@ -48,40 +48,32 @@ func (f *fifo) Start() {
 		bots []kgp.Agent
 		q    []kgp.Agent
 		bi   int // bot index
-		done bool
 	)
 
 	for _, d := range f.conf.BotTypes {
 		bots = append(bots, bot.MakeMinMax(d))
 	}
 
+	// The actual scheduler runs every 20 seconds, so that clients
+	// have time to gather in the queue and play against one
+	// another, instead of just immediately falling back to a bot.
+	tick := time.NewTicker(20 * time.Second)
 	for {
 		select {
-		case <-f.shut:
-			// Stop accepting new connections
-			done = true
-			continue
-		case a := <-f.add:
-			if done {
-				kgp.Debug.Println("Ignore", a)
+		case <-tick.C:
+			if len(q) == 0 {
 				continue
 			}
-			kgp.Debug.Println("Schedule", a)
+			kgp.Debug.Println("Running scheduler")
+		case <-f.shut:
+			// Stop accepting new connections
+			return
+		case a := <-f.add:
 			if !bot.IsBot(a) {
+				kgp.Debug.Println("Adding", a, "to the queue")
 				q = append(q, a)
-
-				// The idea here is to give clients
-				// the chance to meet up, instead of
-				// directly pairing them up with a
-				// bot.  The disadvantage is that
-				// fewer games are played, but this
-				// also reduces the server load.
-				time.Sleep(5 * time.Second)
-				kgp.Debug.Println("Waiting:", len(f.add))
-				if len(f.add) > 0 {
-					continue
-				}
 			}
+			continue
 		case a := <-f.rem:
 			kgp.Debug.Println("Remove", a)
 			for i := range q {
@@ -94,75 +86,78 @@ func (f *fifo) Start() {
 			}
 			continue
 		}
-		kgp.Debug.Print(q)
 
-		// Remove all dead agents
+		// Remove all dead agents from the queue
 		i := 0
 		for _, a := range q {
 			if a != nil && a.Alive() {
 				q[i] = a
 				i++
+			} else {
+				kgp.Debug.Println("Agent", q, "found to be dead")
 			}
 		}
 		q = q[:i]
-		kgp.Debug.Print(q)
+		kgp.Debug.Println("Alive agents:", q)
 
-		// Select two agents, or two agents and a bot if only
-		// one agent is available.
-		var north, south kgp.Agent
-		switch len(q) {
-		case 0:
-			continue
-		case 1:
-			south = q[0]
-			q = nil
+		for len(q) > 0 {
+			// Select two agents, or two agents and a bot if only
+			// one agent is available.
+			var north, south kgp.Agent
+			switch len(q) {
+			case 0:
+				panic("Broken look invariant")
+			case 1:
+				south = q[0]
+				q = nil
 
-			// rotate through all bots
-			bi = (bi + 1) % len(bots)
-			north = bots[bi]
-		default:
-			south = q[0]
-			north = q[1]
-			q[0] = q[len(q)-1]
-			q[1] = q[len(q)-2]
-			q = q[:len(q)-2]
+				// rotate through all bots
+				bi = (bi + 1) % len(bots)
+				north = bots[bi]
+			default: // len(q) ≥ 2
+				south = q[0]
+				north = q[1]
+				q[0] = q[len(q)-1]
+				q[1] = q[len(q)-2]
+				q = q[:len(q)-2]
 
-			// Prevent an agent from playing against
-			// himself (note that this does not prevent
-			// two separate agents with the same token to
-			// challenge one another)
-			if north == south {
-				q = append(q, north)
-				continue
+				// Prevent an agent from playing against
+				// himself (note that this does not prevent
+				// two separate agents with the same token to
+				// challenge one another)
+				if north == south {
+					q = append(q, north)
+					continue
+				}
+
+			}
+			kgp.Debug.Println("Selected", north, "and", south, "for a match")
+
+			// Ensure that we actually have two agents
+			if north == nil || south == nil {
+				panic("Illegal state")
 			}
 
-		}
-		kgp.Debug.Println("Selected", north, south)
+			// Start a game, but shuffle the order to avoid an
+			// advantage for bots or non-bots.
+			if rand.Intn(2) == 0 {
+				north, south = south, north
+			}
 
-		// Ensure that we actually have two agents
-		if north == nil || south == nil {
-			panic("Illegal state")
+			f.wait.Add(1)
+			go func(north, south kgp.Agent) {
+				game.Play(&kgp.Game{
+					Board: kgp.MakeBoard(
+						f.conf.BoardSize,
+						f.conf.BoardInit),
+					South: north,
+					North: south,
+				}, f.conf)
+				f.Schedule(south)
+				f.Schedule(north)
+				f.wait.Done()
+			}(north, south)
 		}
-
-		// Start a game, but shuffle the order to avoid an
-		// advantage for bots or non-bots.
-		if rand.Intn(2) == 0 {
-			north, south = south, north
-		}
-
-		f.wait.Add(1)
-		go func(north, south kgp.Agent) {
-			game.Play(&kgp.Game{
-				Board: kgp.MakeBoard(
-					f.conf.BoardSize,
-					f.conf.BoardInit),
-				South: north,
-				North: south,
-			}, f.conf)
-			f.Schedule(south)
-			f.Schedule(north)
-			f.wait.Done()
-		}(north, south)
 	}
 }
 
