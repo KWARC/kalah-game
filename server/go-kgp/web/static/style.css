@@ -78,6 +78,11 @@ td {
     padding: 8px;
 }
 
+pre.comment {
+    margin: 0;
+    font-size: 75%;
+}
+
 .self {
     text-decoration: underline;
     text-decoration-style: dotted;
