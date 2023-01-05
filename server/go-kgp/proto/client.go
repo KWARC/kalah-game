@@ -69,6 +69,7 @@ type Client struct {
 	resp   chan *response
 	alive  chan struct{}
 	init   bool
+	dead   uint32
 	comm   string
 }
 
@@ -90,7 +91,7 @@ func (cli *Client) User() *kgp.User {
 
 // Request a client to make a move
 func (cli *Client) Request(game *kgp.Game) (*kgp.Move, bool) {
-	if cli.rwc == nil {
+	if atomic.LoadUint32(&cli.dead) != 0 {
 		return nil, true
 	}
 
@@ -119,8 +120,8 @@ func (cli *Client) Request(game *kgp.Game) (*kgp.Move, bool) {
 	for {
 		select {
 		case <-time.After(cli.conf.MoveTimeout):
-			cli.ping()
-			return move, false
+			ok := cli.ping()
+			return move, !ok
 		case m := <-c:
 			if m == nil {
 				return move, false
@@ -137,7 +138,12 @@ func (cli *Client) Alive() bool {
 // String will return a string representation for a client for
 // internal use
 func (cli *Client) String() string {
-	return fmt.Sprintf("%p (%q)", cli.rwc, cli.user.Token)
+	if cli.user.Token != "" {
+		return fmt.Sprintf("%q", cli.user.Token)
+	} else {
+		return fmt.Sprintf("%p", cli.rwc)
+	}
+
 }
 
 // Send is a shorthand to respond without a reference
@@ -192,15 +198,15 @@ func (cli *Client) respond(to uint64, command string, args ...interface{}) uint6
 		}
 	}
 
-	// attempt to send this message before any other message is sent
-	defer cli.iolock.Unlock()
-	cli.iolock.Lock()
-
-	if cli.rwc == nil {
+	if atomic.LoadUint32(&cli.dead) != 0 {
 		return 0
 	}
 
 	kgp.Debug.Println(cli, ">", buf.String())
+
+	// attempt to send this message before any other message is sent
+	defer cli.iolock.Unlock()
+	cli.iolock.Lock()
 	fmt.Fprint(&buf, "\r\n")
 	_, err := io.Copy(cli.rwc, &buf)
 	if err != nil {
@@ -213,8 +219,11 @@ func (cli *Client) respond(to uint64, command string, args ...interface{}) uint6
 
 // Ping a client, block and return if it is still alive
 func (cli *Client) ping() bool {
+	if atomic.LoadUint32(&cli.dead) != 0 {
+		return false
+	}
 	if !cli.conf.Ping {
-		return cli.rwc != nil
+		return true
 	}
 
 	id := cli.send("ping")
@@ -228,7 +237,7 @@ func (cli *Client) ping() bool {
 		cli.kill()
 		return false
 	case <-cli.alive:
-		return cli.rwc != nil
+		return true
 	}
 }
 
@@ -254,13 +263,12 @@ func (cli *Client) Connect() {
 	cli.send("kgp", majorVersion, minorVersion, patchVersion)
 
 	// Start a thread to read the user input from rwc
-	dead := false
 	go func() {
 		scanner := bufio.NewScanner(cli.rwc)
 		for scanner.Scan() {
 			// Check if the client has been killed
 			// by someone else
-			if dead {
+			if atomic.LoadUint32(&cli.dead) != 0 {
 				break
 			}
 
@@ -329,11 +337,8 @@ shutdown:
 	cli.iolock.Lock()
 	fmt.Fprint(rwc, "goodbye\r\n")
 
-	// Kill input processing thread
-	dead = true
-
-	// Unset the ReadWriteCloser
-	cli.rwc = nil
+	// Mark client as dead
+	atomic.StoreUint32(&cli.dead, 1)
 
 	dbg("Closed connection to", cli)
 }
