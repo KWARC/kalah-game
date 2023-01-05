@@ -49,14 +49,14 @@ func main() {
 	// Enable the database
 	db.Prepare(config)
 
-	// Enable the web interface
-	web.Prepare(config)
+	// Use the FIFO scheduler
+	config.Register(conf.GameManager(sched.MakeFIFO(config)))
 
 	// Allow TCP connections
 	proto.Prepare(config)
 
-	// Use the random scheduler
-	config.Register(conf.GameManager(sched.MakeFIFO(config)))
+	// Enable the web interface
+	web.Prepare(config)
 
 	// Launch the server
 	config.Start()
