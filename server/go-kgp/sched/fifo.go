@@ -102,7 +102,7 @@ func (f *fifo) Start() {
 				q[i] = a
 				i++
 			} else {
-				kgp.Debug.Println("Agent", q, "found to be dead")
+				kgp.Debug.Println("Agent", a, "found to be dead")
 			}
 		}
 		q = q[:i]
