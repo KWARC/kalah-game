@@ -75,15 +75,23 @@ func (f *fifo) Start() {
 			}
 			continue
 		case a := <-f.rem:
-			kgp.Debug.Println("Remove", a)
-			for i := range q {
-				if q[i] != a {
-					continue
-				}
+			kgp.Debug.Println("Remove", a, "from", q)
 
-				q[i] = q[len(q)-1]
-				q = q[:len(q)-1]
+			i := -1
+			for j, b := range q {
+				if b != a {
+					i = j
+					break
+
+				}
 			}
+			if i != -1 {
+				// Based on the "Delete" Slice Trick
+				//
+				// https://github.com/golang/go/wiki/SliceTricks#delete
+				q = append(q[:i], q[i+1:]...)
+			}
+
 			continue
 		}
 
