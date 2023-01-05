@@ -54,6 +54,8 @@ func descape(str string) string {
 	switch str[1] {
 	case 'n':
 		return "\n"
+	case 't':
+		return "\t"
 	default:
 		return str[1:]
 	}
