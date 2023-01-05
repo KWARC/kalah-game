@@ -94,7 +94,6 @@ func parse(raw string, params ...interface{}) error {
 		switch param := params[i].(type) {
 		case *string:
 			*param = unescape.ReplaceAllStringFunc(arg, descape)
-			*param = arg
 		case *uint64:
 			*param, err = strconv.ParseUint(arg, 10, 64)
 			if err != nil {
