@@ -1,6 +1,6 @@
 // Entry point
 //
-// Copyright (c) 2021, 2022  Philip Kaludercic
+// Copyright (c) 2021, 2022, 2023  Philip Kaludercic
 //
 // This file is part of go-kgp.
 //
@@ -41,7 +41,6 @@ func main() {
 
 	// Load the configuration from disk (if available)
 	config := conf.Load()
-	config.Debug.Println("Debug logging has been enabled")
 
 	// Enable the database
 	db.Prepare(config)

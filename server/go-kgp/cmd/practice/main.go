@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"os"
 
-	"go-kgp"
 	"go-kgp/conf"
 	"go-kgp/db"
 	"go-kgp/proto"
@@ -44,7 +43,6 @@ func main() {
 
 	// Load the configuration from disk (if available)
 	config := conf.Load()
-	kgp.Debug.Println("Debug logging has been enabled")
 
 	// Enable the database
 	db.Prepare(config)

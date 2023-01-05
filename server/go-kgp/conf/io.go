@@ -93,6 +93,7 @@ func Load() (c *Conf) {
 	case debug:
 		kgp.Debug.SetOutput(os.Stderr)
 		log.Default().SetFlags(log.LstdFlags | log.Lshortfile)
+		kgp.Debug.Println("Debug logging has been enabled")
 	case silent:
 		log.Default().SetOutput(io.Discard)
 	}
