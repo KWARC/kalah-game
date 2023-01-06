@@ -7,7 +7,7 @@ RUN apk add --no-cache sqlite graphviz gcc libc-dev
 ADD . /app/
 WORKDIR /app/
 RUN go mod download
-RUN go build -v -o /go-kgp ./cmd/server
+RUN go build -v -o /go-kgp ./cmd/practice
 
 # Mount an external volume and use it as a working directory
 VOLUME /data/
