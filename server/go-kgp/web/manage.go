@@ -99,7 +99,10 @@ func (s *web) drawGraphs() {
 		if err != nil {
 			return nil, err
 		}
-		io.Copy(io.Discard, io.TeeReader(stderr, os.Stderr))
+		_, err = io.Copy(io.Discard, io.TeeReader(stderr, os.Stderr))
+		if err != nil {
+			return nil, err
+		}
 
 		err = cmd.Wait()
 		if err != nil {
@@ -130,7 +133,9 @@ func (s *web) drawGraphs() {
 			next = time.Now().Add(time.Minute)
 		}
 		w.Header().Add("Cache-Control", "max-age=60")
-		w.Write(data)
+		if _, err := w.Write(data); err != nil {
+			log.Print(err)
+		}
 	}
 	s.mux.HandleFunc("/graph", h)
 }

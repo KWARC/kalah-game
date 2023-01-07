@@ -81,8 +81,14 @@ func (s *scheduler) run(wait *sync.WaitGroup) {
 				lock.Unlock()
 
 			skip:
-				isol.Shutdown(g.North)
-				isol.Shutdown(g.South)
+				err = isol.Shutdown(g.North)
+				if err != nil {
+					log.Print(err)
+				}
+				err = isol.Shutdown(g.South)
+				if err != nil {
+					log.Print(err)
+				}
 				wait.Done()
 			}
 		}()

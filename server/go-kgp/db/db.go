@@ -295,7 +295,6 @@ func (db *db) SaveGame(ctx context.Context, game *kgp.Game) {
 		log.Print(err)
 		return
 	}
-	defer tx.Rollback()
 
 	if game.South != nil && game.South.User() != nil {
 		db.saveUser(ctx, tx, game.South.User())
@@ -304,6 +303,10 @@ func (db *db) SaveGame(ctx context.Context, game *kgp.Game) {
 		db.saveUser(ctx, tx, game.North.User())
 	}
 	if !db.saveGame(ctx, tx, game) {
+		err = tx.Rollback()
+		if err != nil {
+			log.Print(err)
+		}
 		return
 	}
 
@@ -410,18 +413,17 @@ func (db *db) SaveMove(ctx context.Context, move *kgp.Move) {
 		log.Print(err)
 		return
 	}
-	defer tx.Rollback()
 
 	game := move.Game
 	south, north := game.South.User(), game.North.User()
 	if !db.saveUser(ctx, tx, south) {
-		return
+		goto fail
 	}
 	if !db.saveUser(ctx, tx, north) {
-		return
+		goto fail
 	}
 	if !db.saveGame(ctx, tx, game) {
-		return
+		goto fail
 	}
 
 	_, err = tx.Stmt(db.commands["insert-move"]).ExecContext(ctx,
@@ -433,10 +435,17 @@ func (db *db) SaveMove(ctx context.Context, move *kgp.Move) {
 		move.Stamp)
 	if err != nil {
 		log.Print(err)
-		return
+		goto fail
 	}
 
 	err = tx.Commit()
+	if err != nil {
+		log.Print(err)
+	}
+	return
+
+fail:
+	err = tx.Rollback()
 	if err != nil {
 		log.Print(err)
 	}
