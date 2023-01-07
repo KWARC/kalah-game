@@ -32,18 +32,17 @@ import (
 	"time"
 
 	"go-kgp"
-	"go-kgp/conf"
 )
 
 const about = `<p>This is a practice server for the AI1 Kalah Tournament.</p>`
 
 type web struct {
-	conf *conf.Conf
-	mux  *http.ServeMux
+	DB  kgp.DatabaseManager
+	mux *http.ServeMux
 }
 
-func (s *web) listen() {
-	addr := fmt.Sprintf(":%d", s.conf.WebPort)
+func (s *web) listen(conf *kgp.WebConf) {
+	addr := fmt.Sprintf(":%d", conf.Port)
 	log.Printf("Listening via HTTP on %s", addr)
 
 	err := http.ListenAndServe(addr, s.mux)
@@ -52,10 +51,10 @@ func (s *web) listen() {
 	}
 }
 
-func (s *web) drawGraphs() {
+func (s *web) drawGraphs(mode *kgp.Mode) {
 	var (
 		dbg  = kgp.Debug.Println
-		draw = s.conf.DB.DrawGraph
+		draw = mode.Database.DrawGraph
 	)
 
 	gen := func() ([]byte, error) {
@@ -140,7 +139,9 @@ func (s *web) drawGraphs() {
 	s.mux.HandleFunc("/graph", h)
 }
 
-func (s *web) Start() {
+func (s *web) Start(mode *kgp.Mode, conf *kgp.Conf) {
+	w := &conf.Web
+
 	// Prepare HTTP Multiplexer
 	s.mux = http.NewServeMux()
 	s.mux.HandleFunc("/about", s.about)
@@ -153,16 +154,16 @@ func (s *web) Start() {
 	})
 
 	s.mux.Handle("/static/", http.FileServer(http.FS(static)))
-	if s.conf.Data != "" {
-		if stat, err := os.Stat(s.conf.Data); err != nil {
+	if w.Data != "" {
+		if stat, err := os.Stat(w.Data); err != nil {
 			log.Fatalf("Fail to access data directory %s: %s",
-				s.conf.Data, err)
+				w.Data, err)
 		} else if !stat.IsDir() {
 			log.Fatalf("Data directory is not a directory %s",
-				s.conf.Data)
+				w.Data)
 		}
-		log.Printf("Serving a /data/ directory (%s)", s.conf.Data)
-		dir := http.FileServer(http.Dir(s.conf.Data))
+		log.Printf("Serving a /data/ directory (%s)", w.Data)
+		dir := http.FileServer(http.Dir(w.Data))
 		s.mux.Handle("/data/", http.StripPrefix("/data/", dir))
 	}
 
@@ -171,22 +172,22 @@ func (s *web) Start() {
 	if _, err := exec.LookPath("dot"); err == nil {
 		log.Print("Enabling graph generation")
 		funcs["hasgraph"] = func() bool { return true }
-		s.drawGraphs()
+		s.drawGraphs(mode)
 	} else {
 		funcs["hasgraph"] = func() bool { return false }
 	}
 
 	// Install the WebSocket handler
-	if s.conf.WebSocket {
+	if w.WebSocket {
 		log.Print("Accepting websocket connections on /socket")
-		s.mux.HandleFunc("/socket", upgrader(s.conf))
+		s.mux.HandleFunc("/socket", upgrader(mode))
 	}
 
 	// Parse templates
 	tmpl = template.Must(template.New("").Funcs(funcs).ParseFS(html, "*.tmpl"))
 	var aboutpage string
-	if s.conf.About != "" {
-		contents, err := os.ReadFile(s.conf.About)
+	if w.About != "" {
+		contents, err := os.ReadFile(w.About)
 		if err != nil && os.IsNotExist(err) {
 			log.Fatal(err)
 		}
@@ -200,7 +201,7 @@ func (s *web) Start() {
 		log.Fatal(err)
 	}
 
-	s.listen()
+	s.listen(w)
 }
 
 // The web server can shut down immediately
@@ -208,10 +209,6 @@ func (*web) Shutdown() {}
 
 func (*web) String() string { return "Web Server" }
 
-func Prepare(conf *conf.Conf) {
-	if !conf.WebInterface {
-		return
-	}
-
-	conf.Register(&web{conf: conf})
+func Register(mode *kgp.Mode) {
+	mode.Register(&web{})
 }

@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"go-kgp"
-	"go-kgp/conf"
 )
 
 func Move(g *kgp.Game, m *kgp.Move) bool {
@@ -52,12 +51,12 @@ func MoveCopy(g *kgp.Game, m *kgp.Move) (*kgp.Game, bool) {
 	return c, Move(c, m)
 }
 
-func Play(g *kgp.Game, conf *conf.Conf) {
+func Play(g *kgp.Game, mode *kgp.Mode, conf *kgp.Conf) {
 	dbg := kgp.Debug.Printf
 	bg := context.Background()
 
 	g.State = kgp.ONGOING
-	conf.DB.SaveGame(bg, g)
+	mode.Database.SaveGame(bg, g)
 	for !g.Board.Over() {
 		var m *kgp.Move
 
@@ -113,7 +112,7 @@ func Play(g *kgp.Game, conf *conf.Conf) {
 
 		// Save the move in the database, and take as much
 		// time as necessary.
-		conf.DB.SaveMove(bg, m)
+		mode.Database.SaveMove(bg, m)
 		dbg("Game %d: %s", g.Id, g.State.String())
 	}
 
@@ -128,6 +127,6 @@ func Play(g *kgp.Game, conf *conf.Conf) {
 		g.State = kgp.UNDECIDED
 	}
 save:
-	conf.DB.SaveGame(bg, g)
+	mode.Database.SaveGame(bg, g)
 	kgp.Debug.Printf("Game %d finished (%s)", g.Id, &g.State)
 }

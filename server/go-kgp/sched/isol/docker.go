@@ -26,7 +26,6 @@ import (
 	"time"
 
 	"go-kgp"
-	"go-kgp/conf"
 	"go-kgp/proto"
 
 	"github.com/docker/docker/api/types"
@@ -42,7 +41,6 @@ type docker struct {
 	cont *client.Client
 	cli  *proto.Client
 	lis  *proto.Listener
-	conf *conf.Conf
 }
 
 func (d *docker) Alive() bool {
@@ -63,7 +61,7 @@ func (d *docker) User() *kgp.User {
 	return d.cli.User()
 }
 
-func (d *docker) Start() (kgp.Agent, error) {
+func (d *docker) Start(mode *kgp.Mode) (kgp.Agent, error) {
 	var err error
 	d.cont, err = client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
@@ -75,7 +73,7 @@ func (d *docker) Start() (kgp.Agent, error) {
 	// sub-client has to confirm a connection before the
 	// isolated/docker client is regarded as having started up.
 	wait := make(chan *proto.Client)
-	d.lis = proto.StartListner(d.conf, func(cli *proto.Client) bool {
+	d.lis = proto.StartListner(mode, func(cli *proto.Client) bool {
 		wait <- cli
 		return true
 	})

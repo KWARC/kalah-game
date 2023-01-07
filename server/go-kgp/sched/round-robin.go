@@ -1,6 +1,6 @@
 // Round Robin Tournament
 //
-// Copyright (c) 2022  Philip Kaludercic
+// Copyright (c) 2022, 2023  Philip Kaludercic
 //
 // This file is part of go-kgp.
 //
@@ -23,19 +23,17 @@ import (
 	"sync"
 
 	"go-kgp"
-	"go-kgp/conf"
 )
 
 type rr struct {
 	agents map[kgp.Agent]struct{}
 	sched  *scheduler
-	conf   *conf.Conf
 	wait   sync.WaitGroup
 	size   uint
 	init   uint
 }
 
-func (r *rr) Start() {
+func (r *rr) Start(mode *kgp.Mode, conf *kgp.Conf) {
 	var games []*kgp.Game
 
 	// Prepare all games
@@ -55,9 +53,8 @@ func (r *rr) Start() {
 
 	r.sched = &scheduler{
 		games: games,
-		conf:  r.conf,
 	}
-	r.sched.run(&r.wait)
+	r.sched.run(&r.wait, mode, conf)
 }
 
 func (r *rr) Shutdown() {
@@ -82,12 +79,10 @@ func (r *rr) results() map[kgp.Agent]struct{} {
 	return next
 }
 
-func MakeRoundRobin(config *conf.Conf, size, init uint) conf.GameManager {
-	var man conf.GameManager = &rr{
+func MakeRoundRobin(size, init uint) kgp.GameManager {
+	return kgp.GameManager(&rr{
 		agents: make(map[kgp.Agent]struct{}),
-		conf:   config,
 		size:   size,
 		init:   init,
-	}
-	return man
+	})
 }

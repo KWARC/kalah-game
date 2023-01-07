@@ -47,7 +47,7 @@ func (s *web) index(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "text/html")
 	w.Header().Add("Cache-Control", "max-age=60")
 	c := make(chan *kgp.Game)
-	go s.conf.DB.QueryGames(ctx, -1, c, page-1)
+	go s.DB.QueryGames(ctx, -1, c, page-1)
 	err = tmpl.ExecuteTemplate(w, "index.tmpl", struct {
 		Games chan *kgp.Game
 		Page  int
@@ -72,7 +72,7 @@ func (s *web) query(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(bg, DB_TIMEOUT)
 	defer cancel()
 
-	user := s.conf.DB.QueryUserToken(ctx, token)
+	user := s.DB.QueryUserToken(ctx, token)
 	if user != nil && user.Id != 0 {
 		http.Redirect(w, r, fmt.Sprintf("/agent/%d", user.Id), http.StatusSeeOther)
 	} else {
@@ -90,7 +90,7 @@ func (s *web) about(w http.ResponseWriter, r *http.Request) {
 		log.Print(err)
 		return
 	}
-	err = tmpl.ExecuteTemplate(w, "about.tmpl", s.conf)
+	err = tmpl.ExecuteTemplate(w, "about.tmpl", nil)
 	if err != nil {
 		log.Print(err)
 		return
@@ -120,14 +120,14 @@ func (s *web) showAgent(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	gc := make(chan *kgp.Game)
-	user := s.conf.DB.QueryUser(ctx, id)
+	user := s.DB.QueryUser(ctx, id)
 	if user == nil {
 		msg := fmt.Sprintf("No user found with the id %q", id)
 		http.Error(w, msg, http.StatusNotFound)
 		return
 	}
 
-	go s.conf.DB.QueryGames(ctx, int(user.Id), gc, page-1)
+	go s.DB.QueryGames(ctx, int(user.Id), gc, page-1)
 
 	w.Header().Add("Content-Type", "text/html")
 	err = tmpl.ExecuteTemplate(w, "show-agent.tmpl", struct {
@@ -152,7 +152,7 @@ func (s *web) showAgents(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	uc := make(chan *kgp.User)
-	go s.conf.DB.QueryUsers(ctx, uc, page-1)
+	go s.DB.QueryUsers(ctx, uc, page-1)
 
 	w.Header().Add("Content-Type", "text/html")
 	err = tmpl.ExecuteTemplate(w, "list-agents.tmpl", struct {
@@ -178,7 +178,7 @@ func (s *web) showGame(w http.ResponseWriter, r *http.Request) {
 
 	gc := make(chan *kgp.Game, 1)
 	mc := make(chan *kgp.Move, 4) // arbitrary
-	go s.conf.DB.QueryGame(ctx, id, gc, mc)
+	go s.DB.QueryGame(ctx, id, gc, mc)
 
 	w.Header().Add("Content-Type", "text/html")
 	w.Header().Add("Cache-Control", "max-age=604800")

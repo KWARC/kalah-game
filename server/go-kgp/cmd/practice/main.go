@@ -24,7 +24,8 @@ import (
 	"fmt"
 	"os"
 
-	"go-kgp/conf"
+	"go-kgp"
+
 	"go-kgp/db"
 	"go-kgp/proto"
 	"go-kgp/sched"
@@ -41,21 +42,16 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Load the configuration from disk (if available)
-	config := conf.Load()
+	// Create a server mode (state) and load configuration
+	mode := kgp.MakeMode()
+	conf := kgp.LoadConf()
 
-	// Enable the database
-	db.Prepare(config)
-
-	// Use the FIFO scheduler
-	config.Register(conf.GameManager(sched.MakeFIFO(config)))
-
-	// Allow TCP connections
-	proto.Prepare(config)
-
-	// Enable the web interface
-	web.Prepare(config)
+	// Load components
+	db.Register(mode)
+	mode.Register(sched.MakeFIFO())
+	proto.Register(mode, conf)
+	web.Register(mode)
 
 	// Launch the server
-	config.Start()
+	mode.Start(conf)
 }

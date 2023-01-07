@@ -1,6 +1,6 @@
 // General Isolation
 //
-// Copyright (c) 2022  Philip Kaludercic
+// Copyright (c) 2022, 2023  Philip Kaludercic
 //
 // This file is part of go-kgp.
 //
@@ -25,13 +25,13 @@ import (
 
 type ControlledAgent interface {
 	kgp.Agent
-	Start() (kgp.Agent, error)
+	Start(mode *kgp.Mode) (kgp.Agent, error)
 	Shutdown() error
 }
 
-func Start(a kgp.Agent) (kgp.Agent, error) {
+func Start(mode *kgp.Mode, a kgp.Agent) (kgp.Agent, error) {
 	if ca, ok := a.(ControlledAgent); ok {
-		return ca.Start()
+		return ca.Start(mode)
 	}
 	return a, nil
 }

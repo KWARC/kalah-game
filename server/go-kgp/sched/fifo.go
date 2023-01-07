@@ -27,7 +27,6 @@ import (
 
 	"go-kgp"
 	"go-kgp/bot"
-	"go-kgp/conf"
 	"go-kgp/game"
 )
 
@@ -36,21 +35,20 @@ import (
 func init() { rand.Seed(time.Now().UnixMicro()) }
 
 type fifo struct {
-	conf *conf.Conf
 	add  chan kgp.Agent
 	rem  chan kgp.Agent
 	shut chan struct{}
 	wait sync.WaitGroup
 }
 
-func (f *fifo) Start() {
+func (f *fifo) Start(mode *kgp.Mode, conf *kgp.Conf) {
 	var (
 		bots []kgp.Agent
 		q    []kgp.Agent
 		bi   int // bot index
 	)
 
-	for _, d := range f.conf.BotTypes {
+	for _, d := range conf.Game.Open.Bots {
 		bots = append(bots, bot.MakeMinMax(d))
 	}
 
@@ -159,11 +157,11 @@ func (f *fifo) Start() {
 			go func(north, south kgp.Agent) {
 				game.Play(&kgp.Game{
 					Board: kgp.MakeBoard(
-						f.conf.BoardSize,
-						f.conf.BoardInit),
+						conf.Game.Open.Size,
+						conf.Game.Open.Init),
 					South: north,
 					North: south,
-				}, f.conf)
+				}, mode, conf)
 				f.Schedule(south)
 				f.Schedule(north)
 				f.wait.Done()
@@ -182,12 +180,10 @@ func (f *fifo) Schedule(a kgp.Agent)   { f.add <- a }
 func (f *fifo) Unschedule(a kgp.Agent) { f.rem <- a }
 func (*fifo) String() string           { return "FIFO Scheduler" }
 
-func MakeFIFO(config *conf.Conf) conf.GameManager {
-	var man conf.GameManager = &fifo{
+func MakeFIFO() kgp.GameManager {
+	return kgp.GameManager(&fifo{
 		add:  make(chan kgp.Agent, 16),
 		rem:  make(chan kgp.Agent, 16),
 		shut: make(chan struct{}),
-		conf: config,
-	}
-	return man
+	})
 }

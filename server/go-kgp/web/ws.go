@@ -21,12 +21,12 @@
 package web
 
 import (
-	"go-kgp"
 	"io"
 	"log"
 	"net/http"
 
-	"go-kgp/conf"
+	"go-kgp"
+
 	"go-kgp/proto"
 
 	"github.com/gorilla/websocket"
@@ -76,7 +76,7 @@ func (c *wsrwc) Read(p []byte) (int, error) {
 }
 
 // Upgrade a HTTP connection to a WebSocket and handle it
-func upgrader(conf *conf.Conf) http.HandlerFunc {
+func upgrader(mode *kgp.Mode) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// upgrade to websocket or bail out
 		conn, err := (&websocket.Upgrader{
@@ -90,6 +90,6 @@ func upgrader(conf *conf.Conf) http.HandlerFunc {
 		}
 
 		log.Printf("New connection from %s", conn.RemoteAddr())
-		go proto.MakeClient(&wsrwc{Conn: conn}, conf).Connect()
+		go proto.MakeClient(&wsrwc{Conn: conn}).Connect(mode)
 	}
 }

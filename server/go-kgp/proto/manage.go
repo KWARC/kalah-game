@@ -26,11 +26,10 @@ import (
 	"strconv"
 	"strings"
 
-	"go-kgp/conf"
+	"go-kgp"
 )
 
 type Listener struct {
-	conf    *conf.Conf
 	conn    net.Listener
 	port    uint16
 	handler func(*Client) bool
@@ -68,9 +67,13 @@ func (t *Listener) init() {
 	}
 }
 
-func (t *Listener) Start() {
-	if t.conf.GM == nil {
-		panic("No game manager")
+func (t *Listener) Start(mode *kgp.Mode, _ *kgp.Conf) {
+	t.start(mode)
+}
+
+func (t *Listener) start(mode *kgp.Mode) {
+	if mode.Scheduler == nil {
+		panic("No game scheduler")
 	}
 	t.init()
 
@@ -81,7 +84,7 @@ func (t *Listener) Start() {
 			continue
 		}
 
-		if t.handler(MakeClient(conn, t.conf)) {
+		if t.handler(MakeClient(conn)) {
 			break
 		}
 	}
@@ -97,22 +100,23 @@ func (t *Listener) Shutdown() {
 	}
 }
 
-func launch(c *Client) bool {
-	go c.Connect()
-	return false
+func MakeListner(mode *kgp.Mode, port uint) *Listener {
+	return &Listener{
+		handler: func(c *Client) bool {
+			go c.Connect(mode)
+			return false
+		},
+		port: uint16(port),
+	}
 }
 
-func MakeListner(conf *conf.Conf, port uint16) *Listener {
-	return &Listener{conf: conf, port: port, handler: launch}
-}
-
-func StartListner(conf *conf.Conf, handler func(*Client) bool) *Listener {
-	l := &Listener{conf: conf, handler: handler}
+func StartListner(mode *kgp.Mode, handler func(*Client) bool) *Listener {
+	l := &Listener{handler: handler}
 	l.init()
-	go l.Start()
+	go l.start(mode)
 	return l
 }
 
-func Prepare(conf *conf.Conf) {
-	conf.Register(MakeListner(conf, uint16(conf.TCPPort)))
+func Register(mode *kgp.Mode, conf *kgp.Conf) {
+	mode.Register(MakeListner(mode, conf.Proto.Port))
 }

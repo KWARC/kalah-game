@@ -25,19 +25,17 @@ import (
 	"sync"
 
 	"go-kgp"
-	"go-kgp/conf"
 	"go-kgp/game"
 	"go-kgp/sched/isol"
 )
 
 type scheduler struct {
-	conf  *conf.Conf
 	games []*kgp.Game
 	// Mapping from an agent to everyone who it managed to defeat
 	results map[kgp.Agent][]kgp.Agent
 }
 
-func (s *scheduler) run(wait *sync.WaitGroup) {
+func (s *scheduler) run(wait *sync.WaitGroup, mode *kgp.Mode, conf *kgp.Conf) {
 	s.results = make(map[kgp.Agent][]kgp.Agent)
 	sched := make(chan *kgp.Game, len(s.games))
 	for _, g := range s.games {
@@ -50,18 +48,18 @@ func (s *scheduler) run(wait *sync.WaitGroup) {
 		go func() {
 			for g := range sched {
 				var err error
-				g.South, err = isol.Start(g.South)
+				g.South, err = isol.Start(mode, g.South)
 				if err != nil {
 					log.Print(err)
 					goto skip
 				}
-				g.North, err = isol.Start(g.North)
+				g.North, err = isol.Start(mode, g.North)
 				if err != nil {
 					log.Print(err)
 					goto skip
 				}
 
-				game.Play(g, s.conf)
+				game.Play(g, mode, conf)
 
 				lock.Lock()
 				switch g.State {

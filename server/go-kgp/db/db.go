@@ -38,7 +38,6 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 
 	"go-kgp"
-	"go-kgp/conf"
 	"go-kgp/game"
 )
 
@@ -49,9 +48,6 @@ type db struct {
 	// The database connections
 	read  *sql.DB
 	write *sql.DB
-
-	// The used configuration
-	conf *conf.Conf
 
 	// The SQL queries are stored under ./sql/, and they are
 	// loaded by the database manager.  QUERIES are the commands
@@ -519,7 +515,81 @@ func (db *db) DrawGraph(ctx context.Context, w io.Writer) error {
 	return nil
 }
 
-func (db *db) Start() {
+func (db *db) Start(mode *kgp.Mode, conf *kgp.Conf) {
+	var err error
+	read, err := sql.Open("sqlite3", conf.Database.File)
+	if err != nil {
+		log.Fatal(err, ": ", conf.Database)
+	}
+	read.SetConnMaxLifetime(0)
+	read.SetMaxIdleConns(1)
+
+	write, err := sql.Open("sqlite3", conf.Database.File)
+	if err != nil {
+		log.Fatal(err, ": ", conf.Database)
+	}
+	write.SetConnMaxLifetime(0)
+	write.SetMaxIdleConns(1)
+	write.SetMaxOpenConns(1)
+
+	for _, pragma := range []string{
+		// https://www.sqlite.org/pragma.html#pragma_journal_mode
+		"journal_mode = WAL",
+		// https://www.sqlite.org/pragma.html#pragma_synchronous
+		"synchronous = normal",
+		// https://www.sqlite.org/pragma.html#pragma_temp_store
+		"temp_store = memory",
+		// https://www.sqlite.org/pragma.html#pragma_mmap_size
+		"mmap_size = 268435456",
+		// https://www.sqlite.org/pragma.html#pragma_foreign_keys
+		"foreign_keys = on",
+	} {
+		kgp.Debug.Printf("Run PRAGMA %v", pragma)
+		_, err = write.Exec("PRAGMA " + pragma + ";")
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	entries, err := sql_dir.ReadDir(".")
+	if err != nil {
+		log.Fatal(err)
+	}
+	queries := make(map[string]*sql.Stmt)
+	commands := make(map[string]*sql.Stmt)
+	for _, entry := range entries {
+		if !entry.Type().IsRegular() || strings.HasPrefix(".", entry.Name()) {
+			continue
+		}
+
+		base := path.Base(entry.Name())
+		data, err := fs.ReadFile(sql_dir, entry.Name())
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		if strings.HasPrefix(base, "create-") || strings.HasPrefix(base, "run-") {
+			_, err = write.Exec(string(data))
+			kgp.Debug.Printf("Executed query %v", base)
+		} else {
+			query := strings.TrimSuffix(base, ".sql")
+			if strings.HasPrefix(query, "select-") {
+				queries[query], err = read.Prepare(string(data))
+				kgp.Debug.Printf("Registered query %v", query)
+			} else {
+				commands[query], err = write.Prepare(string(data))
+				kgp.Debug.Printf("Registered command %v", query)
+			}
+		}
+		if err != nil {
+			log.Fatal(entry.Name(), ": ", err)
+		}
+	}
+
+	if len(queries) == 0 {
+		panic("No queries loaded")
+	}
+
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGUSR1)
 	tick := time.NewTicker(24 * time.Hour)
@@ -575,89 +645,7 @@ func (db *db) Shutdown() {
 func (*db) String() string { return "Database Manager" }
 
 // Initialise the database and database managers
-func Prepare(config *conf.Conf) {
-	fatal := log.Fatal
-
-	var err error
-	read, err := sql.Open("sqlite3", config.Database)
-	if err != nil {
-		log.Fatal(err, ": ", config.Database)
-	}
-	read.SetConnMaxLifetime(0)
-	read.SetMaxIdleConns(1)
-
-	write, err := sql.Open("sqlite3", config.Database)
-	if err != nil {
-		log.Fatal(err, ": ", config.Database)
-	}
-	write.SetConnMaxLifetime(0)
-	write.SetMaxIdleConns(1)
-	write.SetMaxOpenConns(1)
-
-	for _, pragma := range []string{
-		// https://www.sqlite.org/pragma.html#pragma_journal_mode
-		"journal_mode = WAL",
-		// https://www.sqlite.org/pragma.html#pragma_synchronous
-		"synchronous = normal",
-		// https://www.sqlite.org/pragma.html#pragma_temp_store
-		"temp_store = memory",
-		// https://www.sqlite.org/pragma.html#pragma_mmap_size
-		"mmap_size = 268435456",
-		// https://www.sqlite.org/pragma.html#pragma_foreign_keys
-		"foreign_keys = on",
-	} {
-		kgp.Debug.Printf("Run PRAGMA %v", pragma)
-		_, err = write.Exec("PRAGMA " + pragma + ";")
-		if err != nil {
-			fatal(err)
-		}
-	}
-
-	entries, err := sql_dir.ReadDir(".")
-	if err != nil {
-		fatal(err)
-	}
-	queries := make(map[string]*sql.Stmt)
-	commands := make(map[string]*sql.Stmt)
-	for _, entry := range entries {
-		if !entry.Type().IsRegular() || strings.HasPrefix(".", entry.Name()) {
-			continue
-		}
-
-		base := path.Base(entry.Name())
-		data, err := fs.ReadFile(sql_dir, entry.Name())
-		if err != nil {
-			fatal(err)
-		}
-
-		if strings.HasPrefix(base, "create-") || strings.HasPrefix(base, "run-") {
-			_, err = write.Exec(string(data))
-			kgp.Debug.Printf("Executed query %v", base)
-		} else {
-			query := strings.TrimSuffix(base, ".sql")
-			if strings.HasPrefix(query, "select-") {
-				queries[query], err = read.Prepare(string(data))
-				kgp.Debug.Printf("Registered query %v", query)
-			} else {
-				commands[query], err = write.Prepare(string(data))
-				kgp.Debug.Printf("Registered command %v", query)
-			}
-		}
-		if err != nil {
-			fatal(entry.Name(), ": ", err)
-		}
-	}
-
-	if len(queries) == 0 {
-		panic("No queries loaded")
-	}
-
-	var man conf.DatabaseManager = &db{
-		read:     read,
-		write:    write,
-		queries:  queries,
-		commands: commands,
-		conf:     config,
-	}
-	config.Register(man)
+func Register(mode *kgp.Mode) {
+	var man kgp.DatabaseManager = &db{}
+	mode.Register(man)
 }

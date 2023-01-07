@@ -112,7 +112,7 @@ func parse(raw string, params ...interface{}) error {
 }
 
 // Interpret parses and evaluates INPUT
-func (cli *Client) interpret(input string) error {
+func (cli *Client) interpret(input string, m *kgp.Mode) error {
 	dbg := kgp.Debug.Printf
 
 	input = strings.TrimSpace(input)
@@ -167,7 +167,7 @@ func (cli *Client) interpret(input string) error {
 
 		switch mode {
 		case "freeplay":
-			cli.conf.GM.Schedule(cli)
+			m.Scheduler.Schedule(cli)
 			cli.respond(id, "ok")
 		default:
 			cli.error(id, "Unsupported mode %q", mode)

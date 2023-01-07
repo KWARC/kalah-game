@@ -24,7 +24,6 @@ import (
 	"sync/atomic"
 
 	"go-kgp"
-	"go-kgp/conf"
 )
 
 type composable interface {
@@ -33,14 +32,13 @@ type composable interface {
 }
 
 type combo struct {
-	conf *conf.Conf
 	wait sync.WaitGroup
 	ag   map[kgp.Agent]struct{}
-	ms   []conf.GameManager
+	ms   []kgp.GameManager
 	i    uint64
 }
 
-func (c *combo) Start() {
+func (c *combo) Start(mode *kgp.Mode, conf *kgp.Conf) {
 	c.wait.Add(1)
 
 	next := c.ag
@@ -50,7 +48,7 @@ func (c *combo) Start() {
 			c.initialize(next)
 		}
 
-		m.Start()
+		m.Start(mode, conf)
 		m.Shutdown()
 
 		if ok {
@@ -73,10 +71,6 @@ func (c *combo) Shutdown() {
 
 func (*combo) String() string { return "Round Robin" }
 
-func MakeCombo(config *conf.Conf, m ...conf.GameManager) conf.GameManager {
-	var man conf.GameManager = &combo{
-		conf: config,
-		ms:   m,
-	}
-	return man
+func MakeCombo(m ...kgp.GameManager) kgp.GameManager {
+	return kgp.GameManager(&combo{ms: m})
 }

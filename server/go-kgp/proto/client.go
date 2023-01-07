@@ -32,7 +32,6 @@ import (
 	"time"
 
 	"go-kgp"
-	"go-kgp/conf"
 )
 
 var defaultUser = &kgp.User{
@@ -52,7 +51,7 @@ type response struct {
 
 // Client wraps a network connection into a player
 type Client struct {
-	conf *conf.Conf
+	conf *kgp.ProtoConf
 
 	// Agent Metadata
 	user *kgp.User
@@ -72,7 +71,7 @@ type Client struct {
 	comm   string
 }
 
-func MakeClient(rwc io.ReadWriteCloser, conf *conf.Conf) *Client {
+func MakeClient(rwc io.ReadWriteCloser) *Client {
 	return &Client{
 		user:  defaultUser,
 		games: make(map[uint64]*kgp.Game),
@@ -80,7 +79,6 @@ func MakeClient(rwc io.ReadWriteCloser, conf *conf.Conf) *Client {
 		resp:  make(chan *response, 1),
 		alive: make(chan struct{}, 1),
 		rwc:   rwc,
-		conf:  conf,
 	}
 }
 
@@ -112,13 +110,14 @@ func (cli *Client) Request(game *kgp.Game) (*kgp.Move, bool) {
 		Choice:  game.Board.Random(game.Side(cli)),
 		Comment: "[random move]",
 		Agent:   cli,
+		State:   &kgp.Board{},
 		Game:    game,
 		Stamp:   time.Now(),
 	}
 
 	for {
 		select {
-		case <-time.After(cli.conf.MoveTimeout):
+		case <-time.After(cli.conf.Timeout):
 			ok := cli.ping()
 			return move, !ok
 		case m := <-c:
@@ -142,7 +141,6 @@ func (cli *Client) String() string {
 	} else {
 		return fmt.Sprintf("%p", cli.rwc)
 	}
-
 }
 
 // Send is a shorthand to respond without a reference
@@ -231,7 +229,7 @@ func (cli *Client) ping() bool {
 	}
 
 	select {
-	case <-time.After(cli.conf.TCPTimeout):
+	case <-time.After(cli.conf.Timeout):
 		cli.error(id, "received no pong")
 		cli.kill()
 		return false
@@ -245,7 +243,7 @@ func (cli *Client) ping() bool {
 // It will start a ping thread (if the configuration requires it), a
 // goroutine to handle and interpret input and then wait for the
 // client to be killed.
-func (cli *Client) Connect() {
+func (cli *Client) Connect(mode *kgp.Mode) {
 	dbg := kgp.Debug.Println
 
 	// Ensure that the client has a channel that is being
@@ -274,7 +272,7 @@ func (cli *Client) Connect() {
 			// Interpret line
 			input := scanner.Text()
 			dbg(cli, "<", input)
-			err := cli.interpret(input)
+			err := cli.interpret(input, mode)
 			if err != nil {
 				log.Print(err)
 			}
@@ -328,7 +326,7 @@ func (cli *Client) Connect() {
 shutdown:
 
 	// Request for the client to be removed from the queue
-	cli.conf.GM.Unschedule(cli)
+	mode.Scheduler.Unschedule(cli)
 
 	// Send a simple goodbye, ignoring errors if the network
 	// connection was broken

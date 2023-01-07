@@ -22,14 +22,17 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"os"
 
-	"go-kgp/conf"
+	"go-kgp"
 	"go-kgp/db"
 	"go-kgp/sched"
 )
 
 func main() {
+	dir := flag.String("dir", ".", "Agent directory")
+
 	flag.Parse()
 	if flag.NArg() != 0 {
 		fmt.Fprintf(flag.CommandLine.Output(),
@@ -39,23 +42,34 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Load the configuration from disk (if available)
-	config := conf.Load()
+	// Create a server mode (state) and load configuration
+	mode := kgp.MakeMode()
+	conf := kgp.LoadConf()
 
-	// Enable the database
-	db.Prepare(config)
+	// Check if the -dir flag was used and handle it
+	if dir != nil {
+		dent, err := os.ReadDir(*dir)
+		if err != nil {
+			log.Fatal(err)
+		}
 
-	// Create a time schedule
-	comb := sched.MakeCombo(
-		config,
-		sched.MakeSanityCheck(config),
-		sched.MakeRoundRobin(config, 6, 6),
-		sched.MakeRoundRobin(config, 8, 8),
-		sched.MakeRoundRobin(config, 10, 10),
-		sched.MakeRoundRobin(config, 12, 12),
-	)
-	config.Register(comb)
+		for _, ent := range dent {
+			if !ent.IsDir() {
+				continue
+			}
+		}
+	}
+
+	// Load components
+	db.Register(mode)
+	mode.Register(sched.MakeCombo(
+		sched.MakeSanityCheck(),
+		sched.MakeRoundRobin(6, 6),
+		sched.MakeRoundRobin(8, 8),
+		sched.MakeRoundRobin(10, 10),
+		sched.MakeRoundRobin(12, 12),
+	))
 
 	// Start the tournament
-	config.Start()
+	mode.Start(conf)
 }
