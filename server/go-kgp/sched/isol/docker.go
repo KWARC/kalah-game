@@ -36,8 +36,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-type dockerManager struct{}
-
 type docker struct {
 	name string
 	id   string
