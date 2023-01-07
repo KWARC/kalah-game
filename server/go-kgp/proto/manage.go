@@ -65,7 +65,6 @@ func (t *Listener) init() {
 			log.Fatal("Unexpected error ", err)
 		}
 		t.port = uint16(port)
-
 	}
 }
 

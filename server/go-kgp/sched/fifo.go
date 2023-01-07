@@ -87,7 +87,6 @@ func (f *fifo) Start() {
 				if b != a {
 					i = j
 					break
-
 				}
 			}
 			if i != -1 {
@@ -142,7 +141,6 @@ func (f *fifo) Start() {
 					q = append(q, north)
 					continue
 				}
-
 			}
 			kgp.Debug.Println("Selected", north, "and", south, "for a match")
 
