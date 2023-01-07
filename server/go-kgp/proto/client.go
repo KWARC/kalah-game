@@ -62,7 +62,6 @@ type Client struct {
 	glock  sync.Mutex // Game Lock
 	rwc    io.ReadWriteCloser
 	rid    uint64
-	last   uint64
 	kill   context.CancelFunc
 	games  map[uint64]*kgp.Game
 	req    chan *request
