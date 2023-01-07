@@ -1,6 +1,6 @@
 // Sanity Test
 //
-// Copyright (c) 2022  Philip Kaludercic
+// Copyright (c) 2022, 2023  Philip Kaludercic
 //
 // This file is part of go-kgp.
 //
@@ -36,7 +36,7 @@ type san struct {
 
 func (s *san) Start() {
 	var (
-		games []*kgp.Game
+		games = make([]*kgp.Game, 2*len(s.agents))
 		adv   = bot.MakeRandom()
 	)
 
