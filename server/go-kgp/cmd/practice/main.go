@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"os"
 
-	"go-kgp"
 	cmd "go-kgp/cmd"
 	"go-kgp/db"
 	"go-kgp/proto"
@@ -44,7 +43,7 @@ func main() {
 
 	// Create a server mode (state) and load configuration
 	mode := cmd.MakeMode()
-	conf := kgp.LoadConf()
+	conf := cmd.LoadConf()
 
 	// Load components
 	db.Register(mode)

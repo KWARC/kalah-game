@@ -36,7 +36,7 @@ type scheduler struct {
 	results map[kgp.Agent][]kgp.Agent
 }
 
-func (s *scheduler) run(wait *sync.WaitGroup, mode *cmd.State, conf *kgp.Conf) {
+func (s *scheduler) run(wait *sync.WaitGroup, mode *cmd.State, conf *cmd.Conf) {
 	s.results = make(map[kgp.Agent][]kgp.Agent)
 	sched := make(chan *kgp.Game, len(s.games))
 	for _, g := range s.games {

@@ -34,7 +34,7 @@ type rr struct {
 	init   uint
 }
 
-func (r *rr) Start(mode *cmd.State, conf *kgp.Conf) {
+func (r *rr) Start(mode *cmd.State, conf *cmd.Conf) {
 	var games []*kgp.Game
 
 	// Prepare all games

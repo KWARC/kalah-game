@@ -39,7 +39,7 @@ type combo struct {
 	i    uint64
 }
 
-func (c *combo) Start(mode *cmd.State, conf *kgp.Conf) {
+func (c *combo) Start(mode *cmd.State, conf *cmd.Conf) {
 	c.wait.Add(1)
 
 	next := c.ag

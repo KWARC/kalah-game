@@ -42,7 +42,7 @@ type fifo struct {
 	wait sync.WaitGroup
 }
 
-func (f *fifo) Start(mode *cmd.State, conf *kgp.Conf) {
+func (f *fifo) Start(mode *cmd.State, conf *cmd.Conf) {
 	var (
 		bots []kgp.Agent
 		q    []kgp.Agent

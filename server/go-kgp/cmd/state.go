@@ -32,7 +32,7 @@ import (
 
 type Manager interface {
 	fmt.Stringer
-	Start(*State, *kgp.Conf)
+	Start(*State, *Conf)
 	Shutdown()
 }
 
@@ -96,7 +96,7 @@ func (mode *State) Register(m Manager) {
 	mode.Managers = append(mode.Managers, m)
 }
 
-func (mode *State) Start(c *kgp.Conf) {
+func (mode *State) Start(c *Conf) {
 	// Start the service
 	for _, m := range mode.Managers {
 		kgp.Debug.Printf("Starting %s", m)

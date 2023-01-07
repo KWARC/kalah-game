@@ -25,7 +25,6 @@ import (
 	"log"
 	"os"
 
-	"go-kgp"
 	cmd "go-kgp/cmd"
 	"go-kgp/db"
 	"go-kgp/sched"
@@ -45,7 +44,7 @@ func main() {
 
 	// Create a server mode (state) and load configuration
 	mode := cmd.MakeMode()
-	conf := kgp.LoadConf()
+	conf := cmd.LoadConf()
 
 	// Check if the -dir flag was used and handle it
 	if dir != nil {

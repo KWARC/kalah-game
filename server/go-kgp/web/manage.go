@@ -42,7 +42,7 @@ type web struct {
 	mux *http.ServeMux
 }
 
-func (s *web) listen(conf *kgp.WebConf) {
+func (s *web) listen(conf *cmd.WebConf) {
 	addr := fmt.Sprintf(":%d", conf.Port)
 	log.Printf("Listening via HTTP on %s", addr)
 
@@ -140,7 +140,7 @@ func (s *web) drawGraphs(mode *cmd.State) {
 	s.mux.HandleFunc("/graph", h)
 }
 
-func (s *web) Start(mode *cmd.State, conf *kgp.Conf) {
+func (s *web) Start(mode *cmd.State, conf *cmd.Conf) {
 	w := &conf.Web
 
 	// Prepare HTTP Multiplexer

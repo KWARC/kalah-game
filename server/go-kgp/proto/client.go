@@ -52,7 +52,7 @@ type response struct {
 
 // Client wraps a network connection into a player
 type Client struct {
-	conf *kgp.ProtoConf
+	conf *cmd.ProtoConf
 
 	// Agent Metadata
 	user *kgp.User

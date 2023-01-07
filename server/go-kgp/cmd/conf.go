@@ -21,6 +21,7 @@ package kgp
 
 import (
 	"flag"
+	"go-kgp"
 	"io"
 	"log"
 	"os"
@@ -152,9 +153,9 @@ func LoadConf() (c *Conf) {
 
 	switch {
 	case debug:
-		Debug.SetOutput(os.Stderr)
+		kgp.Debug.SetOutput(os.Stderr)
 		log.Default().SetFlags(log.LstdFlags | log.Lshortfile)
-		Debug.Println("Debug logging has been enabled")
+		kgp.Debug.Println("Debug logging has been enabled")
 	case silent:
 		log.Default().SetOutput(io.Discard)
 	}

@@ -26,7 +26,6 @@ import (
 	"strconv"
 	"strings"
 
-	"go-kgp"
 	cmd "go-kgp/cmd"
 )
 
@@ -68,7 +67,7 @@ func (t *Listener) init() {
 	}
 }
 
-func (t *Listener) Start(mode *cmd.State, _ *kgp.Conf) {
+func (t *Listener) Start(mode *cmd.State, _ *cmd.Conf) {
 	t.start(mode)
 }
 
@@ -118,6 +117,6 @@ func StartListner(mode *cmd.State, handler func(*Client) bool) *Listener {
 	return l
 }
 
-func Register(mode *cmd.State, conf *kgp.Conf) {
+func Register(mode *cmd.State, conf *cmd.Conf) {
 	mode.Register(MakeListner(mode, conf.Proto.Port))
 }

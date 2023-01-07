@@ -52,7 +52,7 @@ func MoveCopy(g *kgp.Game, m *kgp.Move) (*kgp.Game, bool) {
 	return c, Move(c, m)
 }
 
-func Play(g *kgp.Game, mode *cmd.State, conf *kgp.Conf) {
+func Play(g *kgp.Game, mode *cmd.State, conf *cmd.Conf) {
 	dbg := kgp.Debug.Printf
 	bg := context.Background()
 

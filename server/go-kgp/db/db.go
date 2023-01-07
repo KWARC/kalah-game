@@ -516,7 +516,7 @@ func (db *db) DrawGraph(ctx context.Context, w io.Writer) error {
 	return nil
 }
 
-func (db *db) Start(mode *cmd.State, conf *kgp.Conf) {
+func (db *db) Start(mode *cmd.State, conf *cmd.Conf) {
 	var err error
 	read, err := sql.Open("sqlite3", conf.Database.File)
 	if err != nil {

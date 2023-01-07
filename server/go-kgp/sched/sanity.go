@@ -33,7 +33,7 @@ type sanity struct {
 	wait   sync.WaitGroup
 }
 
-func (s *sanity) Start(mode *cmd.State, conf *kgp.Conf) {
+func (s *sanity) Start(mode *cmd.State, conf *cmd.Conf) {
 	var (
 		games = make([]*kgp.Game, 2*len(s.agents))
 		adv   = bot.MakeRandom()
