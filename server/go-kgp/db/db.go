@@ -518,20 +518,20 @@ func (db *db) DrawGraph(ctx context.Context, w io.Writer) error {
 
 func (db *db) Start(mode *cmd.State, conf *cmd.Conf) {
 	var err error
-	read, err := sql.Open("sqlite3", conf.Database.File)
+	db.read, err = sql.Open("sqlite3", conf.Database.File)
 	if err != nil {
 		log.Fatal(err, ": ", conf.Database)
 	}
-	read.SetConnMaxLifetime(0)
-	read.SetMaxIdleConns(1)
+	db.read.SetConnMaxLifetime(0)
+	db.read.SetMaxIdleConns(1)
 
-	write, err := sql.Open("sqlite3", conf.Database.File)
+	db.write, err = sql.Open("sqlite3", conf.Database.File)
 	if err != nil {
 		log.Fatal(err, ": ", conf.Database)
 	}
-	write.SetConnMaxLifetime(0)
-	write.SetMaxIdleConns(1)
-	write.SetMaxOpenConns(1)
+	db.write.SetConnMaxLifetime(0)
+	db.write.SetMaxIdleConns(1)
+	db.write.SetMaxOpenConns(1)
 
 	for _, pragma := range []string{
 		// https://www.sqlite.org/pragma.html#pragma_journal_mode
@@ -546,18 +546,19 @@ func (db *db) Start(mode *cmd.State, conf *cmd.Conf) {
 		"foreign_keys = on",
 	} {
 		kgp.Debug.Printf("Run PRAGMA %v", pragma)
-		_, err = write.Exec("PRAGMA " + pragma + ";")
+		_, err = db.write.Exec("PRAGMA " + pragma + ";")
 		if err != nil {
 			log.Fatal(err)
 		}
 	}
 
+	db.queries = make(map[string]*sql.Stmt)
+	db.commands = make(map[string]*sql.Stmt)
+
 	entries, err := sql_dir.ReadDir(".")
 	if err != nil {
 		log.Fatal(err)
 	}
-	queries := make(map[string]*sql.Stmt)
-	commands := make(map[string]*sql.Stmt)
 	for _, entry := range entries {
 		if !entry.Type().IsRegular() || strings.HasPrefix(".", entry.Name()) {
 			continue
@@ -570,15 +571,15 @@ func (db *db) Start(mode *cmd.State, conf *cmd.Conf) {
 		}
 
 		if strings.HasPrefix(base, "create-") || strings.HasPrefix(base, "run-") {
-			_, err = write.Exec(string(data))
+			_, err = db.write.Exec(string(data))
 			kgp.Debug.Printf("Executed query %v", base)
 		} else {
 			query := strings.TrimSuffix(base, ".sql")
 			if strings.HasPrefix(query, "select-") {
-				queries[query], err = read.Prepare(string(data))
+				db.queries[query], err = db.read.Prepare(string(data))
 				kgp.Debug.Printf("Registered query %v", query)
 			} else {
-				commands[query], err = write.Prepare(string(data))
+				db.commands[query], err = db.write.Prepare(string(data))
 				kgp.Debug.Printf("Registered command %v", query)
 			}
 		}
@@ -587,7 +588,7 @@ func (db *db) Start(mode *cmd.State, conf *cmd.Conf) {
 		}
 	}
 
-	if len(queries) == 0 {
+	if len(db.queries) == 0 {
 		panic("No queries loaded")
 	}
 
