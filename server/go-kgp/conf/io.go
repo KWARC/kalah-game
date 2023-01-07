@@ -63,7 +63,7 @@ func load(r io.Reader) (*Conf, error) {
 	c.MoveTimeout = time.Duration(data.Game.Timeout) * time.Millisecond
 	c.WebInterface = data.Web.Enabled
 	c.About = data.Web.About
-	c.WebPort = uint(data.Proto.Port)
+	c.WebPort = data.Proto.Port
 	data.Game.Open.Init = c.BoardInit
 	data.Game.Open.Size = c.BoardSize
 	c.BotTypes = data.Game.Open.Bots
@@ -119,7 +119,7 @@ func (c *Conf) Dump(wr io.Writer) error {
 	data.Database.File = c.Database
 	data.Proto.Ping = c.Ping
 	data.Proto.Timeout = uint(c.TCPTimeout / time.Millisecond)
-	data.Proto.Port = uint(c.TCPPort)
+	data.Proto.Port = c.TCPPort
 	data.Proto.Websocket = c.WebSocket
 	data.Game.Timeout = uint(c.MoveTimeout / time.Millisecond)
 	data.Game.Open.Init = c.BoardInit
@@ -127,7 +127,7 @@ func (c *Conf) Dump(wr io.Writer) error {
 	data.Game.Open.Bots = c.BotTypes
 	data.Web.Enabled = c.WebInterface
 	data.Web.About = c.About
-	data.Web.Port = uint(c.WebPort)
+	data.Web.Port = c.WebPort
 
 	return toml.NewEncoder(wr).Encode(data)
 }
