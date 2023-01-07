@@ -24,6 +24,7 @@ import (
 
 	"go-kgp"
 	"go-kgp/bot"
+	cmd "go-kgp/cmd"
 )
 
 type sanity struct {
@@ -32,7 +33,7 @@ type sanity struct {
 	wait   sync.WaitGroup
 }
 
-func (s *sanity) Start(mode *kgp.Mode, conf *kgp.Conf) {
+func (s *sanity) Start(mode *cmd.State, conf *kgp.Conf) {
 	var (
 		games = make([]*kgp.Game, 2*len(s.agents))
 		adv   = bot.MakeRandom()
@@ -65,8 +66,8 @@ func (*sanity) Unschedule(a kgp.Agent) {}
 
 func (*sanity) String() string { return "Sanity Test" }
 
-func MakeSanityCheck() kgp.GameManager {
-	return kgp.GameManager(&sanity{
+func MakeSanityCheck() cmd.GameManager {
+	return cmd.GameManager(&sanity{
 		agents: make(map[kgp.Agent]struct{}),
 	})
 }

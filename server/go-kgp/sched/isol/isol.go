@@ -21,15 +21,16 @@ package isol
 
 import (
 	"go-kgp"
+	cmd "go-kgp/cmd"
 )
 
 type ControlledAgent interface {
 	kgp.Agent
-	Start(mode *kgp.Mode) (kgp.Agent, error)
+	Start(mode *cmd.State) (kgp.Agent, error)
 	Shutdown() error
 }
 
-func Start(mode *kgp.Mode, a kgp.Agent) (kgp.Agent, error) {
+func Start(mode *cmd.State, a kgp.Agent) (kgp.Agent, error) {
 	if ca, ok := a.(ControlledAgent); ok {
 		return ca.Start(mode)
 	}

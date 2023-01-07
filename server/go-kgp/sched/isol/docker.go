@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"go-kgp"
+	cmd "go-kgp/cmd"
 	"go-kgp/proto"
 
 	"github.com/docker/docker/api/types"
@@ -61,7 +62,7 @@ func (d *docker) User() *kgp.User {
 	return d.cli.User()
 }
 
-func (d *docker) Start(mode *kgp.Mode) (kgp.Agent, error) {
+func (d *docker) Start(mode *cmd.State) (kgp.Agent, error) {
 	var err error
 	d.cont, err = client.NewClientWithOpts(client.FromEnv)
 	if err != nil {

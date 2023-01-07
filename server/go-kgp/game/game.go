@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"go-kgp"
+	cmd "go-kgp/cmd"
 )
 
 func Move(g *kgp.Game, m *kgp.Move) bool {
@@ -51,7 +52,7 @@ func MoveCopy(g *kgp.Game, m *kgp.Move) (*kgp.Game, bool) {
 	return c, Move(c, m)
 }
 
-func Play(g *kgp.Game, mode *kgp.Mode, conf *kgp.Conf) {
+func Play(g *kgp.Game, mode *cmd.State, conf *kgp.Conf) {
 	dbg := kgp.Debug.Printf
 	bg := context.Background()
 

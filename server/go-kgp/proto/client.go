@@ -32,6 +32,7 @@ import (
 	"time"
 
 	"go-kgp"
+	cmd "go-kgp/cmd"
 )
 
 var defaultUser = &kgp.User{
@@ -243,7 +244,7 @@ func (cli *Client) ping() bool {
 // It will start a ping thread (if the configuration requires it), a
 // goroutine to handle and interpret input and then wait for the
 // client to be killed.
-func (cli *Client) Connect(mode *kgp.Mode) {
+func (cli *Client) Connect(mode *cmd.State) {
 	dbg := kgp.Debug.Println
 
 	// Ensure that the client has a channel that is being

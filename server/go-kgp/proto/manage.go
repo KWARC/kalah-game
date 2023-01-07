@@ -27,6 +27,7 @@ import (
 	"strings"
 
 	"go-kgp"
+	cmd "go-kgp/cmd"
 )
 
 type Listener struct {
@@ -67,11 +68,11 @@ func (t *Listener) init() {
 	}
 }
 
-func (t *Listener) Start(mode *kgp.Mode, _ *kgp.Conf) {
+func (t *Listener) Start(mode *cmd.State, _ *kgp.Conf) {
 	t.start(mode)
 }
 
-func (t *Listener) start(mode *kgp.Mode) {
+func (t *Listener) start(mode *cmd.State) {
 	if mode.Scheduler == nil {
 		panic("No game scheduler")
 	}
@@ -100,7 +101,7 @@ func (t *Listener) Shutdown() {
 	}
 }
 
-func MakeListner(mode *kgp.Mode, port uint) *Listener {
+func MakeListner(mode *cmd.State, port uint) *Listener {
 	return &Listener{
 		handler: func(c *Client) bool {
 			go c.Connect(mode)
@@ -110,13 +111,13 @@ func MakeListner(mode *kgp.Mode, port uint) *Listener {
 	}
 }
 
-func StartListner(mode *kgp.Mode, handler func(*Client) bool) *Listener {
+func StartListner(mode *cmd.State, handler func(*Client) bool) *Listener {
 	l := &Listener{handler: handler}
 	l.init()
 	go l.start(mode)
 	return l
 }
 
-func Register(mode *kgp.Mode, conf *kgp.Conf) {
+func Register(mode *cmd.State, conf *kgp.Conf) {
 	mode.Register(MakeListner(mode, conf.Proto.Port))
 }

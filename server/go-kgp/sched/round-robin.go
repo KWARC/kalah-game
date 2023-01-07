@@ -23,6 +23,7 @@ import (
 	"sync"
 
 	"go-kgp"
+	cmd "go-kgp/cmd"
 )
 
 type rr struct {
@@ -33,7 +34,7 @@ type rr struct {
 	init   uint
 }
 
-func (r *rr) Start(mode *kgp.Mode, conf *kgp.Conf) {
+func (r *rr) Start(mode *cmd.State, conf *kgp.Conf) {
 	var games []*kgp.Game
 
 	// Prepare all games
@@ -79,8 +80,8 @@ func (r *rr) results() map[kgp.Agent]struct{} {
 	return next
 }
 
-func MakeRoundRobin(size, init uint) kgp.GameManager {
-	return kgp.GameManager(&rr{
+func MakeRoundRobin(size, init uint) cmd.GameManager {
+	return cmd.GameManager(&rr{
 		agents: make(map[kgp.Agent]struct{}),
 		size:   size,
 		init:   init,

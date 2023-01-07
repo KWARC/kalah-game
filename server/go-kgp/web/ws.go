@@ -26,7 +26,7 @@ import (
 	"net/http"
 
 	"go-kgp"
-
+	cmd "go-kgp/cmd"
 	"go-kgp/proto"
 
 	"github.com/gorilla/websocket"
@@ -76,7 +76,7 @@ func (c *wsrwc) Read(p []byte) (int, error) {
 }
 
 // Upgrade a HTTP connection to a WebSocket and handle it
-func upgrader(mode *kgp.Mode) http.HandlerFunc {
+func upgrader(mode *cmd.State) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// upgrade to websocket or bail out
 		conn, err := (&websocket.Upgrader{

@@ -38,6 +38,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 
 	"go-kgp"
+	cmd "go-kgp/cmd"
 	"go-kgp/game"
 )
 
@@ -515,7 +516,7 @@ func (db *db) DrawGraph(ctx context.Context, w io.Writer) error {
 	return nil
 }
 
-func (db *db) Start(mode *kgp.Mode, conf *kgp.Conf) {
+func (db *db) Start(mode *cmd.State, conf *kgp.Conf) {
 	var err error
 	read, err := sql.Open("sqlite3", conf.Database.File)
 	if err != nil {
@@ -645,7 +646,6 @@ func (db *db) Shutdown() {
 func (*db) String() string { return "Database Manager" }
 
 // Initialise the database and database managers
-func Register(mode *kgp.Mode) {
-	var man kgp.DatabaseManager = &db{}
-	mode.Register(man)
+func Register(mode *cmd.State) {
+	mode.Register(cmd.DatabaseManager(&db{}))
 }

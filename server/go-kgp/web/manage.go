@@ -32,12 +32,13 @@ import (
 	"time"
 
 	"go-kgp"
+	cmd "go-kgp/cmd"
 )
 
 const about = `<p>This is a practice server for the AI1 Kalah Tournament.</p>`
 
 type web struct {
-	DB  kgp.DatabaseManager
+	DB  cmd.DatabaseManager
 	mux *http.ServeMux
 }
 
@@ -51,7 +52,7 @@ func (s *web) listen(conf *kgp.WebConf) {
 	}
 }
 
-func (s *web) drawGraphs(mode *kgp.Mode) {
+func (s *web) drawGraphs(mode *cmd.State) {
 	var (
 		dbg  = kgp.Debug.Println
 		draw = mode.Database.DrawGraph
@@ -139,7 +140,7 @@ func (s *web) drawGraphs(mode *kgp.Mode) {
 	s.mux.HandleFunc("/graph", h)
 }
 
-func (s *web) Start(mode *kgp.Mode, conf *kgp.Conf) {
+func (s *web) Start(mode *cmd.State, conf *kgp.Conf) {
 	w := &conf.Web
 
 	// Prepare HTTP Multiplexer
@@ -209,6 +210,6 @@ func (*web) Shutdown() {}
 
 func (*web) String() string { return "Web Server" }
 
-func Register(mode *kgp.Mode) {
+func Register(mode *cmd.State) {
 	mode.Register(&web{})
 }

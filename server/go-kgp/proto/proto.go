@@ -28,6 +28,7 @@ import (
 	"unicode"
 
 	"go-kgp"
+	cmd "go-kgp/cmd"
 )
 
 const (
@@ -112,7 +113,7 @@ func parse(raw string, params ...interface{}) error {
 }
 
 // Interpret parses and evaluates INPUT
-func (cli *Client) interpret(input string, m *kgp.Mode) error {
+func (cli *Client) interpret(input string, m *cmd.State) error {
 	dbg := kgp.Debug.Printf
 
 	input = strings.TrimSpace(input)

@@ -27,6 +27,7 @@ import (
 
 	"go-kgp"
 	"go-kgp/bot"
+	cmd "go-kgp/cmd"
 	"go-kgp/game"
 )
 
@@ -41,7 +42,7 @@ type fifo struct {
 	wait sync.WaitGroup
 }
 
-func (f *fifo) Start(mode *kgp.Mode, conf *kgp.Conf) {
+func (f *fifo) Start(mode *cmd.State, conf *kgp.Conf) {
 	var (
 		bots []kgp.Agent
 		q    []kgp.Agent
@@ -180,8 +181,8 @@ func (f *fifo) Schedule(a kgp.Agent)   { f.add <- a }
 func (f *fifo) Unschedule(a kgp.Agent) { f.rem <- a }
 func (*fifo) String() string           { return "FIFO Scheduler" }
 
-func MakeFIFO() kgp.GameManager {
-	return kgp.GameManager(&fifo{
+func MakeFIFO() cmd.GameManager {
+	return cmd.GameManager(&fifo{
 		add:  make(chan kgp.Agent, 16),
 		rem:  make(chan kgp.Agent, 16),
 		shut: make(chan struct{}),
