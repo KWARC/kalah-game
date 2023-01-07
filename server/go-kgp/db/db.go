@@ -100,40 +100,6 @@ func (db *db) RecordScore(ctx context.Context, cli *kgp.User, game *kgp.Game, ti
 	}
 }
 
-func (db *db) updateDatabase(ctx context.Context, u *kgp.User, query bool) {
-	var name, descr sql.NullString
-
-	res, err := db.commands["insert-agent"].ExecContext(ctx,
-		u.Token,
-		u.Name,
-		u.Descr,
-		u.Author)
-	if err != nil {
-		log.Print(err)
-		return
-	}
-	u.Id, err = res.LastInsertId()
-	if err != nil {
-		log.Print(err)
-	}
-
-	if query {
-		err = db.queries["select-agent-token"].QueryRowContext(ctx, u.Token).Scan(
-			&u.Id, &name, &descr)
-		if errors.Is(err, sql.ErrNoRows) {
-			log.Print(err)
-			return
-		}
-
-		if name.Valid {
-			u.Name = name.String
-		}
-		if descr.Valid {
-			u.Descr = descr.String
-		}
-	}
-}
-
 func (db *db) Forget(ctx context.Context, token []byte) {
 	_, err := db.commands["delete-agent"].ExecContext(ctx, token)
 	if err != nil {
