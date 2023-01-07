@@ -36,10 +36,10 @@ const (
 )
 
 var (
-	debug  bool   = false
-	silent bool   = false
-	dump   bool   = false
-	cfile  string = defconf
+	debug  = false
+	silent = false
+	dump   = false
+	cfile  = defconf
 )
 
 // Parse a configuration from R into CONF
