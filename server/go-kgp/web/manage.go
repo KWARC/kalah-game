@@ -142,6 +142,7 @@ func (s *web) drawGraphs(mode *cmd.State) {
 
 func (s *web) Start(mode *cmd.State, conf *cmd.Conf) {
 	w := &conf.Web
+	s.DB = mode.Database
 
 	// Prepare HTTP Multiplexer
 	s.mux = http.NewServeMux()
