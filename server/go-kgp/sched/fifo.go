@@ -181,8 +181,8 @@ func (f *fifo) Schedule(a kgp.Agent)   { f.add <- a }
 func (f *fifo) Unschedule(a kgp.Agent) { f.rem <- a }
 func (*fifo) String() string           { return "FIFO Scheduler" }
 
-func MakeFIFO() cmd.GameManager {
-	return cmd.GameManager(&fifo{
+func MakeFIFO() cmd.Scheduler {
+	return cmd.Scheduler(&fifo{
 		add:  make(chan kgp.Agent, 16),
 		rem:  make(chan kgp.Agent, 16),
 		shut: make(chan struct{}),

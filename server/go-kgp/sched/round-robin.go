@@ -80,8 +80,8 @@ func (r *rr) results() map[kgp.Agent]struct{} {
 	return next
 }
 
-func MakeRoundRobin(size, init uint) cmd.GameManager {
-	return cmd.GameManager(&rr{
+func MakeRoundRobin(size, init uint) cmd.Scheduler {
+	return cmd.Scheduler(&rr{
 		agents: make(map[kgp.Agent]struct{}),
 		size:   size,
 		init:   init,

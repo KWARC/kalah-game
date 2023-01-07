@@ -36,7 +36,7 @@ type Manager interface {
 	Shutdown()
 }
 
-type GameManager interface {
+type Scheduler interface {
 	Manager
 
 	Schedule(kgp.Agent)
@@ -67,7 +67,7 @@ type State struct {
 	Kill    context.CancelFunc
 	Running bool
 
-	Scheduler GameManager
+	Scheduler Scheduler
 	Database  DatabaseManager
 	Managers  []Manager
 }
@@ -89,7 +89,7 @@ func (mode *State) Register(m Manager) {
 	switch s := m.(type) {
 	case DatabaseManager:
 		mode.Database = s
-	case GameManager:
+	case Scheduler:
 		mode.Scheduler = s
 	}
 

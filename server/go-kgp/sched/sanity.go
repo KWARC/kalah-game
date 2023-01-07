@@ -66,8 +66,8 @@ func (*sanity) Unschedule(a kgp.Agent) {}
 
 func (*sanity) String() string { return "Sanity Test" }
 
-func MakeSanityCheck() cmd.GameManager {
-	return cmd.GameManager(&sanity{
+func MakeSanityCheck() cmd.Scheduler {
+	return cmd.Scheduler(&sanity{
 		agents: make(map[kgp.Agent]struct{}),
 	})
 }

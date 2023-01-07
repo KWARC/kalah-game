@@ -35,7 +35,7 @@ type composable interface {
 type combo struct {
 	wait sync.WaitGroup
 	ag   map[kgp.Agent]struct{}
-	ms   []cmd.GameManager
+	ms   []cmd.Scheduler
 	i    uint64
 }
 
@@ -72,6 +72,6 @@ func (c *combo) Shutdown() {
 
 func (*combo) String() string { return "Round Robin" }
 
-func MakeCombo(m ...cmd.GameManager) cmd.GameManager {
-	return cmd.GameManager(&combo{ms: m})
+func MakeCombo(m ...cmd.Scheduler) cmd.Scheduler {
+	return cmd.Scheduler(&combo{ms: m})
 }
