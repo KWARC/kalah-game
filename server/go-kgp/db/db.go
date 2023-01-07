@@ -647,5 +647,5 @@ func (*db) String() string { return "Database Manager" }
 
 // Initialise the database and database managers
 func Register(mode *cmd.State) {
-	mode.Register(cmd.DatabaseManager(&db{}))
+	mode.Register(cmd.Database(&db{}))
 }

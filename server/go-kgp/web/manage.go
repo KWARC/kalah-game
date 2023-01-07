@@ -38,7 +38,7 @@ import (
 const about = `<p>This is a practice server for the AI1 Kalah Tournament.</p>`
 
 type web struct {
-	DB  cmd.DatabaseManager
+	DB  cmd.Database
 	mux *http.ServeMux
 }
 

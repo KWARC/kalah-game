@@ -43,7 +43,7 @@ type Scheduler interface {
 	Unschedule(kgp.Agent)
 }
 
-type DatabaseManager interface {
+type Database interface {
 	Manager
 
 	// Access interface
@@ -68,7 +68,7 @@ type State struct {
 	Running bool
 
 	Scheduler Scheduler
-	Database  DatabaseManager
+	Database  Database
 	Managers  []Manager
 }
 
@@ -87,7 +87,7 @@ func (mode *State) Register(m Manager) {
 	}
 
 	switch s := m.(type) {
-	case DatabaseManager:
+	case Database:
 		mode.Database = s
 	case Scheduler:
 		mode.Scheduler = s
