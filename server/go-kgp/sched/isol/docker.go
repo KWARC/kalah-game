@@ -31,7 +31,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
-	dcli "github.com/docker/docker/client"
+	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	"github.com/pkg/errors"
 )
@@ -39,7 +39,7 @@ import (
 type docker struct {
 	name string
 	id   string
-	cont *dcli.Client
+	cont *client.Client
 	cli  *proto.Client
 	lis  *proto.Listener
 	conf *conf.Conf
@@ -65,7 +65,7 @@ func (d *docker) User() *kgp.User {
 
 func (d *docker) Start() (kgp.Agent, error) {
 	var err error
-	d.cont, err = dcli.NewClientWithOpts(dcli.FromEnv)
+	d.cont, err = client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		return nil, err
 	}
