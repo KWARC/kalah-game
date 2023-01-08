@@ -72,7 +72,7 @@ type Client struct {
 	comm   string
 }
 
-func MakeClient(rwc io.ReadWriteCloser) *Client {
+func MakeClient(rwc io.ReadWriteCloser, conf *cmd.ProtoConf) *Client {
 	return &Client{
 		user:  defaultUser,
 		games: make(map[uint64]*kgp.Game),
@@ -80,6 +80,7 @@ func MakeClient(rwc io.ReadWriteCloser) *Client {
 		resp:  make(chan *response, 1),
 		alive: make(chan struct{}, 1),
 		rwc:   rwc,
+		conf:  conf,
 	}
 }
 

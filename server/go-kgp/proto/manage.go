@@ -67,11 +67,7 @@ func (t *Listener) init() {
 	}
 }
 
-func (t *Listener) Start(mode *cmd.State, _ *cmd.Conf) {
-	t.start(mode)
-}
-
-func (t *Listener) start(mode *cmd.State) {
+func (t *Listener) Start(mode *cmd.State, conf *cmd.Conf) {
 	if mode.Scheduler == nil {
 		panic("No game scheduler")
 	}
@@ -84,10 +80,13 @@ func (t *Listener) start(mode *cmd.State) {
 			continue
 		}
 
-		if t.handler(MakeClient(conn)) {
+		if t.handler(MakeClient(conn, &conf.Proto)) {
 			break
 		}
 	}
+}
+
+func (t *Listener) start(mode *cmd.State) {
 }
 
 func (t *Listener) Port() uint16 {

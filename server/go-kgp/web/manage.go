@@ -182,7 +182,7 @@ func (s *web) Start(mode *cmd.State, conf *cmd.Conf) {
 	// Install the WebSocket handler
 	if w.WebSocket {
 		log.Print("Accepting websocket connections on /socket")
-		s.mux.HandleFunc("/socket", upgrader(mode))
+		s.mux.HandleFunc("/socket", upgrader(mode, conf))
 	}
 
 	// Parse templates
