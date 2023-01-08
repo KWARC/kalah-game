@@ -99,7 +99,7 @@ func (mode *State) Register(m Manager) {
 func (mode *State) Start(c *Conf) {
 	// Start the service
 	for _, m := range mode.Managers {
-		kgp.Debug.Printf("Starting %s", m)
+		log.Printf("Starting %s", m)
 		go m.Start(mode, c)
 	}
 	mode.Running = true
@@ -120,7 +120,7 @@ func (mode *State) Start(c *Conf) {
 		kgp.Debug.Println("Waiting for managers to shutdown...")
 		for i := len(mode.Managers) - 1; i >= 0; i-- {
 			m := mode.Managers[i]
-			kgp.Debug.Printf("Shutting %s down", m)
+			log.Printf("Shutting %s down", m)
 			m.Shutdown()
 		}
 		done <- struct{}{}
