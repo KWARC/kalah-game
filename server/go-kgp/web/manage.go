@@ -20,6 +20,7 @@
 package web
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"html/template"
@@ -109,7 +110,10 @@ func (s *web) drawGraphs(mode *cmd.State) {
 			return data, err
 		}
 		dbg("Finished generating dominance graph")
-		return data, nil
+
+		var buf bytes.Buffer
+		err = tmpl.ExecuteTemplate(&buf, "graph.tmpl", template.HTML(data))
+		return buf.Bytes(), err
 	}
 
 	var (

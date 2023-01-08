@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Dominance Graph</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<style>
+  #graph > * {
+      margin: auto;
+      display: table;
+      padding: 1cm;
+  }
+
+  footer {
+      font-size: small;
+      text-align: right;
+  }
+</style>
+</head>
+<body>
+  <h1>Dominance Graph</h1>
+  <p>
+    This graph gives an overview of which agent managed to beat what
+    other agent.  Each node is an agent, and each directed
+    vertex <em>A &rarr; B</em>
+    indicates that the agent <em>A</em> managed to beat the
+    agent <em>B</em> in at least one game.
+  </p>
+  <p>
+    The graph is displayed as a vector graphic (SVG), so you can
+    search for an agent using your regular browser search
+    functionality (e.g. <kbd>Ctrl+F</kbd>) and click on agent nodes to be
+    directed towards their statistics page.
+  </p>
+  <hr />
+  <div id="graph">
+    {{ . }}
+  </div>
+  <hr />
+  <footer>
+    Generated {{ now }}.
+  </footer>
+</body>
+</html>
