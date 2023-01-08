@@ -46,7 +46,7 @@ func main() {
 	conf := cmd.LoadConf()
 
 	// Load components
-	db.Register(mode)
+	db.Register(mode, conf)
 	mode.Register(sched.MakeFIFO())
 	proto.Register(mode, conf)
 	web.Register(mode)

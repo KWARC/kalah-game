@@ -61,7 +61,7 @@ func main() {
 	}
 
 	// Load components
-	db.Register(mode)
+	db.Register(mode, conf)
 	mode.Register(sched.MakeCombo(
 		sched.MakeSanityCheck(),
 		sched.MakeRoundRobin(6, 6),
