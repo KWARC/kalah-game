@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"go-kgp"
+	"math/rand"
 )
 
 // We need a random
@@ -33,6 +34,7 @@ var nonce string = os.Getenv("NONCE")
 
 type minmax struct {
 	depth uint      // ply cutoff
+	acc   float64   // accuracy
 	user  *kgp.User // database entry
 }
 
@@ -118,9 +120,50 @@ func search(Σ *kgp.Board, π kgp.Side, Δ uint) (uint, int64) {
 	return it(Σ, π, Δ, math.MinInt, math.MaxInt)
 }
 
+// From Moby Thesaurus II by Grady Ward
+var randomly = []string{
+	"accidental", "adventitious", "adventitiously", "aimless", "aleatoric",
+	"aleatory", "amorphous", "any which way", "anyhow", "anywise", "arbitrarily",
+	"arbitrary", "around", "at random", "blobby", "blurred", "blurry", "broad",
+	"by chance", "capricious", "casual", "casually", "causeless", "chance",
+	"chance-medley", "chancy", "chaotic", "confused", "designless", "desultory",
+	"disarticulated", "discontinuous", "disjunct", "disordered", "dispersed",
+	"disproportionate", "driftless", "dysteleological", "erratic", "erratically",
+	"fitful", "foggy", "formless", "fortuitous", "fortuitously", "frivolous",
+	"fuzzy", "general", "gratuitous", "haphazard", "haphazardly", "hazy",
+	"helter-skelter", "hit-or-miss", "ill-defined", "immethodical", "imprecise",
+	"inaccurate", "inchoate", "incidental", "incidentally", "incoherent",
+	"indecisive", "indefinable", "indefinite", "indefinitely", "indeterminable",
+	"indeterminate", "indiscriminate", "indiscriminately", "indistinct",
+	"inexact", "inexplicable", "irregular", "irregularly", "lax", "loose",
+	"meaningless", "mindless", "misshapen", "nonspecific", "nonsymmetrical",
+	"nonsystematic", "nonuniform", "obscure", "occasional", "occasionally", "odd",
+	"orderless", "planless", "potluck", "promiscuous", "purposeless",
+	"random shot", "randomly", "senseless", "serendipitous", "serendipitously",
+	"shadowed forth", "shadowy", "shapeless", "spasmodic", "sporadic",
+	"stochastic", "straggling", "straggly", "stray", "sweeping", "systemless",
+	"unaccountable", "unarranged", "uncalculated", "unclassified", "unclear",
+	"undefined", "undestined", "undetermined", "undirected", "ungraded",
+	"unjoined", "unmethodical", "unmotivated", "unordered", "unorganized",
+	"unplain", "unplanned", "unpremeditated", "unpremeditatedly", "unsorted",
+	"unspecific", "unspecified", "unsymmetrical", "unsystematic",
+	"unsystematically", "ununiform", "vague", "veiled", "wandering",
+}
+
 func (m *minmax) Request(g *kgp.Game) (*kgp.Move, bool) {
 	if g.Board.Over() {
 		panic("Unexpected final state")
+	}
+	if m.acc == 0 || rand.Float64() > m.acc {
+		r := randomly[rand.Intn(len(randomly))]
+		return &kgp.Move{
+			Choice:  g.Board.Random(g.Side(m)),
+			Comment: fmt.Sprintf("*%s*", r),
+			Agent:   m,
+			State:   g.Board,
+			Game:    g,
+			Stamp:   time.Now(),
+		}, false
 	}
 	move, ev := search(g.Board, g.Side(m), m.depth)
 	if !g.Board.Legal(g.Side(m), move) {
@@ -138,16 +181,27 @@ func (m *minmax) Request(g *kgp.Game) (*kgp.Move, bool) {
 }
 
 func (m *minmax) User() *kgp.User { return m.user }
-func (m *minmax) String() string  { return fmt.Sprintf("MM%d", m.depth) }
+func (m *minmax) String() string  { return fmt.Sprintf("MM%d/%f", m.depth, m.acc) }
 func (*minmax) IsBot()            {}
 func (*minmax) Alive() bool       { return true } // bots never die
 
-func MakeMinMax(depth uint) kgp.Agent {
-	return &minmax{
-		user: &kgp.User{
-			Token: fmt.Sprintf("%s-mm%d", nonce,
-				depth),
-			Name: fmt.Sprintf("MinMax-%d", depth),
+func MakeMinMax(depth uint, acc float64) kgp.Agent {
+	if acc < 0 || acc > 1 {
+		panic("Invalid accuracy")
+	}
+
+	var user *kgp.User
+	switch acc {
+	case 0:
+		user = &kgp.User{
+			Token: fmt.Sprintf("%s-rand", nonce),
+			Name:  "Random",
+			Descr: `A reference agent that will always make a random legal move.`,
+		}
+	case 1:
+		user = &kgp.User{
+			Token: fmt.Sprintf("%s-mm%d", nonce, depth),
+			Name:  fmt.Sprintf("MinMax-%d", depth),
 			Descr: fmt.Sprintf(`
 Simple reference implementation for a MinMax agent.
 
@@ -155,7 +209,27 @@ This agent is a bot and is provided by the practice server to make
 comparing the performance easier.  Note that bots are not time-bound
 and will always complete their search.  This agent will always search
 %d plies ahead and return the best move it can find.`, depth),
-		},
-		depth: depth,
+		}
+	default:
+		// Idea stolen from https://www.youtube.com/watch?v=DpXy041BIlA
+		user = &kgp.User{
+			Token: fmt.Sprintf("%s-mm%d/%f", nonce, depth, acc),
+			Name:  fmt.Sprintf("MinMax-%d (%.0f%%)", depth, 100*acc),
+			Descr: fmt.Sprintf(`
+Simple reference implementation for a tainted MinMax agent.
+
+This agent is a bot and is provided by the practice server to make
+comparing the performance easier.  Note that bots are not time-bound
+and will always complete their search.  %.0f percent of the
+time, this agent will always search %d plies ahead and return the
+best move it can find.  Otherwise it will revert to a random move.`,
+				100*acc, depth),
+		}
 	}
+
+	return &minmax{user: user, depth: depth, acc: acc}
+}
+
+func MakeRandom() kgp.Agent {
+	return MakeMinMax(0, 0.0)
 }

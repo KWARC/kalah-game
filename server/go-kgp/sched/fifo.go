@@ -31,6 +31,8 @@ import (
 	"go-kgp/game"
 )
 
+var interval = 20 * time.Second
+
 // The intent is not to have a secure source of random values, but
 // just to avoid a predictive shuffling of north/south positions.
 func init() { rand.Seed(time.Now().UnixMicro()) }
@@ -46,22 +48,25 @@ func (f *fifo) Start(mode *cmd.State, conf *cmd.Conf) {
 	var (
 		bots []kgp.Agent
 		q    []kgp.Agent
-		bi   int // bot index
 	)
 
-	for _, d := range conf.Game.Open.Bots {
-		bots = append(bots, bot.MakeMinMax(d))
+	bots = append(bots, bot.MakeRandom())
+	for d, accs := range conf.Game.Open.Bots {
+		for _, a := range accs {
+			bots = append(bots, bot.MakeMinMax(d, a))
+		}
 	}
 
 	// Start the scheduler at a the beginning of a full minute, to
 	// make the behaviour more predictable.
-	wait := time.Until(time.Now().Round(time.Minute)) + time.Minute
+	wait := time.Until(time.Now().Round(interval)) + interval
+	kgp.Debug.Println("Waiting", wait)
 	time.Sleep(wait)
 
 	// The actual scheduler runs every 20 seconds, so that clients
 	// have time to gather in the queue and play against one
 	// another, instead of just immediately falling back to a bot.
-	tick := time.NewTicker(20 * time.Second)
+	tick := time.NewTicker(interval)
 	for {
 		select {
 		case <-tick.C:
@@ -122,9 +127,8 @@ func (f *fifo) Start(mode *cmd.State, conf *cmd.Conf) {
 				south = q[0]
 				q = nil
 
-				// rotate through all bots
-				bi = (bi + 1) % len(bots)
-				north = bots[bi]
+				// Pick a random bot
+				north = bots[rand.Intn(len(bots))]
 			default: // len(q) ≥ 2
 				south = q[0]
 				north = q[1]

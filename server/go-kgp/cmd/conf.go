@@ -74,9 +74,9 @@ type ProtoConf struct {
 }
 
 type OpenGameConf struct {
-	Init uint   `toml:"init"`
-	Size uint   `toml:"size"`
-	Bots []uint `toml:"bots"`
+	Init uint               `toml:"init"`
+	Size uint               `toml:"size"`
+	Bots map[uint][]float64 `toml:"bots"`
 }
 
 type GameConf struct {
@@ -115,7 +115,14 @@ var defaultConfig = Conf{
 		Open: OpenGameConf{
 			Init: 8,
 			Size: 8,
-			Bots: []uint{2, 4, 6, 8},
+			Bots: map[uint][]float64{
+				2:  {1},
+				4:  {0.5, 1},
+				6:  {0.25, 0.5, 0.75, 1},
+				8:  {0.25, 0.5, 0.75, 1},
+				10: {0.25, 0.5, 0.75},
+				12: {0.25, 0.5},
+			},
 		},
 	},
 	Web: WebConf{
