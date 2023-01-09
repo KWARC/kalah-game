@@ -20,70 +20,45 @@
 package sched
 
 import (
-	"sync"
+	"fmt"
 
 	"go-kgp"
-	cmd "go-kgp/cmd"
 )
 
-type rr struct {
-	agents map[kgp.Agent]struct{}
-	sched  *scheduler
-	wait   sync.WaitGroup
-	size   uint
-	init   uint
-}
+func MakeRoundRobin(size, init uint) Composable {
+	return &scheduler{
+		name: fmt.Sprint("Round Robin (%d, %d)", size, init),
+		schedule: func(agents []kgp.Agent) (games []*kgp.Game) {
+			// Prepare all games
+			for _, a := range agents {
+				for _, b := range agents {
+					if a == b {
+						continue
+					}
 
-func (r *rr) Start(mode *cmd.State, conf *cmd.Conf) {
-	var games []*kgp.Game
-
-	// Prepare all games
-	for a := range r.agents {
-		for b := range r.agents {
-			if a == b {
-				continue
+					games = append(games, &kgp.Game{
+						Board: kgp.MakeBoard(size, init),
+						South: a, North: b,
+					})
+				}
 			}
+			return
+		},
+		judge: func(a kgp.Agent, m map[kgp.Agent][]kgp.Agent) bool {
+			score := len(m[a])
+			for b, d := range m {
+				if b == a {
+					continue
+				}
 
-			games = append(games, &kgp.Game{
-				Board: kgp.MakeBoard(r.size, r.init),
-				South: a,
-				North: b,
-			})
-		}
+				// FIXME: Avoid accidental polynomial complexity
+				for i := range d {
+					if d[i] == a {
+						score--
+					}
+				}
+			}
+			return score > 0
+		},
 	}
-
-	r.sched = &scheduler{
-		games: games,
-	}
-	r.sched.run(&r.wait, mode, conf)
-}
-
-func (r *rr) Shutdown() {
-	r.wait.Wait()
-}
-
-func (r *rr) Schedule(a kgp.Agent)   {}
-func (r *rr) Unschedule(a kgp.Agent) {}
-func (*rr) String() string           { return "Round Robin" }
-
-func (r *rr) initialize(agents map[kgp.Agent]struct{}) {
-	r.agents = agents
-}
-
-func (r *rr) results() map[kgp.Agent]struct{} {
-	next := make(map[kgp.Agent]struct{})
-	for a, d := range r.sched.results {
-		if d != nil {
-			next[a] = struct{}{}
-		}
-	}
-	return next
-}
-
-func MakeRoundRobin(size, init uint) cmd.Scheduler {
-	return cmd.Scheduler(&rr{
-		agents: make(map[kgp.Agent]struct{}),
-		size:   size,
-		init:   init,
-	})
 }

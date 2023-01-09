@@ -20,6 +20,7 @@
 package sched
 
 import (
+	"io"
 	"log"
 	"runtime"
 	"sync"
@@ -31,20 +32,30 @@ import (
 )
 
 type scheduler struct {
-	games []*kgp.Game
+	name   string
+	wait   sync.WaitGroup
+	agents []kgp.Agent
+	// Function to generate a schedule
+	schedule func([]kgp.Agent) []*kgp.Game
+	// Function to determine if an agent passed
+	judge func(kgp.Agent, map[kgp.Agent][]kgp.Agent) bool
 	// Mapping from an agent to everyone who it managed to defeat
 	results map[kgp.Agent][]kgp.Agent
 }
 
-func (s *scheduler) run(wait *sync.WaitGroup, mode *cmd.State, conf *cmd.Conf) {
+func (s *scheduler) String() string {
+	return s.name
+}
+
+func (s *scheduler) Start(mode *cmd.State, conf *cmd.Conf) {
+	games := s.schedule(s.agents)
 	s.results = make(map[kgp.Agent][]kgp.Agent)
-	sched := make(chan *kgp.Game, len(s.games))
-	for _, g := range s.games {
+	sched := make(chan *kgp.Game, len(games))
+	for _, g := range games {
 		sched <- g
 	}
 
 	var lock sync.Mutex
-
 	for i := 0; i < runtime.NumCPU(); i++ {
 		go func() {
 			for g := range sched {
@@ -88,8 +99,35 @@ func (s *scheduler) run(wait *sync.WaitGroup, mode *cmd.State, conf *cmd.Conf) {
 				if err != nil {
 					log.Print(err)
 				}
-				wait.Done()
+				s.wait.Done()
 			}
 		}()
 	}
+}
+
+func (s *scheduler) Shutdown() {
+	s.wait.Wait()
+}
+
+func (s *scheduler) Schedule(a kgp.Agent)   {}
+func (s *scheduler) Unschedule(a kgp.Agent) {}
+
+func (s *scheduler) Take(a []kgp.Agent) {
+	s.agents = a
+}
+
+func (s *scheduler) Give() (next []kgp.Agent) {
+	if s.judge == nil {
+		return s.agents
+	}
+	for _, a := range s.agents {
+		if s.judge(a, s.results) {
+			next = append(next, a)
+		}
+	}
+	return
+}
+
+func (*scheduler) PrintResults(io.Writer) {
+	panic("unimplemented")
 }

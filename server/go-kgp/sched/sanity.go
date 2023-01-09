@@ -24,50 +24,23 @@ import (
 
 	"go-kgp"
 	"go-kgp/bot"
-	cmd "go-kgp/cmd"
 )
 
-type sanity struct {
-	agents map[kgp.Agent]struct{}
-	sched  *scheduler
-	wait   sync.WaitGroup
-}
-
-func (s *sanity) Start(mode *cmd.State, conf *cmd.Conf) {
-	var (
-		games = make([]*kgp.Game, 2*len(s.agents))
-		adv   = bot.MakeRandom()
-	)
-
-	for agent := range s.agents {
-		games = append(games, &kgp.Game{
-			Board: kgp.MakeBoard(6, 6),
-			South: agent,
-			North: adv,
-		}, &kgp.Game{
-			Board: kgp.MakeBoard(6, 6),
-			South: adv,
-			North: agent,
-		})
+func MakeSanityCheck() Composable {
+	return &scheduler{
+		name:   "Sanity Test",
+		wait:   sync.WaitGroup{},
+		agents: []kgp.Agent{},
+		schedule: func(a []kgp.Agent) (games []*kgp.Game) {
+			adv := bot.MakeRandom()
+			for _, agent := range a {
+				games = append(games, &kgp.Game{Board: kgp.MakeBoard(6, 6), South: agent, North: adv}, &kgp.Game{Board: kgp.MakeBoard(6, 6), South: adv, North: agent})
+			}
+			return
+		},
+		judge: func(a kgp.Agent, m map[kgp.Agent][]kgp.Agent) bool {
+			return len(m[a]) > 0
+		},
+		results: map[kgp.Agent][]kgp.Agent{},
 	}
-
-	s.sched = &scheduler{
-		games: games,
-	}
-	s.sched.run(&s.wait, mode, conf)
-}
-
-func (s *sanity) Shutdown() {
-	s.wait.Wait()
-}
-
-func (*sanity) Schedule(a kgp.Agent)   {}
-func (*sanity) Unschedule(a kgp.Agent) {}
-
-func (*sanity) String() string { return "Sanity Test" }
-
-func MakeSanityCheck() cmd.Scheduler {
-	return cmd.Scheduler(&sanity{
-		agents: make(map[kgp.Agent]struct{}),
-	})
 }
