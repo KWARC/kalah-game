@@ -146,9 +146,7 @@ func (f *fifo) Start(mode *cmd.State, conf *cmd.Conf) {
 			default: // len(q) ≥ 2
 				south = q[0]
 				north = q[1]
-				q[0] = q[len(q)-1]
-				q[1] = q[len(q)-2]
-				q = q[:len(q)-2]
+				q = q[2:]
 
 				// Prevent an agent from playing against
 				// himself (note that this does not prevent
@@ -156,6 +154,13 @@ func (f *fifo) Start(mode *cmd.State, conf *cmd.Conf) {
 				// challenge one another)
 				if north == south {
 					q = append(q, north)
+					continue
+				}
+
+				ntok := north.User().Token
+				stok := south.User().Token
+				if ntok != "" && ntok == stok {
+					q = append(q, south, north)
 					continue
 				}
 			}
