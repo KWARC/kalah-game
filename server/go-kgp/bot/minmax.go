@@ -22,11 +22,11 @@ package bot
 import (
 	"fmt"
 	"math"
+	"math/rand"
 	"os"
 	"time"
 
 	"go-kgp"
-	"math/rand"
 )
 
 // We need a random

@@ -26,6 +26,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"log"
 	"os"
 	"os/signal"
@@ -39,7 +40,6 @@ import (
 	"go-kgp"
 	cmd "go-kgp/cmd"
 	"go-kgp/game"
-	"io/fs"
 )
 
 //go:embed *.sql

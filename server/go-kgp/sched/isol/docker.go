@@ -44,6 +44,14 @@ type docker struct {
 	lis  *proto.Listener
 }
 
+func MakeDockerAgent(name string) ControlledAgent {
+	return &docker{name: name}
+}
+
+func (d *docker) String() string {
+	return d.name
+}
+
 func (d *docker) Alive() bool {
 	ctx := context.Background()
 	resp, err := d.cont.ContainerInspect(ctx, d.id)

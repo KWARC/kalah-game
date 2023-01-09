@@ -21,12 +21,13 @@ package kgp
 
 import (
 	"flag"
-	"go-kgp"
 	"io"
 	"log"
 	"os"
 	"runtime"
 	"time"
+
+	"go-kgp"
 
 	"github.com/BurntSushi/toml"
 )
@@ -82,9 +83,17 @@ type OpenGameConf struct {
 	Size uint `toml:"size"`
 }
 
+type ClosedGameConf struct {
+	Images []string `toml:"images"`
+	Stages []string `toml:"stages"`
+	Result string   `toml:"result"`
+	Sanity bool     `toml:"sanity"`
+}
+
 type GameConf struct {
-	Timeout time.Duration `toml:"timeout"`
-	Open    OpenGameConf  `toml:"open"`
+	Timeout time.Duration  `toml:"timeout"`
+	Open    OpenGameConf   `toml:"open"`
+	Closed  ClosedGameConf `toml:"closed"`
 }
 
 type WebConf struct {
@@ -119,6 +128,10 @@ var defaultConfig = Conf{
 			Bots: uint(runtime.NumCPU()/2 + 1),
 			Init: 8,
 			Size: 8,
+		},
+		Closed: ClosedGameConf{
+			Stages: []string{"6,6", "8,8", "10,10", "12,12"},
+			Sanity: true,
 		},
 	},
 	Web: WebConf{

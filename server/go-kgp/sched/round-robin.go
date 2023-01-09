@@ -21,14 +21,16 @@ package sched
 
 import (
 	"fmt"
+	"go-kgp/sched/isol"
 
 	"go-kgp"
 )
 
 func MakeRoundRobin(size, init uint) Composable {
-	return &scheduler{
+	var s *scheduler
+	s = &scheduler{
 		name: fmt.Sprint("Round Robin (%d, %d)", size, init),
-		schedule: func(agents []kgp.Agent) (games []*kgp.Game) {
+		schedule: func(agents []isol.ControlledAgent) (games []*kgp.Game) {
 			// Prepare all games
 			for _, a := range agents {
 				for _, b := range agents {
@@ -44,21 +46,6 @@ func MakeRoundRobin(size, init uint) Composable {
 			}
 			return
 		},
-		judge: func(a kgp.Agent, m map[kgp.Agent][]kgp.Agent) bool {
-			score := len(m[a])
-			for b, d := range m {
-				if b == a {
-					continue
-				}
-
-				// FIXME: Avoid accidental polynomial complexity
-				for i := range d {
-					if d[i] == a {
-						score--
-					}
-				}
-			}
-			return score > 0
-		},
 	}
+	return s
 }

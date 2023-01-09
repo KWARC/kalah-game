@@ -20,27 +20,20 @@
 package sched
 
 import (
-	"sync"
-
 	"go-kgp"
 	"go-kgp/bot"
+	"go-kgp/sched/isol"
 )
 
 func MakeSanityCheck() Composable {
 	return &scheduler{
-		name:   "Sanity Test",
-		wait:   sync.WaitGroup{},
-		agents: []kgp.Agent{},
-		schedule: func(a []kgp.Agent) (games []*kgp.Game) {
+		name: "Sanity Test",
+		schedule: func(a []isol.ControlledAgent) (games []*kgp.Game) {
 			adv := bot.MakeRandom()
 			for _, agent := range a {
 				games = append(games, &kgp.Game{Board: kgp.MakeBoard(6, 6), South: agent, North: adv}, &kgp.Game{Board: kgp.MakeBoard(6, 6), South: adv, North: agent})
 			}
 			return
 		},
-		judge: func(a kgp.Agent, m map[kgp.Agent][]kgp.Agent) bool {
-			return len(m[a]) > 0
-		},
-		results: map[kgp.Agent][]kgp.Agent{},
 	}
 }

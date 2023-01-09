@@ -20,12 +20,15 @@
 package isol
 
 import (
+	"fmt"
+
 	"go-kgp"
 	cmd "go-kgp/cmd"
 )
 
 type ControlledAgent interface {
 	kgp.Agent
+	fmt.Stringer
 	Start(mode *cmd.State) (kgp.Agent, error)
 	Shutdown() error
 }
