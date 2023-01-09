@@ -149,7 +149,7 @@ var (
 )
 
 // Open a configuration file and return it
-func LoadConf() (c *Conf) {
+func (c *Conf) Load() {
 	file, err := os.Open(cfile)
 	if err != nil {
 		if !os.IsNotExist(err) || cfile != defconf {
@@ -184,8 +184,6 @@ func LoadConf() (c *Conf) {
 		}
 		os.Exit(0)
 	}
-
-	return c
 }
 
 // Serialise the configuration into a writer

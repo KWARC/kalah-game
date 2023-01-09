@@ -47,8 +47,9 @@ func main() {
 	}
 
 	// Create a server mode (state) and load configuration
+	var conf cmd.Conf
 	mode := cmd.MakeMode()
-	conf := cmd.LoadConf()
+	conf.Load()
 
 	// Create schedule
 	var (
@@ -102,7 +103,7 @@ func main() {
 	}
 
 	// Load components
-	db.Register(mode, conf)
+	db.Register(mode, &conf)
 	mode.Register(combo)
 
 	// Print results
@@ -120,7 +121,7 @@ func main() {
 	}
 
 	// Start the tournament
-	mode.Start(conf)
+	mode.Start(&conf)
 
 	// Print results
 	combo.PrintResults(mode, out)
