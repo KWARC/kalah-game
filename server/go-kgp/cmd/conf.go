@@ -25,6 +25,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"runtime"
 	"time"
 
 	"github.com/BurntSushi/toml"
@@ -44,6 +45,8 @@ func init() {
 	flag.BoolVar(&def.Web.WebSocket, "websocket", def.Web.WebSocket,
 		"Enable WebSocket connections")
 
+	flag.UintVar(&def.Game.Open.Bots, "bots", def.Game.Open.Bots,
+		"Number of concurrent bots the server provides")
 	flag.UintVar(&def.Game.Open.Init, "board-init", def.Game.Open.Init,
 		"Default number of stones to use for Kalah boards")
 	flag.UintVar(&def.Game.Open.Size, "board-size", def.Game.Open.Size,
@@ -74,6 +77,7 @@ type ProtoConf struct {
 }
 
 type OpenGameConf struct {
+	Bots uint `toml:"bots"`
 	Init uint `toml:"init"`
 	Size uint `toml:"size"`
 }
@@ -112,6 +116,7 @@ var defaultConfig = Conf{
 	Game: GameConf{
 		Timeout: time.Second * 5,
 		Open: OpenGameConf{
+			Bots: uint(runtime.NumCPU()/2 + 1),
 			Init: 8,
 			Size: 8,
 		},

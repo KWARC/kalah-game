@@ -48,6 +48,7 @@ func (f *fifo) Start(mode *cmd.State, conf *cmd.Conf) {
 	var (
 		bots []kgp.Agent
 		q    []kgp.Agent
+		av   = conf.Game.Open.Bots
 	)
 
 	bots = append(bots, bot.MakeRandom())
@@ -88,6 +89,8 @@ func (f *fifo) Start(mode *cmd.State, conf *cmd.Conf) {
 			if !bot.IsBot(a) {
 				kgp.Debug.Println("Adding", a, "to the queue")
 				q = append(q, a)
+			} else {
+				av++
 			}
 			continue
 		case a := <-f.rem:
@@ -131,11 +134,15 @@ func (f *fifo) Start(mode *cmd.State, conf *cmd.Conf) {
 			case 0:
 				panic("Broken look invariant")
 			case 1:
+				if av == 0 {
+					continue
+				}
 				south = q[0]
 				q = nil
 
 				// Pick a random bot
 				north = bots[rand.Intn(len(bots))]
+				av--
 			default: // len(q) ≥ 2
 				south = q[0]
 				north = q[1]
