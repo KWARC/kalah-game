@@ -38,7 +38,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 
 	"go-kgp"
-	cmd "go-kgp/cmd"
+	"go-kgp/cmd"
 	"go-kgp/game"
 )
 

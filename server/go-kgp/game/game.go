@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"go-kgp"
-	cmd "go-kgp/cmd"
+	"go-kgp/cmd"
 )
 
 func Move(g *kgp.Game, m *kgp.Move) bool {

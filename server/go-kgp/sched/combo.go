@@ -26,7 +26,7 @@ import (
 	"sync/atomic"
 
 	"go-kgp"
-	cmd "go-kgp/cmd"
+	"go-kgp/cmd"
 	"go-kgp/sched/isol"
 )
 

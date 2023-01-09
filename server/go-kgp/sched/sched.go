@@ -28,7 +28,7 @@ import (
 	"sync"
 
 	"go-kgp"
-	cmd "go-kgp/cmd"
+	"go-kgp/cmd"
 	"go-kgp/game"
 	"go-kgp/sched/isol"
 )

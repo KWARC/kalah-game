@@ -27,7 +27,7 @@ import (
 
 	"go-kgp"
 	"go-kgp/bot"
-	cmd "go-kgp/cmd"
+	"go-kgp/cmd"
 	"go-kgp/game"
 )
 

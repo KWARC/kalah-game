@@ -30,7 +30,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	cmd "go-kgp/cmd"
+	"go-kgp/cmd"
 )
 
 const about = `<p>This is a practice server for the AI1 Kalah Tournament.</p>`

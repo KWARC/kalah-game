@@ -26,7 +26,7 @@ import (
 	"net/http"
 
 	"go-kgp"
-	cmd "go-kgp/cmd"
+	"go-kgp/cmd"
 	"go-kgp/proto"
 
 	"github.com/gorilla/websocket"

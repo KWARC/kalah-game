@@ -32,7 +32,7 @@ import (
 	"time"
 
 	"go-kgp"
-	cmd "go-kgp/cmd"
+	"go-kgp/cmd"
 )
 
 var defaultUser = &kgp.User{

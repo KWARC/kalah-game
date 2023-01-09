@@ -26,7 +26,7 @@ import (
 	"time"
 
 	"go-kgp"
-	cmd "go-kgp/cmd"
+	"go-kgp/cmd"
 	"go-kgp/proto"
 
 	"github.com/docker/docker/api/types"

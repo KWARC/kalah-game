@@ -26,7 +26,7 @@ import (
 	"strconv"
 	"strings"
 
-	cmd "go-kgp/cmd"
+	"go-kgp/cmd"
 )
 
 type Listener struct {

@@ -28,7 +28,7 @@ import (
 	"unicode"
 
 	"go-kgp"
-	cmd "go-kgp/cmd"
+	"go-kgp/cmd"
 )
 
 const (

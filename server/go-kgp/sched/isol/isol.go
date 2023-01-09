@@ -23,7 +23,7 @@ import (
 	"fmt"
 
 	"go-kgp"
-	cmd "go-kgp/cmd"
+	"go-kgp/cmd"
 )
 
 type ControlledAgent interface {

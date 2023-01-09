@@ -28,7 +28,7 @@ import (
 	"regexp"
 	"strconv"
 
-	cmd "go-kgp/cmd"
+	"go-kgp/cmd"
 	"go-kgp/db"
 	"go-kgp/sched"
 	"go-kgp/sched/isol"
