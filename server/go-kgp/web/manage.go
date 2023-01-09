@@ -21,10 +21,8 @@ package web
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"html/template"
-	"io"
 	"log"
 	"net/http"
 	"os"
@@ -32,7 +30,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"go-kgp"
 	cmd "go-kgp/cmd"
 )
 
@@ -55,68 +52,6 @@ func (s *web) listen(conf *cmd.WebConf) {
 
 func (s *web) drawGraphs(mode *cmd.State) {
 	var (
-		dbg  = kgp.Debug.Println
-		draw = mode.Database.DrawGraph
-	)
-
-	gen := func() ([]byte, error) {
-		bg := context.Background()
-		ctx, cancel := context.WithCancel(bg)
-		defer cancel()
-
-		dbg("(Re-)generating dominance graph")
-		cmd := exec.Command(`dot`, `-Tsvg`)
-		stdin, err := cmd.StdinPipe()
-		if err != nil {
-			return nil, err
-		}
-		stdout, err := cmd.StdoutPipe()
-		if err != nil {
-			return nil, err
-		}
-		stderr, err := cmd.StderrPipe()
-		if err != nil {
-			return nil, err
-		}
-		err = cmd.Start()
-		if err != nil {
-			return nil, err
-		}
-
-		go func() {
-			err := draw(ctx, stdin)
-			if err != nil {
-				dbg(err)
-				return
-			}
-			err = stdin.Close()
-			if err != nil {
-				dbg(err)
-				return
-			}
-		}()
-
-		data, err := io.ReadAll(stdout)
-		if err != nil {
-			return nil, err
-		}
-		_, err = io.Copy(io.Discard, io.TeeReader(stderr, os.Stderr))
-		if err != nil {
-			return nil, err
-		}
-
-		err = cmd.Wait()
-		if err != nil {
-			return data, err
-		}
-		dbg("Finished generating dominance graph")
-
-		var buf bytes.Buffer
-		err = tmpl.ExecuteTemplate(&buf, "graph.tmpl", template.HTML(data))
-		return buf.Bytes(), err
-	}
-
-	var (
 		it   uint32
 		next = time.Now()
 		data []byte
@@ -125,8 +60,17 @@ func (s *web) drawGraphs(mode *cmd.State) {
 	h := func(w http.ResponseWriter, r *http.Request) {
 		if time.Now().After(next) {
 			if atomic.CompareAndSwapUint32(&it, 0, 1) {
-				var err error
-				data, err = gen()
+				g, err := mode.DrawGraph("svg")
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					log.Print(err)
+					return
+				}
+
+				var buf bytes.Buffer
+				err = tmpl.ExecuteTemplate(&buf, "graph.tmpl", template.HTML(g))
+				data = buf.Bytes()
+
 				if err != nil {
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 				}
