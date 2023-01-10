@@ -167,9 +167,9 @@ func (s *scheduler) PrintResults(st *cmd.State, W io.Writer) {
 
 	fmt.Fprintln(W, `.TS`)
 	fmt.Fprintln(W, `tab(/) box center;`)
-	fmt.Fprintln(W, `c | c c c | c`)
-	fmt.Fprintln(W, `-----`)
-	fmt.Fprintln(W, `l | n n n | n`)
+	fmt.Fprintln(W, `c | c c | c`)
+	fmt.Fprintln(W, `----`)
+	fmt.Fprintln(W, `l | n n | n`)
 	fmt.Fprintln(W, `.`)
 	fmt.Fprintln(W, `Agent/Win/Loss/Score`)
 
