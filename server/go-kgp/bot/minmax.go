@@ -230,6 +230,8 @@ best move it can find.  Otherwise it will revert to a random move.`,
 	return &minmax{user: user, depth: depth, acc: acc}
 }
 
+var random = MakeMinMax(0, 0.0)
+
 func MakeRandom() kgp.Agent {
-	return MakeMinMax(0, 0.0)
+	return random
 }
