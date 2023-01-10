@@ -162,6 +162,12 @@ func (s *scheduler) Score(a isol.ControlledAgent) (int, int) {
 func (s *scheduler) PrintResults(st *cmd.State, W io.Writer) {
 	fmt.Fprintln(W, `.NH 1`)
 	fmt.Fprintf(W, "Stage %q\n", s.name)
+	if len(s.games) == 0 {
+		fmt.Fprintln(W, `.LP`)
+		fmt.Fprintln(W, `No games took place.`)
+		return
+	}
+
 	fmt.Fprintln(W, `.NH 2`)
 	fmt.Fprintln(W, "Scores")
 
