@@ -72,31 +72,6 @@ func (u *user) Alive() bool {
 	return false // users aren't live agents
 }
 
-func (db *db) RegisterTournament(ctx context.Context, name string) int64 {
-	res, err := db.commands["insert-tournament"].ExecContext(ctx, name)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	id, err := res.LastInsertId()
-	if err != nil {
-		log.Fatal(err)
-	}
-	return id
-}
-
-func (db *db) RecordScore(ctx context.Context, cli *kgp.User, game *kgp.Game, tid int64, score float64) {
-	if cli == nil {
-		return
-	}
-
-	_, err := db.commands["insert-score"].ExecContext(ctx,
-		cli.Id, game.Id, tid, score)
-	if err != nil {
-		log.Print(err)
-	}
-}
-
 func (db *db) Forget(ctx context.Context, token []byte) {
 	_, err := db.commands["delete-agent"].ExecContext(ctx, token)
 	if err != nil {

@@ -155,14 +155,14 @@ func (c *Conf) Load() {
 		if !os.IsNotExist(err) || cfile != defconf {
 			log.Fatal(err)
 		} else {
-			c = &defaultConfig
+			*c = defaultConfig
 		}
 	} else {
-		c := defaultConfig
+		*c = defaultConfig
 		_, err := toml.NewDecoder(file).Decode(&c)
 		if err != nil {
 			log.Print(err)
-			c = defaultConfig
+			*c = defaultConfig
 		}
 	}
 	defer file.Close()
