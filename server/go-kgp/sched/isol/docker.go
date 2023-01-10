@@ -52,12 +52,7 @@ func init() {
 
 type docker struct {
 	name string
-	tok  string
-}
-
-// Shutdown implements ControlledAgent
-func (*docker) Shutdown() error {
-	panic("unimplemented")
+	id   int64
 }
 
 type cli struct {
@@ -66,64 +61,28 @@ type cli struct {
 	c *proto.Client
 	d *docker
 	i string // container ID
+	u *kgp.User
 }
-
-func (c *cli) String() string { return c.i }
 
 func MakeDockerAgent(name string) ControlledAgent {
 	return &docker{
-		tok:  fmt.Sprint(atomic.AddInt64(&c, 1)),
+		id:   atomic.AddInt64(&c, 1),
 		name: name,
 	}
 }
 
-func (d *docker) String() string {
-	return d.name
-}
-
-func (*docker) Alive() bool {
-	return true
-}
-
-func (c *cli) Alive() bool {
-	ctx := context.Background()
-	resp, err := c.C.ContainerInspect(ctx, c.i)
-	if err != nil {
-		kgp.Debug.Print(err)
-		return false
-	}
-	return !resp.State.Dead // XXX: Is this enough?
-}
+func (d *docker) String() string { return d.name }
+func (*docker) Alive() bool      { return false }
 
 func (d *docker) Request(g *kgp.Game) (*kgp.Move, bool) {
 	panic("A docker client cannot make a move")
 }
 
-func (C *cli) Request(g *kgp.Game) (*kgp.Move, bool) {
-	c := &g.South
-	if g.Side(C) == kgp.North {
-		c = &g.North
-	}
-
-	*c = C.c
-	m, r := C.c.Request(g)
-	*c = C
-	return m, r
-}
-
 func (d *docker) User() *kgp.User {
-	panic("A docker client has no user")
-}
-
-func (c *cli) User() *kgp.User {
 	return &kgp.User{
-		Name:  c.d.name,
-		Token: c.d.tok,
+		Id:   d.id,
+		Name: d.name,
 	}
-}
-
-func (d *cli) Start(*cmd.State, *cmd.Conf) (kgp.Agent, error) {
-	panic("Cannot start a client")
 }
 
 func (d *docker) Start(mode *cmd.State, conf *cmd.Conf) (kgp.Agent, error) {
@@ -197,8 +156,56 @@ func (d *docker) Start(mode *cmd.State, conf *cmd.Conf) (kgp.Agent, error) {
 			C: cont,
 			i: id,
 			d: d,
+			u: &kgp.User{
+				Name:  d.name,
+				Token: fmt.Sprint(d.id),
+			},
 		}, nil
 	}
+}
+
+func (*docker) Shutdown() error { return nil }
+
+func (c *cli) String() string { return c.i }
+
+func (d *cli) Start(*cmd.State, *cmd.Conf) (kgp.Agent, error) {
+	panic("Cannot start a client")
+}
+
+func (c *cli) Alive() bool {
+	ctx := context.Background()
+	resp, err := c.C.ContainerInspect(ctx, c.i)
+	if err != nil {
+		kgp.Debug.Print(err)
+		return false
+	}
+	return !resp.State.Dead // XXX: Is this enough?
+}
+
+func (c *cli) Request(g *kgp.Game) (*kgp.Move, bool) {
+	s := &g.South
+	if g.Side(c) == kgp.North {
+		s = &g.North
+	}
+
+	// HACK: In case the game wants to check what side of the board
+	// the agent is playing on, we need to ensure that the correct
+	// kgp.Agent is assigned.  We will quickly swap the actual agent
+	// for the sub-client and then let the sub-client act as if it
+	// were the actual agent.  After this is done, we claim the
+	// sub-clients works as our own by overwriting the agent reference
+	// in the move
+	*s = c.c
+	m, r := c.c.Request(g)
+	*s = c
+	if m != nil {
+		m.Agent = c
+	}
+	return m, r
+}
+
+func (c *cli) User() *kgp.User {
+	return c.u
 }
 
 func (c *cli) Shutdown() error {

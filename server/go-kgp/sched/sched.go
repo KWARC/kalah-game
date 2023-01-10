@@ -41,11 +41,9 @@ type scheduler struct {
 	agents []isol.ControlledAgent
 	// Function to generate a schedule
 	schedule func([]isol.ControlledAgent) []*kgp.Game
-	// Function to determine if an agent passed
-	judge func(kgp.Agent, map[kgp.Agent][]kgp.Agent) bool
 	// Mapping from an agent to everyone who it managed to defeat
-	results map[kgp.Agent][]kgp.Agent
-	score   map[kgp.Agent]*score
+	games []*kgp.Game
+	score map[kgp.Agent]*score
 }
 
 func (s *scheduler) String() string {
@@ -54,7 +52,6 @@ func (s *scheduler) String() string {
 
 func (s *scheduler) Start(mode *cmd.State, conf *cmd.Conf) {
 	games := s.schedule(s.agents)
-	s.results = make(map[kgp.Agent][]kgp.Agent)
 	sched := make(chan *kgp.Game, len(games))
 	for _, g := range games {
 		sched <- g
@@ -83,23 +80,6 @@ func (s *scheduler) Start(mode *cmd.State, conf *cmd.Conf) {
 				}
 
 				game.Play(g, mode, conf)
-
-				lock.Lock()
-				switch g.State {
-				case kgp.NORTH_WON:
-					s.results[north] = append(s.results[north], south)
-				case kgp.SOUTH_WON:
-					s.results[south] = append(s.results[south], north)
-				case kgp.UNDECIDED:
-					// This case is intentionally left empty
-				case kgp.ONGOING:
-					// This should not be possible
-					// after game.Play has
-					// returned.
-					panic("Encountered an ongoing game")
-				}
-				lock.Unlock()
-
 			skip:
 				err = isol.Shutdown(g.North)
 				if err != nil {
@@ -109,6 +89,13 @@ func (s *scheduler) Start(mode *cmd.State, conf *cmd.Conf) {
 				if err != nil {
 					log.Print(err)
 				}
+
+				g.South = south
+				g.North = north
+				lock.Lock()
+				s.games = append(s.games, g)
+				lock.Unlock()
+
 				s.wait.Done()
 			}
 		}()
@@ -132,11 +119,7 @@ func (s *scheduler) Give() (next []isol.ControlledAgent) {
 	for _, a := range s.agents {
 		w, l := s.Score(a)
 		if 0 <= w-l {
-			kgp.Debug.Println("Agent", a, "passed", s)
 			next = append(next, a)
-		} else {
-			kgp.Debug.Println("Agent", a, "was disqualified after", s,
-				"with a score of", w-l)
 		}
 	}
 	return
@@ -150,14 +133,20 @@ func (s *scheduler) Score(a isol.ControlledAgent) (int, int) {
 			s.score[agent] = &score{}
 		}
 
-		for agent, wins := range s.results {
-			kgp.Debug.Println("In", s, "agent", agent, "won against", wins)
-			if _, ok := s.score[agent]; !ok {
-				continue
+		for _, game := range s.games {
+			if S, ok := s.score[game.South]; ok {
+				switch game.State {
+				case kgp.NORTH_WON:
+					S.l++
+				case kgp.SOUTH_WON:
+					S.w++
+				}
 			}
-			for _, other := range wins {
-				s.score[agent].w++
-				if S, ok := s.score[other]; ok {
+			if S, ok := s.score[game.North]; ok {
+				switch game.State {
+				case kgp.NORTH_WON:
+					S.w++
+				case kgp.SOUTH_WON:
 					S.l++
 				}
 			}
