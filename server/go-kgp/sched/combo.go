@@ -161,7 +161,7 @@ next round (a non-negative score):`)
 		return score
 	}
 
-	sort.Slice(c.agents, func(i, j int) bool {
+	sort.SliceStable(c.agents, func(i, j int) bool {
 		return score(c.agents[i]) > score(c.agents[j])
 	})
 

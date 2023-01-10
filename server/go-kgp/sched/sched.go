@@ -180,7 +180,7 @@ func (s *scheduler) PrintResults(st *cmd.State, W io.Writer) {
 	fmt.Fprintln(W, `Agent/Win/Loss/Score`)
 
 	// Order agents in order of score
-	sort.Slice(s.agents, func(i, j int) bool {
+	sort.SliceStable(s.agents, func(i, j int) bool {
 		iw, il := s.Score(s.agents[i])
 		jw, jl := s.Score(s.agents[j])
 		return (iw - il) < (jw - jl)
