@@ -69,8 +69,8 @@ func genGraph(g <-chan *kgp.Game, w io.Writer) error {
 	return nil
 }
 
-func (st *State) DrawGraph(g <-chan *kgp.Game, lang string) ([]byte, error) {
-	cmd := exec.Command(`dot`, fmt.Sprintf("-T%s", lang))
+func (st *State) DrawGraph(g <-chan *kgp.Game, opts ...string) ([]byte, error) {
+	cmd := exec.Command(`dot`, opts...)
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		log.Println(err)

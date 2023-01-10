@@ -227,6 +227,20 @@ func (s *scheduler) PrintResults(st *cmd.State, W io.Writer) {
 	}
 	fmt.Fprintln(W, `.TE`)
 
+	gc := make(chan *kgp.Game, len(s.games))
+	for _, game := range s.games {
+		gc <- game
+	}
+	close(gc)
+
+	out, err := st.DrawGraph(gc, "-Tpic")
+	if err == nil {
+		fmt.Fprintln(W, `.NH 2`)
+		fmt.Fprintln(W, "Graph")
+		fmt.Fprint(W, string(out))
+	} else {
+		log.Print(err)
+	}
 }
 
 var _ Composable = &scheduler{}

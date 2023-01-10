@@ -70,7 +70,7 @@ func (s *web) drawGraphs(mode *cmd.State) {
 					mode.Database.QueryGraph(ctx, gc)
 					cancel()
 				}()
-				out, err := mode.DrawGraph(gc, "svg")
+				out, err := mode.DrawGraph(gc, "-Tsvg")
 				if err != nil {
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 					log.Print(err)
