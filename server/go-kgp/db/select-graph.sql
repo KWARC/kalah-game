@@ -1,6 +1,6 @@
 -- -*- sql-product: sqlite; -*-
 
-SELECT w.name, w.id, l.name, l.id
+SELECT w.name, w.id, l.name, l.id, game.south
 FROM game
 JOIN agent AS w ON ((w.id == south AND state == "sw")
      	        OR  (w.id == north AND state == "nw"))

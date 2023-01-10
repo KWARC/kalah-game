@@ -21,6 +21,7 @@ package web
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"html/template"
 	"log"
@@ -29,6 +30,8 @@ import (
 	"os/exec"
 	"sync/atomic"
 	"time"
+
+	"go-kgp"
 
 	"go-kgp/cmd"
 )
@@ -60,7 +63,14 @@ func (s *web) drawGraphs(mode *cmd.State) {
 	h := func(w http.ResponseWriter, r *http.Request) {
 		if time.Now().After(next) {
 			if atomic.CompareAndSwapUint32(&it, 0, 1) {
-				g, err := mode.DrawGraph("svg")
+				gc := make(chan *kgp.Game, 1)
+				go func() {
+					bg := context.Background()
+					ctx, cancel := context.WithTimeout(bg, time.Minute)
+					mode.Database.QueryGraph(ctx, gc)
+					cancel()
+				}()
+				out, err := mode.DrawGraph(gc, "svg")
 				if err != nil {
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 					log.Print(err)
@@ -68,7 +78,7 @@ func (s *web) drawGraphs(mode *cmd.State) {
 				}
 
 				var buf bytes.Buffer
-				err = tmpl.ExecuteTemplate(&buf, "graph.tmpl", template.HTML(g))
+				err = tmpl.ExecuteTemplate(&buf, "graph.tmpl", template.HTML(out))
 				data = buf.Bytes()
 
 				if err != nil {

@@ -22,7 +22,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"os/signal"
@@ -58,7 +57,7 @@ type Database interface {
 	SaveGame(context.Context, *kgp.Game)
 
 	// Miscellaneous
-	DrawGraph(context.Context, io.Writer) error
+	QueryGraph(ctx context.Context, g chan<- *kgp.Game) error
 }
 
 type State struct {

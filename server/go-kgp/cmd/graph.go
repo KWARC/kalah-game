@@ -1,39 +1,94 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"log"
-	"os"
 	"os/exec"
+	"strings"
+
+	"go-kgp"
 )
 
-func (st *State) DrawGraph(lang string) ([]byte, error) {
-	bg := context.Background()
-	ctx, cancel := context.WithCancel(bg)
-	defer cancel()
+func genGraph(g <-chan *kgp.Game, w io.Writer) error {
+	seen := make(map[int64]struct{})
+	node := func(id int64, name string) (string, error) {
+		var err error
+		node := fmt.Sprintf("n%d", id)
+		if _, ok := seen[id]; ok {
+			return node, nil
+		}
+		if name == "" {
+			name = fmt.Sprintf("Unnamed (%d)", id)
+		}
+		name = strings.ReplaceAll(name, `"`, `\"`)
+		_, err = fmt.Fprintf(w, `%s [label="%s" href="/agent/%d"];`,
+			node, name, id)
+		if err != nil {
+			return "", err
+		}
+		return node, nil
+	}
 
+	_, err := fmt.Fprintf(w, `strict digraph dominance { ratio = compress ;`)
+	if err != nil {
+		return err
+	}
+
+	for game := range g {
+		var win, loss *kgp.User
+		switch game.State {
+		case kgp.NORTH_WON:
+			win, loss = game.North.User(), game.South.User()
+		case kgp.SOUTH_WON:
+			loss, win = game.North.User(), game.South.User()
+		default:
+			continue
+		}
+
+		t, err := node(loss.Id, loss.Name)
+		if err != nil {
+			return err
+		}
+		f, err := node(win.Id, win.Name)
+		if err != nil {
+			return err
+		}
+
+		_, err = fmt.Fprint(w, f, "->", t, ";")
+		if err != nil {
+			return err
+		}
+	}
+
+	_, err = fmt.Fprint(w, `}`)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (st *State) DrawGraph(g <-chan *kgp.Game, lang string) ([]byte, error) {
 	cmd := exec.Command(`dot`, fmt.Sprintf("-T%s", lang))
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
+		log.Println(err)
 		return nil, err
 	}
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return nil, err
-	}
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
+		log.Println(err)
 		return nil, err
 	}
 	err = cmd.Start()
 	if err != nil {
+		log.Println(err)
 		return nil, err
 	}
 
 	go func() {
-		err := st.Database.DrawGraph(ctx, stdin)
+		err := genGraph(g, stdin)
 		if err != nil {
 			log.Print(err)
 			return
@@ -45,19 +100,10 @@ func (st *State) DrawGraph(lang string) ([]byte, error) {
 		}
 	}()
 
-	err = cmd.Wait()
-	if err != nil {
+	out, err := io.ReadAll(stdout)
+	if err := cmd.Wait(); err != nil {
+		log.Println(err)
 		return nil, err
 	}
-
-	data, err := io.ReadAll(stdout)
-	if err != nil {
-		return nil, err
-	}
-	_, err = io.Copy(io.Discard, io.TeeReader(stderr, os.Stderr))
-	if err != nil {
-		return nil, err
-	}
-
-	return data, err
+	return out, err
 }

@@ -24,8 +24,6 @@ import (
 	"database/sql"
 	"embed"
 	"errors"
-	"fmt"
-	"io"
 	"io/fs"
 	"log"
 	"os"
@@ -423,7 +421,7 @@ fail:
 	}
 }
 
-func (db *db) DrawGraph(ctx context.Context, w io.Writer) error {
+func (db *db) QueryGraph(ctx context.Context, g chan<- *kgp.Game) error {
 	res, err := db.queries["select-graph"].QueryContext(ctx)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -434,59 +432,35 @@ func (db *db) DrawGraph(ctx context.Context, w io.Writer) error {
 	}
 	defer res.Close()
 
-	seen := make(map[int]struct{})
-	node := func(id int, name string) (string, error) {
-		node := fmt.Sprintf("n%d", id)
-		if _, ok := seen[id]; ok {
-			return node, nil
-		}
-		if name == "" {
-			name = fmt.Sprintf("Unnamed (%d)", id)
-		}
-		name = strings.ReplaceAll(name, `"`, `\"`)
-		_, err = fmt.Fprintf(w, `%s [label="%s" href="/agent/%d"];`,
-			node, name, id)
-		if err != nil {
-			return "", err
-		}
-		return node, nil
-	}
-
-	_, err = fmt.Fprintf(w, `strict digraph dominance { ratio = compress ;`)
-	if err != nil {
-		return err
-	}
-
 	for res.Next() {
 		var (
-			wname, lname string
-			wid, lid     int
+			w, l user
+			sid  int64
 		)
-
-		err = res.Scan(&wname, &wid, &lname, &lid)
+		err = res.Scan(&w.Name, &w.Id, &l.Name, &l.Name, &sid)
 		if err != nil {
 			return err
 		}
 
-		t, err := node(lid, lname)
-		if err != nil {
-			return err
-		}
-		f, err := node(wid, wname)
-		if err != nil {
-			return err
-		}
-
-		_, err = fmt.Fprint(w, f, "->", t, ";")
-		if err != nil {
-			return err
+		switch sid {
+		case w.Id: // winner is on the sound
+			g <- &kgp.Game{
+				State: kgp.SOUTH_WON,
+				South: &w,
+				North: &l,
+			}
+		case l.Id: // winner is on the north
+			g <- &kgp.Game{
+				State: kgp.NORTH_WON,
+				South: &l,
+				North: &w,
+			}
+		default:
+			kgp.Debug.Println("SID", sid, "is neither", w.Id, "or", l.Id)
+			continue
 		}
 	}
-
-	_, err = fmt.Fprint(w, `}`)
-	if err != nil {
-		return err
-	}
+	close(g)
 
 	return nil
 }
