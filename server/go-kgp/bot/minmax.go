@@ -181,9 +181,14 @@ func (m *minmax) Request(g *kgp.Game) (*kgp.Move, bool) {
 }
 
 func (m *minmax) User() *kgp.User { return m.user }
-func (m *minmax) String() string  { return fmt.Sprintf("MM%d/%f", m.depth, m.acc) }
-func (*minmax) IsBot()            {}
-func (*minmax) Alive() bool       { return true } // bots never die
+func (m *minmax) String() string {
+	if m.acc == 0 {
+		return "random"
+	}
+	return fmt.Sprintf("MM%d/%f", m.depth, m.acc)
+}
+func (*minmax) IsBot()      {}
+func (*minmax) Alive() bool { return true } // bots never die
 
 func MakeMinMax(depth uint, acc float64) kgp.Agent {
 	if acc < 0 || acc > 1 {
