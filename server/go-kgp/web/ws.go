@@ -90,7 +90,7 @@ func upgrader(mode *cmd.State, conf *cmd.Conf) http.HandlerFunc {
 		}
 
 		log.Printf("New connection from %s", conn.RemoteAddr())
-		cli := proto.MakeClient(&wsrwc{Conn: conn}, &conf.Proto)
+		cli := proto.MakeClient(&wsrwc{Conn: conn}, conf)
 		go cli.Connect(mode)
 	}
 }

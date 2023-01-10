@@ -52,7 +52,7 @@ type response struct {
 
 // Client wraps a network connection into a player
 type Client struct {
-	conf *cmd.ProtoConf
+	conf *cmd.Conf
 
 	// Agent Metadata
 	user *kgp.User
@@ -72,7 +72,7 @@ type Client struct {
 	comm   string
 }
 
-func MakeClient(rwc io.ReadWriteCloser, conf *cmd.ProtoConf) *Client {
+func MakeClient(rwc io.ReadWriteCloser, conf *cmd.Conf) *Client {
 	return &Client{
 		user:  defaultUser,
 		games: make(map[uint64]*kgp.Game),
@@ -119,7 +119,7 @@ func (cli *Client) Request(game *kgp.Game) (*kgp.Move, bool) {
 
 	for {
 		select {
-		case <-time.After(cli.conf.Timeout):
+		case <-time.After(cli.conf.Game.Timeout):
 			ok := cli.ping()
 			return move, !ok
 		case m := <-c:
@@ -139,9 +139,9 @@ func (cli *Client) Alive() bool {
 // internal use
 func (cli *Client) String() string {
 	if cli.user.Token != "" {
-		return fmt.Sprintf("%q", cli.user.Token)
+		return fmt.Sprintf("%s (%q)", cli.rwc, cli.user.Token)
 	} else {
-		return fmt.Sprintf("%p", cli.rwc)
+		return fmt.Sprint(cli.rwc)
 	}
 }
 
@@ -221,7 +221,7 @@ func (cli *Client) ping() bool {
 	if atomic.LoadUint32(&cli.dead) != 0 {
 		return false
 	}
-	if !cli.conf.Ping {
+	if !cli.conf.Proto.Ping {
 		return true
 	}
 
@@ -231,8 +231,11 @@ func (cli *Client) ping() bool {
 	}
 
 	select {
-	case <-time.After(cli.conf.Timeout):
+	case <-time.After(cli.conf.Proto.Timeout):
 		cli.error(id, "received no pong")
+		for cli.kill == nil {
+			time.Sleep(time.Millisecond * 10)
+		}
 		cli.kill()
 		return false
 	case <-cli.alive:

@@ -80,7 +80,7 @@ func (t *Listener) Start(mode *cmd.State, conf *cmd.Conf) {
 			continue
 		}
 
-		if t.handler(MakeClient(conn, &conf.Proto)) {
+		if t.handler(MakeClient(conn, conf)) {
 			break
 		}
 	}

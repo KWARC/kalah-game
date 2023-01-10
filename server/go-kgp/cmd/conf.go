@@ -52,6 +52,8 @@ func init() {
 		"Default number of stones to use for Kalah boards")
 	flag.UintVar(&def.Game.Open.Size, "board-size", def.Game.Open.Size,
 		"Default size to use for Kalah boards")
+	flag.DurationVar(&def.Game.Timeout, "timeout", def.Game.Timeout,
+		"Time a client has to make a move")
 
 	flag.StringVar(&def.Database.File, "db", def.Database.File,
 		"File to use for the database")
