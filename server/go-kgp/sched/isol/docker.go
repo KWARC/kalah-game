@@ -22,7 +22,9 @@ package isol
 import (
 	"context"
 	"fmt"
-	"strconv"
+	"log"
+	"os"
+	"sync/atomic"
 	"time"
 
 	"go-kgp"
@@ -32,29 +34,60 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
-	"github.com/docker/go-connections/nat"
 	"github.com/pkg/errors"
 )
 
-type docker struct {
-	name string
-	id   string
-	cont *client.Client
-	cli  *proto.Client
-	lis  *proto.Listener
+var (
+	hostname string
+	c        int64
+)
+
+func init() {
+	var err error
+	hostname, err = os.Hostname()
+	if err != nil {
+		panic(err)
+	}
 }
 
+type docker struct {
+	name string
+	tok  string
+}
+
+// Shutdown implements ControlledAgent
+func (*docker) Shutdown() error {
+	panic("unimplemented")
+}
+
+type cli struct {
+	C *client.Client // container
+	l *proto.Listener
+	c *proto.Client
+	d *docker
+	i string // container ID
+}
+
+func (c *cli) String() string { return c.i }
+
 func MakeDockerAgent(name string) ControlledAgent {
-	return &docker{name: name}
+	return &docker{
+		tok:  fmt.Sprint(atomic.AddInt64(&c, 1)),
+		name: name,
+	}
 }
 
 func (d *docker) String() string {
 	return d.name
 }
 
-func (d *docker) Alive() bool {
+func (*docker) Alive() bool {
+	return true
+}
+
+func (c *cli) Alive() bool {
 	ctx := context.Background()
-	resp, err := d.cont.ContainerInspect(ctx, d.id)
+	resp, err := c.C.ContainerInspect(ctx, c.i)
 	if err != nil {
 		kgp.Debug.Print(err)
 		return false
@@ -63,16 +96,38 @@ func (d *docker) Alive() bool {
 }
 
 func (d *docker) Request(g *kgp.Game) (*kgp.Move, bool) {
-	return d.cli.Request(g)
+	panic("A docker client cannot make a move")
+}
+
+func (C *cli) Request(g *kgp.Game) (*kgp.Move, bool) {
+	c := &g.South
+	if g.Side(C) == kgp.North {
+		c = &g.North
+	}
+
+	*c = C.c
+	m, r := C.c.Request(g)
+	*c = C
+	return m, r
 }
 
 func (d *docker) User() *kgp.User {
-	return d.cli.User()
+	panic("A docker client has no user")
 }
 
-func (d *docker) Start(mode *cmd.State) (kgp.Agent, error) {
-	var err error
-	d.cont, err = client.NewClientWithOpts(client.FromEnv)
+func (c *cli) User() *kgp.User {
+	return &kgp.User{
+		Name:  c.d.name,
+		Token: c.d.tok,
+	}
+}
+
+func (d *cli) Start(*cmd.State, *cmd.Conf) (kgp.Agent, error) {
+	panic("Cannot start a client")
+}
+
+func (d *docker) Start(mode *cmd.State, conf *cmd.Conf) (kgp.Agent, error) {
+	cont, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		return nil, err
 	}
@@ -82,32 +137,31 @@ func (d *docker) Start(mode *cmd.State) (kgp.Agent, error) {
 	// sub-client has to confirm a connection before the
 	// isolated/docker client is regarded as having started up.
 	wait := make(chan *proto.Client)
-	d.lis = proto.StartListner(mode, func(cli *proto.Client) bool {
+	listener := proto.StartListner(mode, conf, func(cli *proto.Client) bool {
+		go cli.Connect(mode)
 		wait <- cli
 		return true
 	})
-
-	// Figure out what port the server is listening on
-	port := strconv.FormatUint(uint64(d.lis.Port()), 10)
+	kgp.Debug.Println("Connect", d, "to port", listener.Port())
 
 	// The documentation for the library is sparse, but it is also
 	// just a wrapper around a HTTP API.  To understand what this
 	// configuration does, it is necessary to read
 	// https://docs.docker.com/engine/api/v1.41/#operation/ContainerCreate
 	ctx := context.Background()
-	resp, err := d.cont.ContainerCreate(ctx, &container.Config{
+	kgp.Debug.Println("Creating container for", d)
+	resp, err := cont.ContainerCreate(ctx, &container.Config{
+		Env: []string{
+			fmt.Sprintf("KGP_HOST=%s", hostname),
+			fmt.Sprintf("KGP_PORT=%d", listener.Port()),
+		},
 		Image: d.name,
 	}, &container.HostConfig{
 		Resources: container.Resources{
 			CPUCount: 1,
 			Memory:   1024 * 1024 * 1024,
 		},
-		PortBindings: nat.PortMap{
-			nat.Port("2671/tcp"): []nat.PortBinding{{
-				HostIP:   "0.0.0.0",
-				HostPort: port,
-			}},
-		},
+		NetworkMode:    container.NetworkMode("host"),
 		ReadonlyRootfs: true,
 		AutoRemove:     true,
 	}, nil, nil, fmt.Sprintf("%s-%d", d.name, time.Now().UnixNano()))
@@ -115,30 +169,51 @@ func (d *docker) Start(mode *cmd.State) (kgp.Agent, error) {
 		return nil, errors.Wrapf(err, "Failed to create container %s", d.name)
 	}
 
-	d.id = resp.ID
-	if err := d.cont.ContainerStart(ctx, d.id, types.ContainerStartOptions{}); err != nil {
+	id := resp.ID
+	kgp.Debug.Println("Starting container for", d)
+	if err := cont.ContainerStart(ctx, id, types.ContainerStartOptions{}); err != nil {
 		return nil, errors.Wrapf(err, "Failed to start container %s", d.name)
 	}
 
-	okC, errC := d.cont.ContainerWait(ctx, d.id, container.WaitConditionNotRunning)
+	_, errC := cont.ContainerWait(ctx, id, container.WaitConditionNotRunning)
+	kgp.Debug.Println("Waiting for container", d)
+
+	warmup := time.After(conf.Game.Closed.Warmup)
 	select {
+	case <-warmup:
+		err := cont.ContainerKill(ctx, id, `SIGKILL`)
+		if err != nil {
+			log.Print(err)
+		}
+		return nil, errors.New("Timeout during initialisation")
 	case err := <-errC:
 		return nil, errors.Wrapf(err, "Container %v signalled an error", d.name)
-	case <-okC:
-		d.cli = <-wait
-		return d.cli, nil
+	case client := <-wait:
+		kgp.Debug.Println(d, "Connected to port", listener.Port())
+
+		return &cli{
+			l: listener,
+			c: client,
+			C: cont,
+			i: id,
+			d: d,
+		}, nil
 	}
 }
 
-func (d *docker) Shutdown() error {
-	d.lis.Shutdown()
+func (c *cli) Shutdown() error {
+	c.l.Shutdown()
 	ctx := context.Background()
-	err := d.cont.ContainerKill(ctx, d.id, "SIGKILL")
+	err := c.C.ContainerKill(ctx, c.i, "SIGKILL")
 	if err != nil {
-		return errors.Wrapf(err, "Failed to kill container %s", d.name)
+		return errors.Wrapf(err, "Failed to kill container %s", c.d.name)
 	}
+
 	return nil
 }
 
-// Check if docker implements ControlledAgent
-var _ ControlledAgent = &docker{}
+// Check if docker and cli implements ControlledAgent
+var (
+	_ ControlledAgent = &docker{}
+	_ ControlledAgent = &cli{}
+)

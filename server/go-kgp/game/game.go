@@ -32,9 +32,6 @@ func Move(g *kgp.Game, m *kgp.Move) bool {
 		return false
 	}
 
-	if g.Current != g.Side(m.Agent) {
-		panic("Unexpected side")
-	}
 	repeat := g.Board.Sow(g.Current, m.Choice)
 	if !repeat {
 		g.Current = !g.Current
@@ -55,6 +52,8 @@ func MoveCopy(g *kgp.Game, m *kgp.Move) (*kgp.Game, bool) {
 func Play(g *kgp.Game, mode *cmd.State, conf *cmd.Conf) {
 	dbg := kgp.Debug.Printf
 	bg := context.Background()
+
+	dbg("Starting game between %s and %s", g.South, g.North)
 
 	g.State = kgp.ONGOING
 	mode.Database.SaveGame(bg, g)

@@ -156,7 +156,8 @@ func (g *Game) Side(a Agent) Side {
 	case g.South:
 		return South
 	default:
-		panic("Unknown Agent")
+		panic(fmt.Sprintf("Unknown Agent %s (neither %s, nor %s)",
+			a, g.South, g.North))
 	}
 }
 
@@ -167,7 +168,7 @@ func (g *Game) Player(s Side) Agent {
 	case South:
 		return g.South
 	default:
-		panic("Unknown Agent")
+		panic("Invalid state")
 	}
 }
 

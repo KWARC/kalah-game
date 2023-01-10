@@ -35,7 +35,7 @@ import (
 )
 
 func main() {
-	dir := flag.String("dir", ".", "Agent directory")
+	dir := flag.String("dir", "", "Agent directory")
 
 	flag.Parse()
 	if flag.NArg() != 0 {
@@ -66,7 +66,7 @@ func main() {
 		if err != nil {
 			log.Panic(err)
 		}
-		m, err := strconv.Atoi(mat[1])
+		m, err := strconv.Atoi(mat[2])
 		if err != nil {
 			log.Panic(err)
 		}
@@ -77,6 +77,7 @@ func main() {
 	combo := sched.MakeCombo(prog...)
 
 	// Check if the -dir flag was used and handle it
+	mode.Register(sched.MakeNoOp())
 	if *dir != "" {
 		dent, err := os.ReadDir(*dir)
 		if err != nil {
@@ -89,6 +90,19 @@ func main() {
 			}
 
 			a := isol.MakeDockerAgent(ent.Name())
+
+			// Check if the container works
+			i, err := isol.Start(mode, &conf, a)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+			err = isol.Shutdown(i)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+
 			combo.AddAgent(a)
 		}
 
@@ -98,6 +112,19 @@ func main() {
 	} else {
 		for _, name := range conf.Game.Closed.Images {
 			a := isol.MakeDockerAgent(name)
+
+			// Check if the container works
+			i, err := isol.Start(mode, &conf, a)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+			err = isol.Shutdown(i)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+
 			combo.AddAgent(a)
 		}
 	}

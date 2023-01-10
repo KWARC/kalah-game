@@ -86,10 +86,11 @@ type OpenGameConf struct {
 }
 
 type ClosedGameConf struct {
-	Images []string `toml:"images"`
-	Stages []string `toml:"stages"`
-	Result string   `toml:"result"`
-	Sanity bool     `toml:"sanity"`
+	Images []string      `toml:"images"`
+	Stages []string      `toml:"stages"`
+	Result string        `toml:"result"`
+	Sanity bool          `toml:"sanity"`
+	Warmup time.Duration `toml:"warmup"`
 }
 
 type GameConf struct {
@@ -134,6 +135,7 @@ var defaultConfig = Conf{
 		Closed: ClosedGameConf{
 			Stages: []string{"6,6", "8,8", "10,10", "12,12"},
 			Sanity: true,
+			Warmup: 10 * time.Second,
 		},
 	},
 	Web: WebConf{

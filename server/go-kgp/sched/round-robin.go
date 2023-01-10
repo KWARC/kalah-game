@@ -27,9 +27,8 @@ import (
 )
 
 func MakeRoundRobin(size, init uint) Composable {
-	var s *scheduler
-	s = &scheduler{
-		name: fmt.Sprint("Round Robin (%d, %d)", size, init),
+	return &scheduler{
+		name: fmt.Sprintf("Round Robin (%d, %d)", size, init),
 		schedule: func(agents []isol.ControlledAgent) (games []*kgp.Game) {
 			// Prepare all games
 			for _, a := range agents {
@@ -47,5 +46,4 @@ func MakeRoundRobin(size, init uint) Composable {
 			return
 		},
 	}
-	return s
 }

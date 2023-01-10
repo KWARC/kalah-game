@@ -86,9 +86,6 @@ func (t *Listener) Start(mode *cmd.State, conf *cmd.Conf) {
 	}
 }
 
-func (t *Listener) start(mode *cmd.State) {
-}
-
 func (t *Listener) Port() uint16 {
 	return t.port
 }
@@ -109,10 +106,10 @@ func MakeListner(mode *cmd.State, port uint) *Listener {
 	}
 }
 
-func StartListner(mode *cmd.State, handler func(*Client) bool) *Listener {
-	l := &Listener{handler: handler}
+func StartListner(mode *cmd.State, conf *cmd.Conf, handler func(*Client) bool) *Listener {
+	l := &Listener{handler: handler, port: 0}
 	l.init()
-	go l.start(mode)
+	go l.Start(mode, conf)
 	return l
 }
 

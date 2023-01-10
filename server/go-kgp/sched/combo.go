@@ -22,6 +22,7 @@ package sched
 import (
 	"fmt"
 	"io"
+	"log"
 	"sort"
 	"sync/atomic"
 
@@ -46,11 +47,18 @@ type Combo struct {
 }
 
 func (c *Combo) Start(mode *cmd.State, conf *cmd.Conf) {
+	if len(c.agents) == 0 {
+		log.Fatal("No agents to run the tournament with")
+	}
+
 	next := c.agents
-	for {
-		m := c.scheds[atomic.LoadUint64(&c.now)]
+	for len(c.agents) > 0 {
+		m := c.scheds[c.now]
+		kgp.Debug.Println("Starting ", m, "round with", c.agents)
 		m.Take(next)
+		kgp.Debug.Println("Starting", m)
 		m.Start(mode, conf)
+		kgp.Debug.Println("Shutting down", m)
 		m.Shutdown()
 		next = m.Give()
 
@@ -58,6 +66,8 @@ func (c *Combo) Start(mode *cmd.State, conf *cmd.Conf) {
 			break
 		}
 	}
+	kgp.Debug.Println("Ending combo scheduler")
+	mode.Kill()
 }
 
 func (c *Combo) Shutdown() {}
@@ -75,7 +85,10 @@ func (c *Combo) String() string {
 }
 
 func (c *Combo) PrintResults(st *cmd.State, W io.Writer) {
-	fmt.Fprintln(W, ".RP")
+	if atomic.LoadUint64(&c.now) < uint64(len(c.scheds)) {
+		return
+	}
+
 	fmt.Fprintln(W, ".TL")
 	fmt.Fprintln(W, "Results of the AI1 Kalah Tournament")
 	fmt.Fprintln(W, ".AB")
@@ -87,7 +100,6 @@ if they don't perform well enough.  The final score is calculated by
 summing up the total number of games won, and subtracting the total number
 of games an agent lost.`)
 	fmt.Fprintln(W, ".AE")
-	fmt.Fprintln(W, ".NH 1")
 
 	for i, s := range c.scheds {
 		s.PrintResults(st, W)
@@ -104,9 +116,9 @@ of games an agent lost.`)
 		curr = s.Give()
 
 		fmt.Fprintln(W, ".PP")
-		fmt.Fprintln(W, `The following agents were disqualified
+		fmt.Fprintln(W, `These agents were disqualified
 for failing to meet the necessary criteria for proceeding to the
-next round:`)
+next round (a non-negative score):`)
 		c := 0
 		for _, a := range prev {
 			for _, b := range curr {
@@ -127,8 +139,9 @@ next round:`)
 		}
 	}
 
+	fmt.Fprintln(W, `.NH 1`)
 	fmt.Fprintln(W, "Final score")
-	fmt.Fprintln(W, ".PP")
+	fmt.Fprintln(W, ".LP")
 	fmt.Fprintln(W, "The top ten agents are as follows:")
 
 	cache := make(map[isol.ControlledAgent]int)
@@ -149,7 +162,7 @@ next round:`)
 	}
 
 	sort.Slice(c.agents, func(i, j int) bool {
-		return score(c.agents[i]) < score(c.agents[j])
+		return score(c.agents[i]) > score(c.agents[j])
 	})
 
 	var (
@@ -166,14 +179,15 @@ next round:`)
 			nr++
 		}
 		last = sc
-		fmt.Fprintf(W, `.IP %d\n%s (Score: %d)`, nr, a.String(), sc)
+		fmt.Fprintf(W, ".IP %d\n%s (Score: %d)\n", nr, a.String(), sc)
 	}
 
-	fmt.Fprintln(W, ".PP")
+	fmt.Fprintln(W, ".LP")
 	fmt.Fprintln(W, "Congratulations to all participating teams!")
 }
 
 func (c *Combo) AddAgent(a isol.ControlledAgent) {
+	log.Println("Registered agent", a)
 	c.agents = append(c.agents, a)
 }
 

@@ -29,18 +29,20 @@ import (
 type ControlledAgent interface {
 	kgp.Agent
 	fmt.Stringer
-	Start(mode *cmd.State) (kgp.Agent, error)
+	Start(mode *cmd.State, conf *cmd.Conf) (kgp.Agent, error)
 	Shutdown() error
 }
 
-func Start(mode *cmd.State, a kgp.Agent) (kgp.Agent, error) {
+func Start(mode *cmd.State, conf *cmd.Conf, a kgp.Agent) (kgp.Agent, error) {
+	kgp.Debug.Println("Starting", a)
 	if ca, ok := a.(ControlledAgent); ok {
-		return ca.Start(mode)
+		return ca.Start(mode, conf)
 	}
 	return a, nil
 }
 
 func Shutdown(a kgp.Agent) error {
+	kgp.Debug.Println("Shutting down", a)
 	if ca, ok := a.(ControlledAgent); ok {
 		return ca.Shutdown()
 	}

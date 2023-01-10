@@ -31,7 +31,8 @@ func MakeSanityCheck() Composable {
 		schedule: func(a []isol.ControlledAgent) (games []*kgp.Game) {
 			adv := bot.MakeRandom()
 			for _, agent := range a {
-				games = append(games, &kgp.Game{Board: kgp.MakeBoard(6, 6), South: agent, North: adv}, &kgp.Game{Board: kgp.MakeBoard(6, 6), South: adv, North: agent})
+				game := &kgp.Game{Board: kgp.MakeBoard(6, 6), South: agent, North: adv}
+				games = append(games, game)
 			}
 			return
 		},
