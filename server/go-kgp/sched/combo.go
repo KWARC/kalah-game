@@ -81,7 +81,12 @@ func (c *Combo) Unschedule(a kgp.Agent) {
 }
 
 func (c *Combo) String() string {
-	return c.scheds[atomic.LoadUint64(&c.now)].String()
+	i := atomic.LoadUint64(&c.now)
+	if i < len(c.scheds) {
+		current := c.scheds[i].String()
+		return fmt.Sprintf("Combo Scheduler (%s)", current)
+	}
+	return "Combo Scheduler"
 }
 
 func (c *Combo) PrintResults(st *cmd.State, W io.Writer) {
