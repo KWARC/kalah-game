@@ -135,6 +135,7 @@ var defaultConfig = Conf{
 		Closed: ClosedGameConf{
 			Stages: []string{"6,6", "8,8", "10,10", "12,12"},
 			Sanity: true,
+			Result: "result.pdf",
 			Warmup: 10 * time.Second,
 		},
 	},

@@ -22,9 +22,12 @@ package main
 import (
 	"flag"
 	"fmt"
+	"go-kgp"
 	"io"
 	"log"
 	"os"
+	"os/exec"
+	"path"
 	"regexp"
 	"strconv"
 
@@ -134,22 +137,54 @@ func main() {
 	mode.Register(combo)
 
 	// Print results
-	var out io.Writer
+	var (
+		cmd *exec.Cmd
+		out io.Writer
+	)
 	if res := conf.Game.Closed.Result; res != "" {
-		file, err := os.Open(res)
+		kgp.Debug.Println("Writing results to", res)
+		file, err := os.Create(res)
 		if err != nil {
 			log.Fatal(err)
 		}
 		defer file.Close()
-
 		out = file
+
+		var dev string
+		switch path.Ext(res) {
+		case "pdf":
+			dev = "-Tpdf"
+		case "ps":
+			dev = "-Tps"
+		case "html":
+			dev = "-Txhtml"
+		case "txt":
+			dev = "-Tutf8"
+		default:
+			goto skip
+		}
+		kgp.Debug.Println("Preparing groff with", dev)
+		cmd = exec.Command("groff", dev, "-ms", "-t")
+
+		cmd.Stdout = file
+		out, err = cmd.StdinPipe()
+		if err != nil {
+			log.Fatal(err)
+		}
 	} else {
 		out = os.Stdout
 	}
+skip:
 
 	// Start the tournament
 	mode.Start(&conf)
 
 	// Print results
+	if cmd != nil {
+		cmd.Start()
+	}
 	combo.PrintResults(mode, out)
+	if cmd != nil {
+		cmd.Wait()
+	}
 }
