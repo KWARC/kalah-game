@@ -82,7 +82,7 @@ func (c *Combo) Unschedule(a kgp.Agent) {
 
 func (c *Combo) String() string {
 	i := atomic.LoadUint64(&c.now)
-	if i < len(c.scheds) {
+	if i < uint64(len(c.scheds)) {
 		current := c.scheds[i].String()
 		return fmt.Sprintf("Combo Scheduler (%s)", current)
 	}
