@@ -137,6 +137,7 @@ next round:`)
 			fmt.Fprintln(W, ".QP")
 			fmt.Fprintln(W, ".I none ) (")
 		}
+		fmt.Fprintln(W, ".bp")
 	}
 
 	fmt.Fprintln(W, `.NH 1`)
