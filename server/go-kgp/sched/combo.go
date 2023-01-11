@@ -119,6 +119,10 @@ of games an agent lost.`)
 			prev = c.scheds[i-1].Give()
 		}
 		curr = s.Give()
+		if len(curr) <= 1 {
+			fmt.Fprintln(W, ".bp")
+			continue
+		}
 
 		fmt.Fprintln(W, ".PP")
 		fmt.Fprintln(W, `These agents were disqualified
