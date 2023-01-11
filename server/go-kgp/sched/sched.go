@@ -37,6 +37,7 @@ type score struct{ w, l, d uint }
 
 type scheduler struct {
 	name   string
+	desc   string
 	wait   sync.WaitGroup
 	agents []isol.ControlledAgent
 	// Function to generate a schedule
@@ -175,6 +176,8 @@ func (s *scheduler) PrintResults(st *cmd.State, W io.Writer) {
 		fmt.Fprintln(W, `No games took place.`)
 		return
 	}
+	fmt.Fprintln(W, `.LP`)
+	fmt.Fprintln(W, s.desc)
 
 	// Order agents in order of score
 	sort.SliceStable(s.agents, func(i, j int) bool {

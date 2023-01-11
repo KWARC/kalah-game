@@ -28,6 +28,11 @@ import (
 func MakeSanityCheck() Composable {
 	return &scheduler{
 		name: "Sanity Test",
+		desc: `All agents are made to compete once against a random bot
+on a (6, 6) board.  As the agent is allowed to make the first move, we
+know that they must be able to win the game, since this configuration of
+Kalah is solved.  To pass this stage, one has to definitively win against
+the random bot, otherwise one is disqualified immediately.`,
 		schedule: func(a []isol.ControlledAgent) (games []*kgp.Game) {
 			adv := bot.MakeRandom()
 			for _, agent := range a {

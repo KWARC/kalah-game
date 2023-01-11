@@ -118,7 +118,7 @@ of games an agent lost.`)
 		fmt.Fprintln(W, ".PP")
 		fmt.Fprintln(W, `These agents were disqualified
 for failing to meet the necessary criteria for proceeding to the
-next round (a non-negative score):`)
+next round:`)
 		c := 0
 		for _, a := range prev {
 			for _, b := range curr {
