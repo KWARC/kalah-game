@@ -36,7 +36,7 @@ type Composable interface {
 	PrintResults(*cmd.State, io.Writer)
 	Take([]isol.ControlledAgent)
 	Give() []isol.ControlledAgent
-	Score(isol.ControlledAgent) (int, int)
+	Score(isol.ControlledAgent) (int, int, int)
 }
 
 type Combo struct {
@@ -153,8 +153,8 @@ next round (a non-negative score):`)
 
 		var score int
 		for _, s := range c.scheds {
-			w, l := s.Score(a)
-			score += w - l
+			w, l, d := s.Score(a)
+			score += 2*w - 2*l + d
 		}
 
 		cache[a] = score

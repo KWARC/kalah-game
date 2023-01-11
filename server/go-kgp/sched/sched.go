@@ -33,7 +33,7 @@ import (
 	"go-kgp/sched/isol"
 )
 
-type score struct{ w, l uint }
+type score struct{ w, l, d uint }
 
 type scheduler struct {
 	name   string
@@ -117,15 +117,15 @@ func (s *scheduler) Take(a []isol.ControlledAgent) {
 func (s *scheduler) Give() (next []isol.ControlledAgent) {
 	s.wait.Wait()
 	for _, a := range s.agents {
-		w, l := s.Score(a)
-		if 0 <= w-l {
+		w, l, d := s.Score(a)
+		if 2 <= 2*w-2*l+d {
 			next = append(next, a)
 		}
 	}
 	return
 }
 
-func (s *scheduler) Score(a isol.ControlledAgent) (int, int) {
+func (s *scheduler) Score(a isol.ControlledAgent) (int, int, int) {
 	if s.score == nil {
 		s.score = make(map[kgp.Agent]*score)
 
@@ -137,26 +137,34 @@ func (s *scheduler) Score(a isol.ControlledAgent) (int, int) {
 			if S, ok := s.score[game.South]; ok {
 				switch game.State {
 				case kgp.NORTH_WON:
-					S.l++
+					S.l += 1
 				case kgp.SOUTH_WON:
-					S.w++
+					S.w += 1
+				case kgp.UNDECIDED:
+					S.d += 1
+				case kgp.SOUTH_RESIGNED:
+					S.l += 1
 				}
 			}
 			if S, ok := s.score[game.North]; ok {
 				switch game.State {
 				case kgp.NORTH_WON:
-					S.w++
+					S.w += 1
 				case kgp.SOUTH_WON:
-					S.l++
+					S.l += 1
+				case kgp.UNDECIDED:
+					S.d += 1
+				case kgp.NORTH_RESIGNED:
+					S.l += 1
 				}
 			}
 		}
 	}
 
 	if sc, ok := s.score[a]; ok {
-		return int(sc.w), int(sc.l)
+		return int(sc.w), int(sc.l), int(sc.d)
 	}
-	return 0, 0
+	return 0, 0, 0
 }
 
 func (s *scheduler) PrintResults(st *cmd.State, W io.Writer) {
@@ -168,27 +176,30 @@ func (s *scheduler) PrintResults(st *cmd.State, W io.Writer) {
 		return
 	}
 
+	// Order agents in order of score
+	sort.SliceStable(s.agents, func(i, j int) bool {
+		iw, il, id := s.Score(s.agents[i])
+		is := 2*iw - 2*il + id
+		jw, jl, jd := s.Score(s.agents[j])
+		js := 2*jw - 2*jl + jd
+		return is < js
+	})
+
 	fmt.Fprintln(W, `.NH 2`)
 	fmt.Fprintln(W, "Scores")
 
 	fmt.Fprintln(W, `.TS`)
 	fmt.Fprintln(W, `tab(/) box center;`)
-	fmt.Fprintln(W, `c | c c | c`)
-	fmt.Fprintln(W, `----`)
-	fmt.Fprintln(W, `l | n n | n`)
+	fmt.Fprintln(W, `c | c c c | c`)
+	fmt.Fprintln(W, `-----`)
+	fmt.Fprintln(W, `l | n n n | n`)
 	fmt.Fprintln(W, `.`)
-	fmt.Fprintln(W, `Agent/Win/Loss/Score`)
-
-	// Order agents in order of score
-	sort.SliceStable(s.agents, func(i, j int) bool {
-		iw, il := s.Score(s.agents[i])
-		jw, jl := s.Score(s.agents[j])
-		return (iw - il) < (jw - jl)
-	})
+	fmt.Fprintln(W, `Agent/Win/Loss/Draw/Score`)
 
 	for _, a := range s.agents {
-		w, l := s.Score(a)
-		fmt.Fprintf(W, "%s/%d/%d/%d\n", a, w, l, w-l)
+		w, l, d := s.Score(a)
+		s := 2*w - 2*l + d
+		fmt.Fprintf(W, "%s/%d/%d/%d/%d\n", a, w, l, d, s)
 	}
 	fmt.Fprintln(W, `.TE`)
 }
