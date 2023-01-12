@@ -161,6 +161,13 @@ func (cli *Client) Interpret(input string) error {
 		stop(ref)
 	case "ping":
 		cli.Respond(id, "pong")
+	case "error":
+		var msg string
+		err = parse(args, &msg)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintln(os.Stderr, "Protocol Error:", msg)
 	case "goodbye":
 		os.Exit(0)
 	}
