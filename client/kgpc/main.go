@@ -1,6 +1,6 @@
 // Protocol Handling
 //
-// Copyright (c) 2021  Philip Kaludercic
+// Copyright (c) 2021, 2023  Philip Kaludercic
 //
 // This file is part of kgpc.
 //
@@ -48,6 +48,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	dest = os.Args[1]
 	if ok, _ := regexp.MatchString(`^wss?://`, dest); ok {
 		ctx := context.Background()
 		c, _, err := websocket.Dial(ctx, dest, nil)

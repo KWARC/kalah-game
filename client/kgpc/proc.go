@@ -21,7 +21,6 @@ package main
 
 import (
 	"bufio"
-	"flag"
 	"fmt"
 	"os"
 	"os/exec"
@@ -36,9 +35,8 @@ func start(cli *Client, id uint64, board *Board) {
 		panic("Duplicate ID")
 	}
 
-	args := flag.Args()
-	cmd := exec.Command(args[1], args[2:]...)
-	running[id] = cmd.Process
+	cmd := exec.Command(os.Args[2], os.Args[3:]...)
+	running[id] = cmd
 
 	in, err := cmd.StdinPipe()
 	if err != nil {
