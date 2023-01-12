@@ -79,7 +79,6 @@ func parseBoard(str string) *Board {
 		return nil
 	}
 	data := make([]uint, len(raw))
-	fmt.Printf("%#v\n", raw)
 	for i, r := range raw {
 		v, err := strconv.Atoi(r)
 		if err != nil {
