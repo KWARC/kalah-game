@@ -66,6 +66,7 @@ func start(cli *Client, id uint64, board *Board) {
 
 	scanner := bufio.NewScanner(out)
 	scanner.Split(bufio.ScanWords)
+	last := -1
 	for scanner.Scan() {
 		word := scanner.Text()
 		if debug {
@@ -76,11 +77,15 @@ func start(cli *Client, id uint64, board *Board) {
 			fmt.Fprintf(os.Stderr, "Cannot parse %v: %s\n", word, err)
 			continue
 		}
+		if move == last {
+			continue
+		}
 		if !board.Legal(SideSouth, move) {
 			fmt.Fprintf(os.Stderr, "Attempted to make illegal move %d\n", move)
 			continue
 		}
 		cli.Respond(id, "move", move+1)
+		last = move
 	}
 	if err := scanner.Err(); err != nil {
 		fmt.Fprintln(os.Stderr, "Error reading input:", err)
