@@ -1,6 +1,6 @@
 // Process Handling
 //
-// Copyright (c) 2021  Philip Kaludercic
+// Copyright (c) 2021, 2023  Philip Kaludercic
 //
 // This file is part of kgpc.
 //
@@ -27,7 +27,7 @@ import (
 	"strconv"
 )
 
-var running map[uint64]*os.Process
+var running map[uint64]*exec.Cmd = make(map[uint64]*exec.Cmd)
 
 func start(cli *Client, id uint64, board *Board) {
 	_, ok := running[id]
@@ -85,11 +85,8 @@ func start(cli *Client, id uint64, board *Board) {
 }
 
 func stop(id uint64) {
-	proc, ok := running[id]
-	if !ok {
-		return
+	if cmd, ok := running[id]; ok {
+		cmd.Process.Kill()
+		delete(running, id)
 	}
-
-	proc.Kill()
-	delete(running, id)
 }
