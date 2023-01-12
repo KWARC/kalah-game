@@ -39,6 +39,7 @@ import (
 
 func main() {
 	dir := flag.String("dir", "", "Agent directory")
+	auto := flag.Bool("auto", false, "Build containers in the agent directory.")
 
 	flag.Parse()
 	if flag.NArg() != 0 {
@@ -92,7 +93,11 @@ func main() {
 				continue
 			}
 
-			a := isol.MakeDockerAgent(ent.Name())
+			var build string
+			if *auto {
+				build = path.Join(*dir, ent.Name())
+			}
+			a := isol.MakeDockerAgent(ent.Name(), build)
 
 			// Check if the container works
 			i, err := isol.Start(mode, &conf, a)
@@ -114,7 +119,7 @@ func main() {
 		}
 	} else {
 		for _, name := range conf.Game.Closed.Images {
-			a := isol.MakeDockerAgent(name)
+			a := isol.MakeDockerAgent(name, "")
 
 			// Check if the container works
 			i, err := isol.Start(mode, &conf, a)

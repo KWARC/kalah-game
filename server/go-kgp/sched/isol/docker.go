@@ -22,6 +22,7 @@ package isol
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"sync/atomic"
@@ -34,6 +35,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/pkg/archive"
 	"github.com/pkg/errors"
 )
 
@@ -64,7 +66,42 @@ type cli struct {
 	u *kgp.User
 }
 
-func MakeDockerAgent(name string) ControlledAgent {
+func MakeDockerAgent(name, build string) ControlledAgent {
+	if build != "" {
+		cli, err := client.NewClientWithOpts(client.FromEnv)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		tar, err := archive.TarWithOptions(build, &archive.TarOptions{})
+		if err != nil {
+			log.Fatal(err)
+		}
+		opts := types.ImageBuildOptions{
+			Dockerfile: "Dockerfile",
+			Tags:       []string{name},
+			Remove:     true,
+		}
+		ctx := context.Background()
+		res, err := cli.ImageBuild(ctx, tar, opts)
+		if err != nil {
+			log.Fatal(err)
+		}
+		l, err := os.Create(fmt.Sprintf("%s.%d.log", build, time.Now().Unix()))
+		if err != nil {
+			log.Println(err)
+			goto skip
+		}
+		_, err = io.Copy(l, res.Body)
+		if err != nil {
+			log.Println(err)
+		}
+		err = l.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	skip:
+	}
 	return &docker{
 		id:   atomic.AddInt64(&c, 1),
 		name: name,
