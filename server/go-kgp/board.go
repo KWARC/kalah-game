@@ -1,6 +1,6 @@
 // Kalah Board Implementation
 //
-// Copyright (c) 2021, 2022  Philip Kaludercic
+// Copyright (c) 2021, 2022, 2023  Philip Kaludercic
 //
 // This file is part of go-kgp.
 //
@@ -146,7 +146,7 @@ func (b *Board) String() string {
 // Legal returns true if SIDE may play move PIT
 func (b *Board) Legal(side Side, pit uint) bool {
 	if pit >= uint(len(b.northPits)) {
-		panic("Illegal access")
+		return false
 	}
 	if side == North {
 		return b.northPits[pit] > 0
