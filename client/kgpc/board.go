@@ -1,6 +1,6 @@
 // Kalah Board Implementation
 //
-// Copyright (c) 2021  Philip Kaludercic
+// Copyright (c) 2021, 2023  Philip Kaludercic
 //
 // This file is part of kgpc, based on go-kgp.
 //
@@ -74,8 +74,8 @@ func parseBoard(str string, board *Board) {
 		return
 	}
 
-	board.north = data[1]
-	board.south = data[2]
+	board.south = data[1]
+	board.north = data[2]
 	board.southPits = data[3 : 3+size]
 	board.northPits = data[3+size:]
 }
