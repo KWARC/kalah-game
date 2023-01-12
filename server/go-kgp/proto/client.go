@@ -139,9 +139,9 @@ func (cli *Client) Alive() bool {
 // internal use
 func (cli *Client) String() string {
 	if cli.user.Token != "" {
-		return fmt.Sprintf("%s (%q)", cli.rwc, cli.user.Token)
+		return fmt.Sprintf("%s", cli.user.Token)
 	} else {
-		return fmt.Sprint(cli.rwc)
+		return fmt.Sprintf("%p", cli)
 	}
 }
 
