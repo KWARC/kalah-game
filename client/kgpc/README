@@ -35,6 +35,32 @@ environmental variables TOKEN, AUTHOR and NAME respectivly.
 
 ---
 
+Here is a basic C++ agent that could be invoked by kgpc:
+
+    #include <iostream>
+
+    // This is a simple C++ agent that would work with kgpc.  It
+    // demonstrates how to parse the input, but does not implement
+    // anything else.  It will always return the left-most move.
+
+    int main()
+    {
+	 int size, south, north;
+	 std::cin >> size >> south >> north;
+	 int spits[size], npits[size];
+	 for (int i = 0; i < size; i++) std::cin >> spits[i];
+	 for (int i = 0; i < size; i++) std::cin >> npits[i];
+	 for (int i = 0; i < size; i++) {
+	      if (spits[i] > 0) {
+		   std::cout << i+1 << std::endl;
+		   return 0;
+	      }
+	 }
+	 return 1;
+    }
+
+---
+
 To build kgpc, you need a Go toolchain[0], and then to run
 
 	$ go build
