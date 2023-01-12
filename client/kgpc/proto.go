@@ -82,7 +82,7 @@ func parse(raw string, params ...interface{}) error {
 				return err
 			}
 		case *Board:
-			param = parseBoard(arg)
+			parseBoard(arg, param)
 			if param == nil {
 				return errors.New("malformed board")
 			}

@@ -52,64 +52,32 @@ type Board struct {
 	init         uint
 }
 
-// create a new board with SIZE pits, each with INIT stones
-func makeBoard(size, init uint) Board {
-	board := Board{
-		northPits: make([]uint, int(size)),
-		southPits: make([]uint, int(size)),
-	}
-
-	for i := range board.northPits {
-		board.northPits[i] = init
-	}
-	for i := range board.southPits {
-		board.southPits[i] = init
-	}
-	board.init = init
-
-	return board
-}
-
-func parseBoard(str string) *Board {
+func parseBoard(str string, board *Board) {
 	str = strings.TrimPrefix(str, "<")
 	str = strings.TrimSuffix(str, ">")
 
 	raw := strings.Split(str, ",")
 	if len(raw) < 5 {
-		return nil
+		return
 	}
 	data := make([]uint, len(raw))
 	for i, r := range raw {
 		v, err := strconv.Atoi(r)
 		if err != nil {
-			return nil
+			return
 		}
 		data[i] = uint(v)
 	}
 
 	size := data[0]
 	if int(size)*2+3 != len(data) {
-		return nil
+		return
 	}
 
-	board := makeBoard(size, 0)
 	board.north = data[1]
 	board.south = data[2]
 	board.southPits = data[3 : 3+size]
 	board.northPits = data[3+size:]
-
-	return &board
-}
-
-// Mirror returns a mirrored represenation of the board
-func (b *Board) Mirror() *Board {
-	return &Board{
-		north:     b.south,
-		south:     b.north,
-		northPits: b.southPits,
-		southPits: b.northPits,
-		init:      b.init,
-	}
 }
 
 // String converts a board into a KGP representation
