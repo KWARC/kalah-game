@@ -59,6 +59,10 @@ Here is a basic C++ agent that could be invoked by kgpc:
 	 return 1;
     }
 
+Keep in mind to flush the output, in case your program goes on for
+longer, as by default the I/O between kgpc and the child-process will
+be block-buffered.
+
 ---
 
 To build kgpc, you need a Go toolchain[0], and then to run
