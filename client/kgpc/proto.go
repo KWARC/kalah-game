@@ -1,6 +1,6 @@
 // Protocol Handling
 //
-// Copyright (c) 2021  Philip Kaludercic
+// Copyright (c) 2021, 2023  Philip Kaludercic
 //
 // This file is part of go-kgp, based on go-kgp.
 //
@@ -83,9 +83,11 @@ func parse(raw string, params ...interface{}) error {
 			}
 		case *Board:
 			param = parseBoard(arg)
-			if param != nil {
+			if param == nil {
 				return errors.New("malformed board")
 			}
+		default:
+			panic("Unsupported type")
 		}
 	}
 
@@ -145,12 +147,12 @@ func (cli *Client) Interpret(input string) error {
 		}
 		cli.Send("mode", "freeplay")
 	case "state":
-		var board *Board
+		var board Board
 		err = parse(args, &board)
 		if err != nil {
 			return err
 		}
-		start(cli, id, board)
+		start(cli, id, &board)
 	case "stop":
 		stop(ref)
 	case "ping":
