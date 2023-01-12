@@ -21,6 +21,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
@@ -30,60 +31,67 @@ import (
 var running map[uint64]*exec.Cmd = make(map[uint64]*exec.Cmd)
 
 func start(cli *Client, id uint64, board *Board) {
+	defer cli.Respond(id, "yield")
 	_, ok := running[id]
 	if ok {
-		panic("Duplicate ID")
+		fmt.Fprintln(os.Stderr, "Duplicate ID", id)
+		return
 	}
 
 	cmd := exec.Command(os.Args[2], os.Args[3:]...)
 	running[id] = cmd
 
-	in, err := cmd.StdinPipe()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
+	var buf bytes.Buffer
+	fmt.Fprintf(&buf, "%d %d %d", len(board.northPits), board.south, board.north)
+	for _, v := range board.southPits {
+		fmt.Fprintf(&buf, " %d", v)
 	}
+	for _, v := range board.northPits {
+		fmt.Fprintf(&buf, " %d", v)
+	}
+	fmt.Fprintln(&buf)
+	cmd.Stdin = &buf
+	cmd.Stderr = os.Stderr
+
 	out, err := cmd.StdoutPipe()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
 	}
-	cmd.Start()
-
-	go func() {
-		scanner := bufio.NewScanner(out)
-		scanner.Split(bufio.ScanWords)
-		for scanner.Scan() {
-			word := scanner.Text()
-			move, err := strconv.Atoi(word)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Cannot parse \"%s\"\n", word)
-				continue
-			}
-			if !board.Legal(SideSouth, move) {
-				fmt.Fprintf(os.Stderr, "Attempted to make illegal move %d\n", move)
-				continue
-			}
-			cli.Respond(id, "move", move)
-		}
-		if err := scanner.Err(); err != nil {
-			fmt.Fprintln(os.Stderr, "reading input:", err)
-		}
-	}()
-
-	fmt.Fprintf(in, "%d\n", len(board.northPits))
-	fmt.Fprintf(in, "%d\n%d\n", board.south, board.north)
-	for _, v := range board.southPits {
-		fmt.Fprintf(in, "%d\n", v)
-	}
-	for _, v := range board.northPits {
-		fmt.Fprintf(in, "%d\n", v)
+	err = cmd.Start()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
 	}
 
-	cmd.Wait()
-	cli.Respond(id, "yield")
+	scanner := bufio.NewScanner(out)
+	scanner.Split(bufio.ScanWords)
+	for scanner.Scan() {
+		word := scanner.Text()
+		if debug {
+			fmt.Fprintf(os.Stderr, "Responded with %v for %d\n", word, id)
+		}
+		move, err := strconv.Atoi(word)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Cannot parse %v: %s\n", word, err)
+			continue
+		}
+		if !board.Legal(SideSouth, move) {
+			fmt.Fprintf(os.Stderr, "Attempted to make illegal move %d\n", move)
+			continue
+		}
+		cli.Respond(id, "move", move+1)
+	}
+	if err := scanner.Err(); err != nil {
+		fmt.Fprintln(os.Stderr, "Error reading input:", err)
+	}
+
+	err = cmd.Wait()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
 }
-
 func stop(id uint64) {
 	if cmd, ok := running[id]; ok {
 		cmd.Process.Kill()
