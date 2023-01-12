@@ -21,6 +21,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"regexp"
 	"strconv"
@@ -123,6 +124,9 @@ func (cli *Client) Interpret(input string) error {
 		if err != nil {
 			return nil
 		}
+	}
+	if debug {
+		fmt.Fprint(os.Stderr, "< ", input, "\n")
 	}
 
 	switch cmd {

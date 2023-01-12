@@ -1,6 +1,6 @@
 // Communication Management
 //
-// Copyright (c) 2021  Philip Kaludercic
+// Copyright (c) 2021, 2023  Philip Kaludercic
 //
 // This file is part of kgpc, based on go-kgp.
 //
@@ -24,9 +24,12 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"os"
 	"sync"
 	"sync/atomic"
 )
+
+var debug = os.Getenv("DEBUG") != ""
 
 // Client wraps a network connection into a player
 type Client struct {
@@ -46,26 +49,31 @@ func (cli *Client) Error(to uint64, args ...interface{}) {
 
 // Respond forwards a referenced message to the client
 func (cli *Client) Respond(to uint64, command string, args ...interface{}) uint64 {
-	id := atomic.AddUint64(&cli.rid, 2)
+	var out io.Writer = cli.rwc
+	if debug {
+		fmt.Fprint(os.Stderr, ">")
+		out = io.MultiWriter(os.Stderr, out)
+	}
 
+	id := atomic.AddUint64(&cli.rid, 2)
 	fmt.Fprint(cli.rwc, id)
 	if to > 0 {
 		fmt.Fprintf(cli.rwc, "@%d", to)
 	}
 
-	fmt.Fprintf(cli.rwc, " %s", command)
+	fmt.Fprintf(out, " %s", command)
 
 	for _, arg := range args {
-		fmt.Fprint(cli.rwc, " ")
+		fmt.Fprint(out, " ")
 		switch arg.(type) {
 		case string:
-			fmt.Fprintf(cli.rwc, "%#v", arg)
+			fmt.Fprintf(out, "%#v", arg)
 		case int:
-			fmt.Fprintf(cli.rwc, "%d", arg)
+			fmt.Fprintf(out, "%d", arg)
 		case float64:
-			fmt.Fprintf(cli.rwc, "%f", arg)
+			fmt.Fprintf(out, "%f", arg)
 		case *Board:
-			fmt.Fprint(cli.rwc, arg)
+			fmt.Fprint(out, arg)
 		default:
 			panic("Unsupported type")
 		}
@@ -75,11 +83,11 @@ func (cli *Client) Respond(to uint64, command string, args ...interface{}) uint6
 	defer cli.lock.Unlock()
 	cli.lock.Lock()
 
-	if cli.rwc == nil {
+	if out == nil {
 		return 0
 	}
 
-	fmt.Fprint(cli.rwc, "\r\n")
+	fmt.Fprint(out, "\r\n")
 
 	return id
 }
@@ -97,11 +105,13 @@ func (cli *Client) Handle() {
 
 	scanner := bufio.NewScanner(cli.rwc)
 	for scanner.Scan() {
-		input := scanner.Text()
-		err := cli.Interpret(input)
+		err := cli.Interpret(scanner.Text())
 		if err != nil {
 			log.Println(err)
 		}
+	}
+	if err := scanner.Err(); err != nil {
+		fmt.Fprintln(os.Stderr, "Error reading protocol:", err)
 	}
 
 	// Try to send a goodbye message, ignoring any errors
