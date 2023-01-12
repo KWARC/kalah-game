@@ -156,7 +156,7 @@ func (cli *Client) Interpret(input string) error {
 		if err != nil {
 			return err
 		}
-		start(cli, id, &board)
+		go start(cli, id, &board)
 	case "stop":
 		stop(ref)
 	case "ping":
