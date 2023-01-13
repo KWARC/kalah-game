@@ -40,6 +40,13 @@ var defaultUser = &kgp.User{
 	Descr: `Pseudo-user of all unidentified agents.`,
 }
 
+type mode uint8
+
+const (
+	freeplay mode = iota
+	verify
+)
+
 type request struct {
 	move chan<- *kgp.Move
 	id   uint64
@@ -58,12 +65,14 @@ type Client struct {
 	user *kgp.User
 
 	// protocol state
+	mode   mode
 	iolock sync.Mutex // IO Lock
 	glock  sync.Mutex // Game Lock
 	rwc    io.ReadWriteCloser
 	rid    uint64
 	kill   context.CancelFunc
 	games  map[uint64]*kgp.Game
+	chall  map[uint64]*challenge
 	req    chan *request
 	resp   chan *response
 	alive  chan struct{}
@@ -139,7 +148,7 @@ func (cli *Client) Alive() bool {
 // internal use
 func (cli *Client) String() string {
 	if cli.user.Token != "" {
-		return fmt.Sprintf("%s", cli.user.Token)
+		return fmt.Sprintf("(%s)", cli.user.Token)
 	} else {
 		return fmt.Sprintf("%p", cli)
 	}
@@ -184,7 +193,7 @@ func (cli *Client) respond(to uint64, command string, args ...interface{}) uint6
 		switch v := arg.(type) {
 		case string:
 			fmt.Fprintf(&buf, "%#v", v)
-		case int:
+		case int, uint:
 			fmt.Fprintf(&buf, "%d", v)
 		case float64:
 			fmt.Fprintf(&buf, "%f", v)
