@@ -40,10 +40,11 @@ var defaultUser = &kgp.User{
 	Descr: `Pseudo-user of all unidentified agents.`,
 }
 
-type mode uint8
+type gamemode int32
 
 const (
-	freeplay mode = iota
+	none gamemode = iota
+	freeplay
 	verify
 )
 
@@ -65,7 +66,7 @@ type Client struct {
 	user *kgp.User
 
 	// protocol state
-	mode   mode
+	mode   gamemode
 	iolock sync.Mutex // IO Lock
 	glock  sync.Mutex // Game Lock
 	rwc    io.ReadWriteCloser
@@ -272,6 +273,15 @@ func (cli *Client) Connect(mode *cmd.State) {
 
 	// Initiate the protocol with the client
 	cli.send("kgp", majorVersion, minorVersion, patchVersion)
+
+	// Ensure the client requests a mode
+	go func() {
+		time.Sleep(cli.conf.Proto.Timeout)
+		if gamemode(atomic.LoadInt32((*int32)(&cli.mode))) == none {
+			cli.error(0, " Requested no mode")
+			cli.kill()
+		}
+	}()
 
 	// Start a thread to read the user input from rwc
 	go func() {

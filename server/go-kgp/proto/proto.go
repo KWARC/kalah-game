@@ -24,6 +24,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 	"unicode"
 
@@ -177,10 +178,10 @@ func (cli *Client) interpret(input string, m *cmd.State) error {
 		case "freeplay":
 			m.Scheduler.Schedule(cli)
 			cli.respond(id, "ok")
-			cli.mode = freeplay
+			atomic.StoreInt32((*int32)(&cli.mode), int32(freeplay))
 		case "verify", "go-kgp:verify":
 			cli.chall = make(map[uint64]*challenge)
-			cli.mode = verify
+			atomic.StoreInt32((*int32)(&cli.mode), int32(verify))
 			cli.challenge()
 		default:
 			cli.error(id, "Unsupported mode %q", mode)
