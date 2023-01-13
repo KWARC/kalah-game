@@ -31,8 +31,6 @@ import (
 	"go-kgp/game"
 )
 
-var interval = 20 * time.Second
-
 // The intent is not to have a secure source of random values, but
 // just to avoid a predictive shuffling of north/south positions.
 func init() { rand.Seed(time.Now().UnixMicro()) }
@@ -67,6 +65,7 @@ func (f *fifo) Start(mode *cmd.State, conf *cmd.Conf) {
 
 	// Start the scheduler at a the beginning of a full minute, to
 	// make the behaviour more predictable.
+	interval := conf.Proto.Timeout
 	wait := time.Until(time.Now().Round(interval)) + interval
 	kgp.Debug.Println("Waiting", wait)
 	time.Sleep(wait)
@@ -114,16 +113,27 @@ func (f *fifo) Start(mode *cmd.State, conf *cmd.Conf) {
 		}
 
 		// Remove all dead agents from the queue
-		i := 0
-		for _, a := range q {
-			if a != nil && a.Alive() {
-				q[i] = a
-				i++
-			} else {
-				kgp.Debug.Println("Agent", a, "found to be dead")
+		var (
+			alive   []kgp.Agent
+			confirm = make(chan kgp.Agent)
+		)
+		for _, agent := range q {
+			go func(a kgp.Agent) {
+				if a != nil && a.Alive() {
+					confirm <- a
+				} else {
+					kgp.Debug.Println("Agent", a, "found to be dead")
+					confirm <- nil
+				}
+			}(agent)
+		}
+		for i := 0; i < len(q); i++ {
+			agent := <-confirm
+			if agent != nil {
+				alive = append(alive, agent)
 			}
 		}
-		q = q[:i]
+		q = alive
 		kgp.Debug.Println("Alive agents:", q)
 
 		for len(q) > 0 {
