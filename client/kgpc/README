@@ -37,31 +37,31 @@ environmental variables TOKEN, AUTHOR and NAME respectivly.
 
 Here is a basic C++ agent that could be invoked by kgpc:
 
-    #include <iostream>
+	#include <iostream>
 
-    // This is a simple C++ agent that would work with kgpc.  It
-    // demonstrates how to parse the input, but does not implement
-    // anything else.  It will always return the left-most move.
+	// This is a simple C++ agent that would work with kgpc.  It
+	// demonstrates how to parse the input, but does not implement
+	// anything else.  It will always return the left-most move.
 
-    int main()
-    {
-	 int size, south, north;
-	 std::cin >> size >> south >> north;
-	 int spits[size], npits[size];
-	 for (int i = 0; i < size; i++) std::cin >> spits[i];
-	 for (int i = 0; i < size; i++) std::cin >> npits[i];
-	 for (int i = 0; i < size; i++) {
-	      if (spits[i] > 0) {
-		   std::cout << i << std::endl;
-		   return 0;
-	      }
-	 }
-	 return 1;
-    }
+	int main()
+	{
+	     int size, south, north;
+	     std::cin >> size >> south >> north;
+	     int spits[size], npits[size];
+	     for (int i = 0; i < size; i++) std::cin >> spits[i];
+	     for (int i = 0; i < size; i++) std::cin >> npits[i];
+	     for (int i = 0; i < size; i++) {
+	          if (spits[i] > 0) {
+	               std::cout << i << std::endl;
+	               return 0;
+	          }
+	     }
+	     return 1;
+	}
 
 Keep in mind to flush the output, in case your program goes on for
 longer, as by default the I/O between kgpc and the child-process will
-be block-buffered.
+usually be block-buffered.
 
 ---
 
