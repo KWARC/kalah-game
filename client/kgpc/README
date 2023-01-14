@@ -52,7 +52,7 @@ Here is a basic C++ agent that could be invoked by kgpc:
 	 for (int i = 0; i < size; i++) std::cin >> npits[i];
 	 for (int i = 0; i < size; i++) {
 	      if (spits[i] > 0) {
-		   std::cout << i+1 << std::endl;
+		   std::cout << i << std::endl;
 		   return 0;
 	      }
 	 }
