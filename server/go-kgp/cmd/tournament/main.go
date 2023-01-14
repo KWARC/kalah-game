@@ -52,7 +52,7 @@ func main() {
 
 	// Create a server mode (state) and load configuration
 	var conf cmd.Conf
-	mode := cmd.MakeMode()
+	st := cmd.MakeState()
 	conf.Load()
 
 	// Create schedule
@@ -81,7 +81,7 @@ func main() {
 	combo := sched.MakeCombo(prog...)
 
 	// Check if the -dir flag was used and handle it
-	mode.Register(sched.MakeNoOp())
+	st.Register(sched.MakeNoOp())
 	if *dir != "" {
 		dent, err := os.ReadDir(*dir)
 		if err != nil {
@@ -100,7 +100,7 @@ func main() {
 			a := isol.MakeDockerAgent(ent.Name(), build)
 
 			// Check if the container works
-			i, err := isol.Start(mode, &conf, a)
+			i, err := isol.Start(st, &conf, a)
 			if err != nil {
 				log.Println(err)
 				continue
@@ -122,7 +122,7 @@ func main() {
 			a := isol.MakeDockerAgent(name, "")
 
 			// Check if the container works
-			i, err := isol.Start(mode, &conf, a)
+			i, err := isol.Start(st, &conf, a)
 			if err != nil {
 				log.Println(err)
 				continue
@@ -138,8 +138,8 @@ func main() {
 	}
 
 	// Load components
-	db.Register(mode, &conf)
-	mode.Register(combo)
+	db.Register(st, &conf)
+	st.Register(combo)
 
 	// Print results
 	var (
@@ -182,13 +182,13 @@ func main() {
 skip:
 
 	// Start the tournament
-	mode.Start(&conf)
+	st.Start(&conf)
 
 	// Print results
 	if cmd != nil {
 		cmd.Start()
 	}
-	combo.PrintResults(mode, out)
+	combo.PrintResults(st, out)
 	if cmd != nil {
 		cmd.Wait()
 	}

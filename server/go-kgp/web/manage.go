@@ -53,7 +53,7 @@ func (s *web) listen(conf *cmd.WebConf) {
 	}
 }
 
-func (s *web) drawGraphs(mode *cmd.State) {
+func (s *web) drawGraphs(st *cmd.State) {
 	var (
 		it   uint32
 		next = time.Now()
@@ -67,10 +67,10 @@ func (s *web) drawGraphs(mode *cmd.State) {
 				go func() {
 					bg := context.Background()
 					ctx, cancel := context.WithTimeout(bg, time.Minute)
-					mode.Database.QueryGraph(ctx, gc)
+					st.Database.QueryGraph(ctx, gc)
 					cancel()
 				}()
-				out, err := mode.DrawGraph(gc, "svg")
+				out, err := st.DrawGraph(gc, "svg")
 				if err != nil {
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 					log.Print(err)
@@ -98,9 +98,9 @@ func (s *web) drawGraphs(mode *cmd.State) {
 	s.mux.HandleFunc("/graph", h)
 }
 
-func (s *web) Start(mode *cmd.State, conf *cmd.Conf) {
+func (s *web) Start(st *cmd.State, conf *cmd.Conf) {
 	w := &conf.Web
-	s.DB = mode.Database
+	s.DB = st.Database
 
 	// Prepare HTTP Multiplexer
 	s.mux = http.NewServeMux()
@@ -132,7 +132,7 @@ func (s *web) Start(mode *cmd.State, conf *cmd.Conf) {
 	if _, err := exec.LookPath("dot"); err == nil {
 		log.Print("Enabling graph generation")
 		funcs["hasgraph"] = func() bool { return true }
-		s.drawGraphs(mode)
+		s.drawGraphs(st)
 	} else {
 		funcs["hasgraph"] = func() bool { return false }
 	}
@@ -140,7 +140,7 @@ func (s *web) Start(mode *cmd.State, conf *cmd.Conf) {
 	// Install the WebSocket handler
 	if w.WebSocket {
 		log.Print("Accepting websocket connections on /socket")
-		s.mux.HandleFunc("/socket", upgrader(mode, conf))
+		s.mux.HandleFunc("/socket", upgrader(st, conf))
 	}
 
 	// Parse templates
@@ -169,6 +169,6 @@ func (*web) Shutdown() {}
 
 func (*web) String() string { return "Web Server" }
 
-func Register(mode *cmd.State) {
-	mode.Register(&web{})
+func Register(st *cmd.State) {
+	st.Register(&web{})
 }

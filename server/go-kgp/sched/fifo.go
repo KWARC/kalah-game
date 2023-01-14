@@ -44,7 +44,7 @@ type fifo struct {
 	wait sync.WaitGroup
 }
 
-func (f *fifo) Start(mode *cmd.State, conf *cmd.Conf) {
+func (f *fifo) Start(st *cmd.State, conf *cmd.Conf) {
 	var (
 		bots []kgp.Agent
 		q    []kgp.Agent
@@ -185,7 +185,7 @@ func (f *fifo) Start(mode *cmd.State, conf *cmd.Conf) {
 						conf.Game.Open.Init),
 					South: north,
 					North: south,
-				}, mode, conf)
+				}, st, conf)
 				f.Schedule(south)
 				f.Schedule(north)
 				f.wait.Done()

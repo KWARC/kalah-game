@@ -248,7 +248,7 @@ func (cli *Client) ping() bool {
 // It will start a ping thread (if the configuration requires it), a
 // goroutine to handle and interpret input and then wait for the
 // client to be killed.
-func (cli *Client) Connect(mode *cmd.State) {
+func (cli *Client) Connect(st *cmd.State) {
 	dbg := kgp.Debug.Println
 
 	// Ensure that the client has a channel that is being
@@ -277,7 +277,7 @@ func (cli *Client) Connect(mode *cmd.State) {
 			// Interpret line
 			input := scanner.Text()
 			dbg(cli, "<", input)
-			err := cli.interpret(input, mode)
+			err := cli.interpret(input, st)
 			if err != nil {
 				log.Print(err)
 			}
@@ -331,7 +331,7 @@ func (cli *Client) Connect(mode *cmd.State) {
 shutdown:
 
 	// Request for the client to be removed from the queue
-	mode.Scheduler.Unschedule(cli)
+	st.Scheduler.Unschedule(cli)
 
 	// Send a simple goodbye, ignoring errors if the network
 	// connection was broken

@@ -43,15 +43,15 @@ func main() {
 
 	// Create a server mode (state) and load configuration
 	var conf cmd.Conf
-	mode := cmd.MakeMode()
+	st := cmd.MakeState()
 	conf.Load()
 
 	// Load components
-	db.Register(mode, &conf)
-	mode.Register(sched.MakeFIFO())
-	proto.Register(mode, &conf)
-	web.Register(mode)
+	db.Register(st, &conf)
+	st.Register(sched.MakeFIFO())
+	proto.Register(st, &conf)
+	web.Register(st)
 
 	// Launch the server
-	mode.Start(&conf)
+	st.Start(&conf)
 }

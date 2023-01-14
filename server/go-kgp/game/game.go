@@ -49,14 +49,14 @@ func MoveCopy(g *kgp.Game, m *kgp.Move) (*kgp.Game, bool) {
 	return c, Move(c, m)
 }
 
-func Play(g *kgp.Game, mode *cmd.State, conf *cmd.Conf) {
+func Play(g *kgp.Game, st *cmd.State, conf *cmd.Conf) {
 	dbg := kgp.Debug.Printf
 	bg := context.Background()
 
 	dbg("Starting game between %s and %s", g.South, g.North)
 
 	g.State = kgp.ONGOING
-	mode.Database.SaveGame(bg, g)
+	st.Database.SaveGame(bg, g)
 	for !g.Board.Over() {
 		var m *kgp.Move
 
@@ -112,7 +112,7 @@ func Play(g *kgp.Game, mode *cmd.State, conf *cmd.Conf) {
 
 		// Save the move in the database, and take as much
 		// time as necessary.
-		mode.Database.SaveMove(bg, m)
+		st.Database.SaveMove(bg, m)
 		dbg("Game %d: %s", g.Id, g.State.String())
 	}
 
@@ -127,6 +127,6 @@ func Play(g *kgp.Game, mode *cmd.State, conf *cmd.Conf) {
 		g.State = kgp.UNDECIDED
 	}
 save:
-	mode.Database.SaveGame(bg, g)
+	st.Database.SaveGame(bg, g)
 	kgp.Debug.Printf("Game %d finished (%s)", g.Id, &g.State)
 }

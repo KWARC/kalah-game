@@ -51,7 +51,7 @@ func (s *scheduler) String() string {
 	return s.name
 }
 
-func (s *scheduler) Start(mode *cmd.State, conf *cmd.Conf) {
+func (s *scheduler) Start(st *cmd.State, conf *cmd.Conf) {
 	games := s.schedule(s.agents)
 	sched := make(chan *kgp.Game, len(games))
 	for _, g := range games {
@@ -69,18 +69,18 @@ func (s *scheduler) Start(mode *cmd.State, conf *cmd.Conf) {
 					south = g.South
 					north = g.North
 				)
-				g.South, err = isol.Start(mode, conf, g.South)
+				g.South, err = isol.Start(st, conf, g.South)
 				if err != nil {
 					log.Print(err)
 					goto skip
 				}
-				g.North, err = isol.Start(mode, conf, g.North)
+				g.North, err = isol.Start(st, conf, g.North)
 				if err != nil {
 					log.Print(err)
 					goto skip
 				}
 
-				game.Play(g, mode, conf)
+				game.Play(g, st, conf)
 			skip:
 				err = isol.Shutdown(g.North)
 				if err != nil {

@@ -122,7 +122,7 @@ func (d *docker) User() *kgp.User {
 	}
 }
 
-func (d *docker) Start(mode *cmd.State, conf *cmd.Conf) (kgp.Agent, error) {
+func (d *docker) Start(st *cmd.State, conf *cmd.Conf) (kgp.Agent, error) {
 	cont, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		return nil, err
@@ -133,8 +133,8 @@ func (d *docker) Start(mode *cmd.State, conf *cmd.Conf) (kgp.Agent, error) {
 	// sub-client has to confirm a connection before the
 	// isolated/docker client is regarded as having started up.
 	wait := make(chan *proto.Client)
-	listener := proto.StartListner(mode, conf, func(cli *proto.Client) bool {
-		go cli.Connect(mode)
+	listener := proto.StartListner(st, conf, func(cli *proto.Client) bool {
+		go cli.Connect(st)
 		wait <- cli
 		return true
 	})

@@ -67,8 +67,8 @@ func (t *Listener) init() {
 	}
 }
 
-func (t *Listener) Start(mode *cmd.State, conf *cmd.Conf) {
-	if mode.Scheduler == nil {
+func (t *Listener) Start(st *cmd.State, conf *cmd.Conf) {
+	if st.Scheduler == nil {
 		panic("No game scheduler")
 	}
 	t.init()
@@ -103,23 +103,23 @@ func (t *Listener) Shutdown() {
 	}
 }
 
-func MakeListner(mode *cmd.State, port uint) *Listener {
+func MakeListner(st *cmd.State, port uint) *Listener {
 	return &Listener{
 		handler: func(c *Client) bool {
-			go c.Connect(mode)
+			go c.Connect(st)
 			return false
 		},
 		port: uint16(port),
 	}
 }
 
-func StartListner(mode *cmd.State, conf *cmd.Conf, handler func(*Client) bool) *Listener {
+func StartListner(st *cmd.State, conf *cmd.Conf, handler func(*Client) bool) *Listener {
 	l := &Listener{handler: handler, port: 0}
 	l.init()
-	go l.Start(mode, conf)
+	go l.Start(st, conf)
 	return l
 }
 
-func Register(mode *cmd.State, conf *cmd.Conf) {
-	mode.Register(MakeListner(mode, conf.Proto.Port))
+func Register(st *cmd.State, conf *cmd.Conf) {
+	st.Register(MakeListner(st, conf.Proto.Port))
 }

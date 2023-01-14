@@ -46,7 +46,7 @@ type Combo struct {
 	now    uint64
 }
 
-func (c *Combo) Start(mode *cmd.State, conf *cmd.Conf) {
+func (c *Combo) Start(st *cmd.State, conf *cmd.Conf) {
 	if len(c.agents) == 0 {
 		log.Fatal("No agents to run the tournament with")
 	}
@@ -57,7 +57,7 @@ func (c *Combo) Start(mode *cmd.State, conf *cmd.Conf) {
 		kgp.Debug.Println("Starting ", m, "round with", c.agents)
 		m.Take(next)
 		kgp.Debug.Println("Starting", m)
-		m.Start(mode, conf)
+		m.Start(st, conf)
 		kgp.Debug.Println("Shutting down", m)
 		m.Shutdown()
 		next = m.Give()
@@ -67,7 +67,7 @@ func (c *Combo) Start(mode *cmd.State, conf *cmd.Conf) {
 		}
 	}
 	kgp.Debug.Println("Ending combo scheduler")
-	mode.Kill()
+	st.Kill()
 }
 
 func (c *Combo) Shutdown() {}

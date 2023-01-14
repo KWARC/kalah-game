@@ -465,7 +465,7 @@ func (db *db) QueryGraph(ctx context.Context, g chan<- *kgp.Game) error {
 	return nil
 }
 
-func (db *db) Start(mode *cmd.State, conf *cmd.Conf) {
+func (db *db) Start(st *cmd.State, conf *cmd.Conf) {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGUSR1)
 	tick := time.NewTicker(24 * time.Hour)
@@ -521,7 +521,7 @@ func (db *db) Shutdown() {
 func (*db) String() string { return "Database Manager" }
 
 // Initialise the database and database managers
-func Register(mode *cmd.State, conf *cmd.Conf) {
+func Register(st *cmd.State, conf *cmd.Conf) {
 	read, err := sql.Open("sqlite3", conf.Database.File)
 	if err != nil {
 		log.Fatal(err, ": ", conf.Database)
@@ -600,5 +600,5 @@ func Register(mode *cmd.State, conf *cmd.Conf) {
 		panic("No queries loaded")
 	}
 
-	mode.Register(cmd.Database(db))
+	st.Register(cmd.Database(db))
 }

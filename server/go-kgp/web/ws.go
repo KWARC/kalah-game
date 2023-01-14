@@ -76,7 +76,7 @@ func (c *wsrwc) Read(p []byte) (int, error) {
 }
 
 // Upgrade a HTTP connection to a WebSocket and handle it
-func upgrader(mode *cmd.State, conf *cmd.Conf) http.HandlerFunc {
+func upgrader(st *cmd.State, conf *cmd.Conf) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// upgrade to websocket or bail out
 		conn, err := (&websocket.Upgrader{
@@ -91,6 +91,6 @@ func upgrader(mode *cmd.State, conf *cmd.Conf) http.HandlerFunc {
 
 		log.Printf("New connection from %s", conn.RemoteAddr())
 		cli := proto.MakeClient(&wsrwc{Conn: conn}, conf)
-		go cli.Connect(mode)
+		go cli.Connect(st)
 	}
 }

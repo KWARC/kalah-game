@@ -71,7 +71,7 @@ type State struct {
 	Managers  []Manager
 }
 
-func MakeMode() *State {
+func MakeState() *State {
 	ctx, kill := context.WithCancel(context.Background())
 	return &State{
 		Games:   make(chan *kgp.Game),
@@ -80,28 +80,28 @@ func MakeMode() *State {
 	}
 }
 
-func (mode *State) Register(m Manager) {
-	if mode.Running {
+func (st *State) Register(m Manager) {
+	if st.Running {
 		panic(fmt.Sprintf("Late register: %#v", m))
 	}
 
 	switch s := m.(type) {
 	case Database:
-		mode.Database = s
+		st.Database = s
 	case Scheduler:
-		mode.Scheduler = s
+		st.Scheduler = s
 	}
 
-	mode.Managers = append(mode.Managers, m)
+	st.Managers = append(st.Managers, m)
 }
 
-func (mode *State) Start(c *Conf) {
+func (st *State) Start(c *Conf) {
 	// Start the service
-	for _, m := range mode.Managers {
+	for _, m := range st.Managers {
 		log.Printf("Starting %s", m)
-		go m.Start(mode, c)
+		go m.Start(st, c)
 	}
-	mode.Running = true
+	st.Running = true
 
 	// Catch an interrupt request...
 	intr := make(chan os.Signal, 1)
@@ -109,7 +109,7 @@ func (mode *State) Start(c *Conf) {
 	select {
 	case <-intr:
 		log.Println("Caught interrupt")
-	case <-mode.Context.Done():
+	case <-st.Context.Done():
 		log.Println("Requested shutdown")
 	}
 
@@ -117,8 +117,8 @@ func (mode *State) Start(c *Conf) {
 	go func() {
 		// ...and request all managers to shut down.
 		kgp.Debug.Println("Waiting for managers to shutdown...")
-		for i := len(mode.Managers) - 1; i >= 0; i-- {
-			m := mode.Managers[i]
+		for i := len(st.Managers) - 1; i >= 0; i-- {
+			m := st.Managers[i]
 			log.Printf("Shutting %s down", m)
 			m.Shutdown()
 		}
