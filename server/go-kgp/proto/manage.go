@@ -80,6 +80,13 @@ func (t *Listener) Start(mode *cmd.State, conf *cmd.Conf) {
 			continue
 		}
 
+		if tcp, ok := conn.(*net.TCPConn); ok {
+			err = tcp.SetKeepAlive(true)
+			if err != nil {
+				log.Println("Failed to enable keepalive:", err)
+			}
+		}
+
 		if t.handler(MakeClient(conn, conf)) {
 			break
 		}
