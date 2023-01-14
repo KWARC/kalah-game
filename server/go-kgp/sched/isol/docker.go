@@ -154,8 +154,8 @@ func (d *docker) Start(mode *cmd.State, conf *cmd.Conf) (kgp.Agent, error) {
 		Image: d.name,
 	}, &container.HostConfig{
 		Resources: container.Resources{
-			CPUCount: 1,
-			Memory:   1024 * 1024 * 1024,
+			CPUCount: int64(conf.Game.Closed.CPUs),
+			Memory:   int64(conf.Game.Closed.Memory),
 		},
 		NetworkMode:    container.NetworkMode("host"),
 		ReadonlyRootfs: true,

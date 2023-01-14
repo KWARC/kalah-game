@@ -91,6 +91,8 @@ type ClosedGameConf struct {
 	Result string        `toml:"result"`
 	Sanity bool          `toml:"sanity"`
 	Warmup time.Duration `toml:"warmup"`
+	Memory uint          `toml:"memory"`
+	CPUs   uint          `toml:"cpus"`
 }
 
 type GameConf struct {
@@ -137,6 +139,8 @@ var defaultConfig = Conf{
 			Sanity: true,
 			Result: "result.pdf",
 			Warmup: 10 * time.Second,
+			Memory: 1024 * 1024 * 1024,
+			CPUs:   1,
 		},
 	},
 	Web: WebConf{
