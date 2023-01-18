@@ -135,7 +135,7 @@ func (f *fifo) Start(st *cmd.State, conf *cmd.Conf) {
 				panic("Broken look invariant")
 			case 1:
 				if av == 0 {
-					continue
+					goto done
 				}
 				south = q[0]
 				q = nil
@@ -191,6 +191,7 @@ func (f *fifo) Start(st *cmd.State, conf *cmd.Conf) {
 				f.wait.Done()
 			}(north, south)
 		}
+	done:
 	}
 }
 
