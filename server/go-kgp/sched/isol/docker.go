@@ -36,7 +36,6 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/pkg/errors"
 )
 
 var (
@@ -162,13 +161,13 @@ func (d *docker) Start(st *cmd.State, conf *cmd.Conf) (kgp.Agent, error) {
 		AutoRemove:     true,
 	}, nil, nil, fmt.Sprintf("%s-%d", d.name, time.Now().UnixNano()))
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to create container %s", d.name)
+		return nil, fmt.Errorf("Failed to create container %s: %w", d.name, err)
 	}
 
 	id := resp.ID
 	kgp.Debug.Println("Starting container for", d)
 	if err := cont.ContainerStart(ctx, id, types.ContainerStartOptions{}); err != nil {
-		return nil, errors.Wrapf(err, "Failed to start container %s", d.name)
+		return nil, fmt.Errorf("Failed to start container %s: %w", d.name, err)
 	}
 
 	_, errC := cont.ContainerWait(ctx, id, container.WaitConditionNotRunning)
@@ -181,9 +180,9 @@ func (d *docker) Start(st *cmd.State, conf *cmd.Conf) (kgp.Agent, error) {
 		if err != nil {
 			log.Print(err)
 		}
-		return nil, errors.New("Timeout during initialisation")
+		return nil, fmt.Errorf("Timeout during initialisation")
 	case err := <-errC:
-		return nil, errors.Wrapf(err, "Container %v signalled an error", d.name)
+		return nil, fmt.Errorf("Container %v signalled an error: %w", d.name, err)
 	case client := <-wait:
 		kgp.Debug.Println(d, "Connected to port", listener.Port())
 
@@ -250,7 +249,7 @@ func (c *cli) Shutdown() error {
 	ctx := context.Background()
 	err := c.C.ContainerKill(ctx, c.i, "SIGKILL")
 	if err != nil {
-		return errors.Wrapf(err, "Failed to kill container %s", c.d.name)
+		return fmt.Errorf("Failed to kill container %s: %w", c.d.name, err)
 	}
 
 	return nil
