@@ -65,20 +65,26 @@ func (f *fifo) Start(st *cmd.State, conf *cmd.Conf) {
 		}
 	}
 
-	// Start the scheduler at a the beginning of a full minute, to
-	// make the behaviour more predictable.
-	wait := time.Until(time.Now().Round(interval)) + interval
-	kgp.Debug.Println("Waiting", wait)
-	time.Sleep(wait)
-
 	// The actual scheduler runs every 20 seconds, so that clients
 	// have time to gather in the queue and play against one
 	// another, instead of just immediately falling back to a bot.
-	tick := time.NewTicker(interval)
+	tick := make(chan struct{}, 1)
+	go func() {
+		// Start the scheduler at a the beginning of a full minute, to
+		// make the behaviour more predictable.
+		wait := time.Until(time.Now().Round(interval)) + interval
+		kgp.Debug.Println("Waiting", wait)
+		time.Sleep(wait)
+
+		for {
+			tick <- struct{}{}
+			time.Sleep(interval)
+		}
+	}()
 	for {
 		select {
-		case <-tick.C:
 			if len(q) == 0 {
+		case <-tick:
 				continue
 			}
 			kgp.Debug.Println("Running scheduler")
