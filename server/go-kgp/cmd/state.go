@@ -53,8 +53,8 @@ type Database interface {
 	QueryGame(context.Context, int, chan<- *kgp.Game, chan<- *kgp.Move)
 
 	// Store interface
-	SaveMove(context.Context, *kgp.Move)
-	SaveGame(context.Context, *kgp.Game)
+	SaveMove(context.Context, *kgp.Move) error
+	SaveGame(context.Context, *kgp.Game) error
 
 	// Miscellaneous
 	QueryGraph(ctx context.Context, g chan<- *kgp.Game) error

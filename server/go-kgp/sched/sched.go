@@ -80,7 +80,11 @@ func (s *scheduler) Start(st *cmd.State, conf *cmd.Conf) {
 					goto skip
 				}
 
-				game.Play(g, st, conf)
+				err = game.Play(g, st, conf)
+				if err != nil {
+					log.Print(err)
+					goto skip
+				}
 			skip:
 				err = isol.Shutdown(g.North)
 				if err != nil {

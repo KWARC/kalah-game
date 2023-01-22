@@ -67,7 +67,10 @@ func (s *web) drawGraphs(st *cmd.State) {
 				go func() {
 					bg := context.Background()
 					ctx, cancel := context.WithTimeout(bg, time.Minute)
-					st.Database.QueryGraph(ctx, gc)
+					err := st.Database.QueryGraph(ctx, gc)
+					if err != nil {
+						kgp.Debug.Println(err)
+					}
 					cancel()
 				}()
 				out, err := st.DrawGraph(gc, "svg")

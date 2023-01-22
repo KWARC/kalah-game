@@ -24,6 +24,7 @@ import (
 	"database/sql"
 	"embed"
 	"errors"
+	"fmt"
 	"io/fs"
 	"log"
 	"os"
@@ -220,7 +221,7 @@ func (db *db) QueryGames(ctx context.Context, aid int, c chan<- *kgp.Game, page 
 		game, err := db.scanGame(ctx, rows.Scan)
 		if err != nil {
 			log.Print(err)
-			return
+			continue
 		}
 		c <- game
 	}
@@ -248,7 +249,7 @@ func (db *db) QueryUsers(ctx context.Context, c chan<- *kgp.User, page int) {
 			&u.Games)
 		if err != nil {
 			log.Print(err)
-			return
+			continue
 		}
 
 		c <- &u
@@ -259,34 +260,43 @@ func (db *db) QueryUsers(ctx context.Context, c chan<- *kgp.User, page int) {
 	}
 }
 
-func (db *db) SaveGame(ctx context.Context, game *kgp.Game) {
-	tx, err := db.write.BeginTx(ctx, nil)
+func (db *db) SaveGame(ctx context.Context, game *kgp.Game) (err error) {
+	var tx *sql.Tx
+	tx, err = db.write.BeginTx(ctx, nil)
 	if err != nil {
-		log.Print(err)
-		return
+		return fmt.Errorf("Failed to begin transaction: %w", err)
 	}
+	defer func() {
+		terr := tx.Rollback()
+		if terr != nil && !errors.Is(terr, sql.ErrTxDone) {
+			err = fmt.Errorf("Failed to rollback transaction: %w, %w", terr, err)
+		}
+	}()
 
 	if game.South != nil && game.South.User() != nil {
-		db.saveUser(ctx, tx, game.South.User())
+		err = db.saveUser(ctx, tx, game.South.User())
+		if err != nil {
+			return
+		}
 	}
 	if game.North != nil && game.North.User() != nil {
-		db.saveUser(ctx, tx, game.North.User())
-	}
-	if !db.saveGame(ctx, tx, game) {
-		err = tx.Rollback()
+		err = db.saveUser(ctx, tx, game.North.User())
 		if err != nil {
-			log.Print(err)
+			return
 		}
+	}
+	if err = db.saveGame(ctx, tx, game); err != nil {
 		return
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		log.Print(err)
+		return fmt.Errorf("Failed to commit transaction: %w", err)
 	}
+	return nil
 }
 
-func (db *db) saveGame(ctx context.Context, tx *sql.Tx, game *kgp.Game) bool {
+func (db *db) saveGame(ctx context.Context, tx *sql.Tx, game *kgp.Game) error {
 	if game.Id == 0 {
 		north, south := game.North.User(), game.South.User()
 
@@ -297,13 +307,13 @@ func (db *db) saveGame(ctx context.Context, tx *sql.Tx, game *kgp.Game) bool {
 			size, init, north.Id, south.Id, game.State.String())
 		if err != nil {
 			log.Print(err)
-			return false
+			return err
 		}
 
 		id, err := res.LastInsertId()
 		if err != nil {
 			log.Print(err)
-			return false
+			return err
 		}
 		game.Id = uint64(id)
 	} else {
@@ -311,16 +321,16 @@ func (db *db) saveGame(ctx context.Context, tx *sql.Tx, game *kgp.Game) bool {
 			game.State.String(), game.Id)
 		if err != nil {
 			log.Print(err)
-			return false
+			return err
 		}
 	}
 
-	return true
+	return nil
 }
 
-func (db *db) saveUser(ctx context.Context, tx *sql.Tx, u *kgp.User) bool {
+func (db *db) saveUser(ctx context.Context, tx *sql.Tx, u *kgp.User) error {
 	if u.Id != 0 {
-		return true
+		return nil
 	}
 
 	if u.Token != "" {
@@ -353,9 +363,9 @@ func (db *db) saveUser(ctx context.Context, tx *sql.Tx, u *kgp.User) bool {
 				}
 				u.Descr = desc.String
 			}
-			return true
+			return nil
 		} else {
-			kgp.Debug.Print(err)
+			return err
 		}
 	}
 insert:
@@ -364,36 +374,41 @@ insert:
 	res, err := tx.Stmt(db.commands["insert-agent"]).ExecContext(ctx,
 		u.Token, u.Name, u.Descr, u.Author)
 	if err != nil {
-		log.Print(err)
-		return false
+		return fmt.Errorf("Failed to save agent %q: %w", u.Name, err)
 	}
 	u.Id, err = res.LastInsertId()
 	if err != nil {
-		log.Print(err)
-		return false
+		return fmt.Errorf("Failed to fetch agent ID: %w", err)
 	}
 	kgp.Debug.Printf("Assigned user %q ID %d", u.Name, u.Id)
 
-	return true
+	return nil
 }
 
-func (db *db) SaveMove(ctx context.Context, move *kgp.Move) {
-	tx, err := db.write.BeginTx(ctx, nil)
+func (db *db) SaveMove(ctx context.Context, move *kgp.Move) (err error) {
+	var tx *sql.Tx
+	tx, err = db.write.BeginTx(ctx, nil)
 	if err != nil {
-		log.Print(err)
-		return
+		return fmt.Errorf("Failed to begin transaction: %w", err)
 	}
+	defer func() {
+		terr := tx.Rollback()
+		if terr != nil && !errors.Is(terr, sql.ErrTxDone) {
+			err = fmt.Errorf("Failed to rollback transaction: %w, %w", terr, err)
+		}
+	}()
 
 	game := move.Game
 	south, north := game.South.User(), game.North.User()
-	if !db.saveUser(ctx, tx, south) {
-		goto fail
+	if err = db.saveUser(ctx, tx, south); err != nil {
+		return fmt.Errorf("Failed to save south user: %w", err)
 	}
-	if !db.saveUser(ctx, tx, north) {
-		goto fail
+	if err = db.saveUser(ctx, tx, north); err != nil {
+		return fmt.Errorf("Failed to save north user: %w", err)
 	}
-	if !db.saveGame(ctx, tx, game) {
-		goto fail
+	if err = db.saveGame(ctx, tx, game); err != nil {
+		return fmt.Errorf("Failed to save game between %q and %q: %w",
+			south.Id, north.Id, err)
 	}
 
 	_, err = tx.Stmt(db.commands["insert-move"]).ExecContext(ctx,
@@ -404,24 +419,19 @@ func (db *db) SaveMove(ctx context.Context, move *kgp.Move) {
 		move.Comment,
 		move.Stamp)
 	if err != nil {
-		log.Print(err)
-		goto fail
+		return fmt.Errorf("Failed to save move in game %q: %w",
+			game.Id, err)
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		log.Print(err)
+		return fmt.Errorf("Failed to commit transaction: %w", err)
 	}
-	return
-
-fail:
-	err = tx.Rollback()
-	if err != nil {
-		log.Print(err)
-	}
+	return nil
 }
 
 func (db *db) QueryGraph(ctx context.Context, g chan<- *kgp.Game) error {
+	defer close(g)
 	res, err := db.queries["select-graph"].QueryContext(ctx)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -437,7 +447,7 @@ func (db *db) QueryGraph(ctx context.Context, g chan<- *kgp.Game) error {
 			w, l user
 			sid  int64
 		)
-		err = res.Scan(&w.Name, &w.Id, &l.Name, &l.Name, &sid)
+		err = res.Scan(&w.Name, &w.Id, &l.Name, &l.Id, &sid)
 		if err != nil {
 			return err
 		}
@@ -456,11 +466,10 @@ func (db *db) QueryGraph(ctx context.Context, g chan<- *kgp.Game) error {
 				North: &w,
 			}
 		default:
-			kgp.Debug.Println("SID", sid, "is neither", w.Id, "or", l.Id)
+			log.Panicln("SID", sid, "is neither", w.Id, "or", l.Id)
 			continue
 		}
 	}
-	close(g)
 
 	return nil
 }
@@ -468,16 +477,23 @@ func (db *db) QueryGraph(ctx context.Context, g chan<- *kgp.Game) error {
 func (db *db) Start(st *cmd.State, conf *cmd.Conf) {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGUSR1)
-	tick := time.NewTicker(24 * time.Hour)
+	tick := make(chan struct{})
+	go func() {
+		for {
+			tick <- struct{}{}
+			time.Sleep(20 * time.Minute)
+		}
+	}()
 	for {
 		var err error
 		select {
 		case <-c:
+			kgp.Debug.Print("Vacuuming database")
 			// https://www.sqlite.org/lang_vacuum.html
 			_, err = db.write.Exec("VACUUM;")
-		case <-tick.C:
+		case <-tick:
 			var res sql.Result
-			res, err = db.commands["delete-moves"].Exec()
+			res, err = db.commands["delete-games"].Exec()
 			if err != nil {
 				break
 			}
@@ -488,7 +504,7 @@ func (db *db) Start(st *cmd.State, conf *cmd.Conf) {
 				log.Print(err)
 				break
 			}
-			kgp.Debug.Println("Deleted", n, "moves")
+			kgp.Debug.Println("Deleted", n, "old games")
 			// https://www.sqlite.org/pragma.html#pragma_optimize
 			_, err = db.write.Exec("PRAGMA optimize;")
 		}

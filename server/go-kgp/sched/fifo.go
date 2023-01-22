@@ -179,13 +179,17 @@ func (f *fifo) Start(st *cmd.State, conf *cmd.Conf) {
 
 			f.wait.Add(1)
 			go func(north, south kgp.Agent) {
-				game.Play(&kgp.Game{
+				err := game.Play(&kgp.Game{
 					Board: kgp.MakeBoard(
 						conf.Game.Open.Size,
 						conf.Game.Open.Init),
 					South: north,
 					North: south,
 				}, st, conf)
+				if err != nil {
+					log.Print(err)
+				}
+
 				f.Schedule(south)
 				f.Schedule(north)
 				f.wait.Done()

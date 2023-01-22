@@ -49,14 +49,18 @@ func MoveCopy(g *kgp.Game, m *kgp.Move) (*kgp.Game, bool) {
 	return c, Move(c, m)
 }
 
-func Play(g *kgp.Game, st *cmd.State, conf *cmd.Conf) {
+func Play(g *kgp.Game, st *cmd.State, conf *cmd.Conf) error {
 	dbg := kgp.Debug.Printf
 	bg := context.Background()
 
 	dbg("Starting game between %s and %s", g.South, g.North)
 
 	g.State = kgp.ONGOING
-	st.Database.SaveGame(bg, g)
+	err := st.Database.SaveGame(bg, g)
+	if err != nil {
+		dbg("Failed to save game, skipping: %s", err)
+		return err
+	}
 	for !g.Board.Over() {
 		var m *kgp.Move
 
@@ -112,8 +116,12 @@ func Play(g *kgp.Game, st *cmd.State, conf *cmd.Conf) {
 
 		// Save the move in the database, and take as much
 		// time as necessary.
-		st.Database.SaveMove(bg, m)
-		dbg("Game %d: %s", g.Id, g.State.String())
+		err := st.Database.SaveMove(bg, m)
+		if err != nil {
+			dbg("Failed to save move: %s", err)
+		} else {
+			// dbg("Game %d: %s", g.Id, g.State.String())
+		}
 	}
 
 	switch g.Board.Outcome(kgp.South) {
@@ -127,6 +135,11 @@ func Play(g *kgp.Game, st *cmd.State, conf *cmd.Conf) {
 		g.State = kgp.UNDECIDED
 	}
 save:
-	st.Database.SaveGame(bg, g)
+	err = st.Database.SaveGame(bg, g)
+	if err != nil {
+		dbg("Failed to save final game state: %s", err)
+		return err
+	}
 	kgp.Debug.Printf("Game %d finished (%s)", g.Id, &g.State)
+	return nil
 }
