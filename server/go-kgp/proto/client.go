@@ -62,7 +62,7 @@ type Client struct {
 	glock  sync.Mutex // Game Lock
 	rwc    io.ReadWriteCloser
 	rid    uint64
-	kill   context.CancelFunc
+	Kill   context.CancelFunc
 	games  map[uint64]*kgp.Game
 	req    chan *request
 	resp   chan *response
@@ -233,10 +233,12 @@ func (cli *Client) ping() bool {
 	select {
 	case <-time.After(cli.conf.Proto.Timeout):
 		cli.error(id, "received no pong")
-		for cli.kill == nil {
+		for cli.Kill == nil {
 			time.Sleep(time.Millisecond * 10)
 		}
-		cli.kill()
+		if cli.Kill != nil {
+			cli.Kill()
+		}
 		return false
 	case <-cli.alive:
 		return true
@@ -259,7 +261,7 @@ func (cli *Client) Connect(st *cmd.State) {
 	defer cli.rwc.Close()
 
 	var ctx context.Context
-	ctx, cli.kill = context.WithCancel(context.Background())
+	ctx, cli.Kill = context.WithCancel(context.Background())
 
 	// Initiate the protocol with the client
 	cli.send("kgp", majorVersion, minorVersion, patchVersion)
@@ -288,7 +290,7 @@ func (cli *Client) Connect(st *cmd.State) {
 		if err != nil && !strings.Contains(err.Error(), "use of closed network connection") {
 			log.Print(err)
 		}
-		cli.kill()
+		cli.Kill()
 	}()
 
 	var (

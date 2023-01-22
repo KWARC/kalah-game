@@ -29,6 +29,7 @@ import (
 	"go-kgp/bot"
 	"go-kgp/cmd"
 	"go-kgp/game"
+	"go-kgp/proto"
 )
 
 var interval = 20 * time.Second
@@ -246,6 +247,11 @@ func (f *fifo) Shutdown() {
 	log.Println("Waiting for ongoing games to finish.")
 	f.shut <- struct{}{}
 	f.wait.Wait()
+	for _, a := range f.q {
+		if c, ok := a.(*proto.Client); ok {
+			c.Kill()
+		}
+	}
 }
 
 func (f *fifo) Schedule(a kgp.Agent)   { f.add <- a }

@@ -156,7 +156,7 @@ func (cli *Client) interpret(input string, st *cmd.State) error {
 	case "mode":
 		if cli.init {
 			cli.error(id, "Duplicate \"mode\" request")
-			cli.kill()
+			cli.Kill()
 			return nil
 		}
 
@@ -255,7 +255,7 @@ func (cli *Client) interpret(input string, st *cmd.State) error {
 			}
 		}
 	case "goodbye":
-		cli.kill()
+		cli.Kill()
 	default:
 		dbg("Invalid command %q", input)
 	}
