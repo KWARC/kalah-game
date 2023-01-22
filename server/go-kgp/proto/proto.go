@@ -24,7 +24,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 	"unicode"
 
 	"go-kgp"
@@ -192,7 +191,6 @@ func (cli *Client) interpret(input string, st *cmd.State) error {
 				Agent:   cli,
 				Choice:  uint(pit) - 1,
 				Comment: cli.comm,
-				Stamp:   time.Now(),
 			},
 			id: ref,
 		}

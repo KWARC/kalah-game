@@ -416,8 +416,7 @@ func (db *db) SaveMove(ctx context.Context, move *kgp.Move) (err error) {
 		move.Agent.User().Id,
 		game.Side(move.Agent),
 		move.Choice,
-		move.Comment,
-		move.Stamp)
+		move.Comment)
 	if err != nil {
 		return fmt.Errorf("Failed to save move in game %q: %w",
 			game.Id, err)

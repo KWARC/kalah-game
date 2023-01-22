@@ -21,7 +21,6 @@ package game
 
 import (
 	"context"
-	"time"
 
 	"go-kgp"
 	"go-kgp/cmd"
@@ -79,7 +78,6 @@ func Play(g *kgp.Game, st *cmd.State, conf *cmd.Conf) error {
 				Comment: "[Auto-move]",
 				Choice:  last,
 				Game:    g,
-				Stamp:   time.Now(),
 			}
 		default:
 			var resign bool

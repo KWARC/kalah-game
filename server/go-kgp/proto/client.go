@@ -114,7 +114,6 @@ func (cli *Client) Request(game *kgp.Game) (*kgp.Move, bool) {
 		Agent:   cli,
 		State:   &kgp.Board{},
 		Game:    game,
-		Stamp:   time.Now(),
 	}
 
 	for {

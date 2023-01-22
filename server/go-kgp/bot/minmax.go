@@ -24,7 +24,6 @@ import (
 	"math"
 	"math/rand"
 	"os"
-	"time"
 
 	"go-kgp"
 )
@@ -162,7 +161,6 @@ func (m *minmax) Request(g *kgp.Game) (*kgp.Move, bool) {
 			Agent:   m,
 			State:   g.Board,
 			Game:    g,
-			Stamp:   time.Now(),
 		}, false
 	}
 	move, ev := search(g.Board, g.Side(m), m.depth)
@@ -176,7 +174,6 @@ func (m *minmax) Request(g *kgp.Game) (*kgp.Move, bool) {
 		Agent:   m,
 		State:   g.Board,
 		Game:    g,
-		Stamp:   time.Now(),
 	}, false
 }
 
