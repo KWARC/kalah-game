@@ -42,12 +42,12 @@ type fifo struct {
 	rem  chan kgp.Agent
 	shut chan struct{}
 	wait sync.WaitGroup
+	q    []kgp.Agent
 }
 
 func (f *fifo) Start(st *cmd.State, conf *cmd.Conf) {
 	var (
 		bots []kgp.Agent
-		q    []kgp.Agent
 		av   = conf.Game.Open.Bots
 	)
 
@@ -83,8 +83,8 @@ func (f *fifo) Start(st *cmd.State, conf *cmd.Conf) {
 	}()
 	for {
 		select {
-			if len(q) == 0 {
 		case <-tick:
+			if len(f.q) == 0 {
 				continue
 			}
 			kgp.Debug.Println("Running scheduler")
@@ -94,16 +94,16 @@ func (f *fifo) Start(st *cmd.State, conf *cmd.Conf) {
 		case a := <-f.add:
 			if !bot.IsBot(a) {
 				kgp.Debug.Println("Adding", a, "to the queue")
-				q = append(q, a)
+				f.q = append(f.q, a)
 			} else {
 				av++
 			}
 			continue
 		case a := <-f.rem:
-			kgp.Debug.Println("Remove", a, "from", q)
+			kgp.Debug.Println("Remove", a, "from", f.q)
 
 			i := -1
-			for j, b := range q {
+			for j, b := range f.q {
 				if b != a {
 					i = j
 					break
@@ -113,7 +113,7 @@ func (f *fifo) Start(st *cmd.State, conf *cmd.Conf) {
 				// Based on the "Delete" Slice Trick
 				//
 				// https://github.com/golang/go/wiki/SliceTricks#delete
-				q = append(q[:i], q[i+1:]...)
+				f.q = append(f.q[:i], f.q[i+1:]...)
 			}
 
 			continue
@@ -121,53 +121,85 @@ func (f *fifo) Start(st *cmd.State, conf *cmd.Conf) {
 
 		// Remove all dead agents from the queue
 		i := 0
-		for _, a := range q {
+		for _, a := range f.q {
 			if a != nil && a.Alive() {
-				q[i] = a
+				f.q[i] = a
 				i++
 			} else {
 				kgp.Debug.Println("Agent", a, "found to be dead")
 			}
 		}
-		q = q[:i]
-		kgp.Debug.Println("Alive agents:", q)
+		f.q = f.q[:i]
+		kgp.Debug.Println("Alive agents:", f.q)
 
-		for len(q) > 0 {
+		var rest []kgp.Agent
+		for len(f.q) > 0 {
 			// Select two agents, or two agents and a bot if only
 			// one agent is available.
 			var north, south kgp.Agent
-			switch len(q) {
+			switch len(f.q) {
 			case 0:
 				panic("Broken look invariant")
 			case 1:
 				if av == 0 {
 					goto done
 				}
-				south = q[0]
-				q = nil
+				south = f.q[0]
+				f.q = nil
 
 				// Pick a random bot
 				north = bots[rand.Intn(len(bots))]
 				av--
 			default: // len(q) ≥ 2
-				south = q[0]
-				north = q[1]
-				q = q[2:]
+				south = f.q[0]
+				north = f.q[1]
 
 				// Prevent an agent from playing against
 				// himself (note that this does not prevent
 				// two separate agents with the same token to
 				// challenge one another)
 				if north == south {
-					q = append(q, north)
-					continue
+					panic("Duplicate agents")
 				}
 
+				// In case two agents have the same token, we want to
+				// prevent them playing against one another over and
+				// over again.
 				ntok := north.User().Token
 				stok := south.User().Token
 				if ntok != "" && ntok == stok {
-					q = append(q, south, north)
+					// We have to distinguish between the two cases,
+					// where two non-trivial agents are "just"
+					// neighbouring one another in the queue, and when
+					// they are the only two members of the queue.
+					if len(f.q) == 2 {
+						// If they are the only two, we will set aside
+						// until the next scheduling tick one and let
+						// the other play against a bot (this is done
+						// by keeping it in the queue, and just
+						// restarting the scheduler sub-cycle).
+						f.q = f.q[:1]
+						rest = append(rest, north)
+					} else {
+						// If they are just neighbouring, then move
+						// one to the end and keep the other at the
+						// front, restarting the scheduler sub-cycle
+						f.q = append(f.q, south)
+						f.q = f.q[1:]
+						// To avoid infinite regression, we will set
+						// aside all other agents with the same token
+						// for now.
+						for i := 1; i < len(f.q); i++ {
+							if f.q[i].User().Token == ntok {
+								rest = append(rest, f.q[i])
+								f.q[i] = f.q[len(f.q)-1]
+								f.q = f.q[:len(f.q)-1]
+							}
+						}
+					}
 					continue
+				} else {
+					f.q = f.q[2:]
 				}
 			}
 			kgp.Debug.Println("Selected", north, "and", south, "for a match")
@@ -201,7 +233,12 @@ func (f *fifo) Start(st *cmd.State, conf *cmd.Conf) {
 				f.wait.Done()
 			}(north, south)
 		}
+
 	done:
+		if len(f.q) != 0 {
+			panic("Queue is not empty")
+		}
+		f.q = rest
 	}
 }
 
