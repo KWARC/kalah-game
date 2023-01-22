@@ -121,16 +121,29 @@ func (f *fifo) Start(st *cmd.State, conf *cmd.Conf) {
 		}
 
 		// Remove all dead agents from the queue
-		i := 0
+		var (
+			alive = make(chan kgp.Agent)
+			next  = time.Now().Add(interval)
+		)
 		for _, a := range f.q {
-			if a != nil && a.Alive() {
-				f.q[i] = a
-				i++
-			} else {
-				kgp.Debug.Println("Agent", a, "found to be dead")
+			go func(a kgp.Agent) {
+				if a != nil && a.Alive() {
+					alive <- a
+				} else {
+					kgp.Debug.Println("Agent", a, "found to be dead")
+					alive <- nil
+				}
+			}(a)
+		}
+		i := len(f.q)
+		f.q = f.q[:0]
+		for ; i > 0; i-- {
+			if a := <-alive; a != nil {
+				f.q = append(f.q, a)
 			}
 		}
-		f.q = f.q[:i]
+		time.Sleep(time.Until(next))
+
 		kgp.Debug.Println("Alive agents:", f.q)
 
 		var rest []kgp.Agent
