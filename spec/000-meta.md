@@ -10,7 +10,7 @@ abstract: |
   all features. The main modules presented here are freeplay, 
   evaluation and validation.
   
-  This document specified version 1.0.1 of the KGP protocol.
+  This document specified version 1.1.0 of the KGP protocol.
 keywords: ["Protocol", "Kalah"]
 classoption:
 - twocolumn
