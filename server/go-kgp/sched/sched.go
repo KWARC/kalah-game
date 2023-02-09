@@ -60,7 +60,10 @@ func (s *scheduler) Start(st *cmd.State, conf *cmd.Conf) {
 	s.wait.Add(len(games))
 	kgp.Debug.Println("Staring scheduler", s, "with", len(games), "games")
 
-	var lock sync.Mutex
+	var (
+		lock sync.Mutex
+		done uint
+	)
 	for i := 0; i < runtime.NumCPU(); i++ {
 		go func() {
 			for g := range sched {
@@ -99,6 +102,8 @@ func (s *scheduler) Start(st *cmd.State, conf *cmd.Conf) {
 				g.North = north
 				lock.Lock()
 				s.games = append(s.games, g)
+				done++
+				log.Printf("%d/%d (%s vs. %s) -> %s", done, len(games), south, north, g.State.String())
 				lock.Unlock()
 
 				s.wait.Done()
