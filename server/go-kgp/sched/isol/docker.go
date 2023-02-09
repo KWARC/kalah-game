@@ -39,17 +39,8 @@ import (
 )
 
 var (
-	hostname string
 	c        int64
 )
-
-func init() {
-	var err error
-	hostname, err = os.Hostname()
-	if err != nil {
-		panic(err)
-	}
-}
 
 type docker struct {
 	name string
@@ -147,8 +138,8 @@ func (d *docker) Start(st *cmd.State, conf *cmd.Conf) (kgp.Agent, error) {
 	kgp.Debug.Println("Creating container for", d)
 	resp, err := cont.ContainerCreate(ctx, &container.Config{
 		Env: []string{
-			fmt.Sprintf("KGP_HOST=%s", hostname),
 			fmt.Sprintf("KGP_PORT=%d", listener.Port()),
+			"KGP_HOST=127.0.0.1",
 		},
 		Image: d.name,
 	}, &container.HostConfig{
