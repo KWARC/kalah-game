@@ -62,6 +62,7 @@ type Client struct {
 	glock  sync.Mutex // Game Lock
 	rwc    io.ReadWriteCloser
 	rid    uint64
+	ctx    context.Context
 	Kill   context.CancelFunc
 	games  map[uint64]*kgp.Game
 	req    chan *request
@@ -73,12 +74,15 @@ type Client struct {
 }
 
 func MakeClient(rwc io.ReadWriteCloser, conf *cmd.Conf) *Client {
+	ctx, kill := context.WithCancel(context.Background())
 	return &Client{
 		user:  defaultUser,
 		games: make(map[uint64]*kgp.Game),
-		req:   make(chan *request, 1),
+		req:   make(chan *request, 8),
 		resp:  make(chan *response, 1),
 		alive: make(chan struct{}, 1),
+		Kill:  kill,
+		ctx:   ctx,
 		rwc:   rwc,
 		conf:  conf,
 	}
@@ -119,6 +123,8 @@ func (cli *Client) Request(game *kgp.Game) (*kgp.Move, bool) {
 	for {
 		select {
 		case <-time.After(cli.conf.Game.Timeout):
+		case <-cli.ctx.Done():
+			return move, false
 			ok := cli.ping()
 			return move, !ok
 		case m := <-c:
@@ -131,7 +137,11 @@ func (cli *Client) Request(game *kgp.Game) (*kgp.Move, bool) {
 }
 
 func (cli *Client) Alive() bool {
-	return cli.ping()
+	alive := cli.ping()
+	if !alive {
+		cli.Kill()
+	}
+	return alive
 }
 
 // String will return a string representation for a client for
@@ -230,6 +240,8 @@ func (cli *Client) ping() bool {
 	}
 
 	select {
+	case <-cli.ctx.Done():
+		return false
 	case <-time.After(cli.conf.Proto.Timeout):
 		cli.error(id, "received no pong")
 		for cli.Kill == nil {
@@ -258,9 +270,6 @@ func (cli *Client) Connect(st *cmd.State) {
 		panic("No ReadWriteCloser")
 	}
 	defer cli.rwc.Close()
-
-	var ctx context.Context
-	ctx, cli.Kill = context.WithCancel(context.Background())
 
 	// Initiate the protocol with the client
 	cli.send("kgp", majorVersion, minorVersion, patchVersion)
@@ -304,7 +313,7 @@ func (cli *Client) Connect(st *cmd.State) {
 
 	for {
 		select {
-		case <-ctx.Done():
+		case <-cli.ctx.Done():
 			dbg("Received shutdown signal for", cli)
 			goto shutdown
 		case req := <-cli.req:
