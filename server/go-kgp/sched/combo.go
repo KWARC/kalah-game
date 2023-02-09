@@ -117,10 +117,6 @@ if they don't perform well enough.`)
 			prev = c.scheds[i-1].Give()
 		}
 		curr = s.Give()
-		if len(curr) <= 1 {
-			fmt.Fprintln(W, ".bp")
-			continue
-		}
 
 		fmt.Fprintln(W, ".PP")
 		fmt.Fprintln(W, `These agents were disqualified
@@ -144,7 +140,6 @@ next round:`)
 			fmt.Fprintln(W, ".QP")
 			fmt.Fprintln(W, ".I none ) (")
 		}
-		fmt.Fprintln(W, ".bp")
 	}
 
 	fmt.Fprintln(W, `.NH 1`)
