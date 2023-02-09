@@ -21,6 +21,7 @@ package proto
 
 import (
 	"errors"
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -220,7 +221,7 @@ func (cli *Client) interpret(input string, st *cmd.State) error {
 		var key, val string
 		err := parse(args, &key, &val)
 		if err != nil {
-			return err
+			return fmt.Errorf("Parse error (%s): %w on input %q", cli, err, input)
 		}
 
 		switch key {
