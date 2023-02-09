@@ -131,7 +131,7 @@ func (s *scheduler) Give() (next []isol.ControlledAgent) {
 	s.wait.Wait()
 	for _, a := range s.agents {
 		w, l, d := s.Score(a)
-		if 2 <= 2*w-2*l+d {
+		if w+d >= l {
 			next = append(next, a)
 		}
 	}
