@@ -85,6 +85,22 @@ func MakeBoard(size, init uint) *Board {
 	return &board
 }
 
+func MakeRandomBoard() *Board {
+	size := uint(6 + rand.Intn(6))
+	b := MakeBoard(size, 0)
+
+	for i := range b.northPits {
+		b.northPits[i] = uint(rand.Intn(int(2 * size)))
+	}
+	for i := range b.southPits {
+		b.southPits[i] = uint(rand.Intn(int(2 * size)))
+	}
+	b.south = uint(rand.Intn(int(4 * size)))
+	b.north = uint(rand.Intn(int(4 * size)))
+
+	return b
+}
+
 func Parse(spec string) (*Board, error) {
 	match := repr.FindStringSubmatch(spec)
 	if match == nil {
@@ -380,4 +396,23 @@ func (b *Board) Copy() *Board {
 		southPits: south,
 		init:      b.init,
 	}
+}
+
+func (b *Board) Equal(d *Board) bool {
+	if len(b.northPits) != len(d.northPits) {
+		return false
+	}
+	if b.south != d.south || b.north != d.north {
+		return false
+	}
+	for i := range b.northPits {
+		if b.southPits[i] != d.southPits[i] {
+			return false
+		}
+		if b.northPits[i] != d.northPits[i] {
+			return false
+		}
+
+	}
+	return true
 }

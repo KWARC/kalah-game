@@ -40,6 +40,14 @@ var defaultUser = &kgp.User{
 	Descr: `Pseudo-user of all unidentified agents.`,
 }
 
+type gamemode int32
+
+const (
+	none gamemode = iota
+	freeplay
+	verify
+)
+
 type request struct {
 	move chan<- *kgp.Move
 	id   uint64
@@ -58,6 +66,7 @@ type Client struct {
 	user *kgp.User
 
 	// protocol state
+	mode   gamemode
 	iolock sync.Mutex // IO Lock
 	glock  sync.Mutex // Game Lock
 	rwc    io.ReadWriteCloser
@@ -65,6 +74,7 @@ type Client struct {
 	ctx    context.Context
 	Kill   context.CancelFunc
 	games  map[uint64]*kgp.Game
+	chall  map[uint64]*challenge
 	req    chan *request
 	resp   chan *response
 	alive  chan struct{}
@@ -156,7 +166,7 @@ func (cli *Client) Alive() bool {
 // internal use
 func (cli *Client) String() string {
 	if cli.user.Token != "" {
-		return fmt.Sprintf("%s", cli.user.Token)
+		return fmt.Sprintf("(%s)", cli.user.Token)
 	} else {
 		return fmt.Sprintf("%p", cli)
 	}
@@ -201,7 +211,7 @@ func (cli *Client) respond(to uint64, command string, args ...interface{}) uint6
 		switch v := arg.(type) {
 		case string:
 			fmt.Fprintf(&buf, "%#v", v)
-		case int:
+		case int, uint:
 			fmt.Fprintf(&buf, "%d", v)
 		case float64:
 			fmt.Fprintf(&buf, "%f", v)
@@ -281,6 +291,15 @@ func (cli *Client) Connect(st *cmd.State) {
 
 	// Initiate the protocol with the client
 	cli.send("kgp", majorVersion, minorVersion, patchVersion)
+
+	// Ensure the client requests a mode
+	go func() {
+		time.Sleep(cli.conf.Proto.Timeout)
+		if gamemode(atomic.LoadInt32((*int32)(&cli.mode))) == none {
+			cli.error(0, " Requested no mode")
+			cli.kill()
+		}
+	}()
 
 	// Start a thread to read the user input from rwc
 	go func() {

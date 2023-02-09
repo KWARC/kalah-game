@@ -25,6 +25,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync/atomic"
+	"time"
 	"unicode"
 
 	"go-kgp"
@@ -102,6 +104,20 @@ func parse(raw string, params ...interface{}) error {
 			if err != nil {
 				return err
 			}
+		case **kgp.Board:
+			*param, err = kgp.Parse(arg)
+			if err != nil {
+				return err
+			}
+		case *bool:
+			switch strings.ToLower(arg) {
+			case "true", "t", "yes":
+				*param = true
+			case "false", "f", "no":
+				*param = false
+			default:
+				return errors.New("Malformed bool")
+			}
 		}
 	}
 
@@ -123,12 +139,11 @@ func (cli *Client) interpret(input string, st *cmd.State) error {
 
 	matches := tokenizer.FindStringSubmatch(input)
 	if matches == nil {
-		dbg("Malformed input: %v", input)
+		kgp.Debug.Printf("Malformed input: %v", input)
 		return nil
 	}
 
 	var (
-		game    *kgp.Game
 		id, ref uint64
 		err     error
 
@@ -148,10 +163,6 @@ func (cli *Client) interpret(input string, st *cmd.State) error {
 		}
 	}
 
-	cli.glock.Lock()
-	game = cli.games[ref]
-	cli.glock.Unlock()
-
 	switch cmd {
 	case "mode":
 		if cli.init {
@@ -170,44 +181,14 @@ func (cli *Client) interpret(input string, st *cmd.State) error {
 		case "freeplay":
 			st.Scheduler.Schedule(cli)
 			cli.respond(id, "ok")
+			atomic.StoreInt32((*int32)(&cli.mode), int32(freeplay))
+		case "verify", "go-kgp:verify":
+			cli.chall = make(map[uint64]*challenge)
+			atomic.StoreInt32((*int32)(&cli.mode), int32(verify))
+			cli.challenge()
 		default:
 			cli.error(id, "Unsupported mode %q", mode)
 		}
-	case "move":
-		if game == nil {
-			cli.error(id, "No state associated with id")
-
-			return nil
-		}
-
-		var pit uint64
-		err = parse(args, &pit)
-		if err != nil {
-			return err
-		}
-
-		cli.resp <- &response{
-			move: &kgp.Move{
-				Game:    game,
-				Agent:   cli,
-				Choice:  uint(pit) - 1,
-				Comment: cli.comm,
-			},
-			id: ref,
-		}
-		cli.comm = ""
-	case "yield":
-		if game == nil {
-			cli.error(id, "No state associated with id")
-
-			return nil
-		}
-
-		cli.resp <- &response{
-			move: nil,
-			id:   ref,
-		}
-		cli.comm = ""
 	case "ok", "error":
 		// We do not expect the client to confirm or reject anything,
 		// so we can ignore these response messages.
@@ -256,8 +237,60 @@ func (cli *Client) interpret(input string, st *cmd.State) error {
 	case "goodbye":
 		cli.Kill()
 	default:
-		dbg("Invalid command %q", input)
+		switch cli.mode {
+		case freeplay:
+			cli.freeplay(id, ref, cmd, args)
+		case verify:
+			cli.verify(id, ref, cmd, args)
+		}
+		kgp.Debug.Printf("Invalid command %q", input)
 	}
 
 	return nil
+}
+
+func (cli *Client) freeplay(id, ref uint64, cmd, args string) {
+	cli.glock.Lock()
+	game := cli.games[ref]
+	cli.glock.Unlock()
+
+	switch cmd {
+	case "move":
+		if game == nil {
+			cli.error(id, "No state associated with id")
+
+			return
+		}
+
+		var pit uint64
+		err := parse(args, &pit)
+		if err != nil {
+			return
+		}
+
+		cli.resp <- &response{
+			move: &kgp.Move{
+				Game:    game,
+				Agent:   cli,
+				Choice:  uint(pit) - 1,
+				Comment: cli.comm,
+				Stamp:   time.Now(),
+			},
+			id: ref,
+		}
+		cli.comm = ""
+	case "yield":
+		if game == nil {
+			cli.error(id, "No state associated with id")
+			return
+		}
+
+		cli.resp <- &response{
+			move: nil,
+			id:   ref,
+		}
+		cli.comm = ""
+	default:
+		cli.error(id, "Unknown command")
+	}
 }
