@@ -39,7 +39,8 @@ import (
 )
 
 var (
-	c        int64
+	timeout = 30 * time.Second
+	c       int64
 )
 
 type docker struct {
@@ -200,7 +201,9 @@ func (d *cli) Start(*cmd.State, *cmd.Conf) (kgp.Agent, error) {
 }
 
 func (c *cli) Alive() bool {
-	ctx := context.Background()
+	bg := context.Background()
+	ctx, cancel := context.WithTimeout(bg, timeout)
+	defer cancel()
 	resp, err := c.C.ContainerInspect(ctx, c.i)
 	if err != nil {
 		kgp.Debug.Print(err)
@@ -237,7 +240,9 @@ func (c *cli) User() *kgp.User {
 
 func (c *cli) Shutdown() error {
 	c.l.Shutdown()
-	ctx := context.Background()
+	bg := context.Background()
+	ctx, cancel := context.WithTimeout(bg, timeout)
+	defer cancel()
 	err := c.C.ContainerKill(ctx, c.i, "SIGKILL")
 	if err != nil {
 		return fmt.Errorf("Failed to kill container %s: %w", c.d.name, err)
