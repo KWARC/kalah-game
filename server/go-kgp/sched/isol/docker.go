@@ -163,14 +163,11 @@ func (d *docker) Start(st *cmd.State, conf *cmd.Conf) (kgp.Agent, error) {
 
 	kgp.Debug.Println("Waiting for container", d)
 
-	warmup := time.After(conf.Game.Closed.Warmup)
+	warmup := time.MakeTimer(conf.Game.Closed.Warmup)
 	select {
-	case <-warmup:
+	case <-warmup.C:
 		err := cont.ContainerKill(ctx, id, `SIGKILL`)
-		if err != nil {
-			log.Print(err)
-		}
-		return nil, fmt.Errorf("Timeout during initialisation")
+		return nil, fmt.Errorf("Failed to kill %s: %s: %w", d.name, err)
 	case client := <-wait:
 		kgp.Debug.Println(d, "Connected to port", listener.Port())
 
