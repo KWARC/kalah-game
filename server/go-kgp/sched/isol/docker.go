@@ -194,6 +194,9 @@ func (d *cli) Start(*cmd.State, *cmd.Conf) (kgp.Agent, error) {
 }
 
 func (c *cli) Alive() bool {
+	if !c.c.Alive() {
+		return false
+	}
 	bg := context.Background()
 	ctx, cancel := context.WithTimeout(bg, timeout)
 	defer cancel()
@@ -232,6 +235,10 @@ func (c *cli) User() *kgp.User {
 }
 
 func (c *cli) Shutdown() error {
+	if !c.c.Alive() {
+		return nil
+	}
+
 	c.l.Shutdown()
 	bg := context.Background()
 	ctx, cancel := context.WithTimeout(bg, timeout)
