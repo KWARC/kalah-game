@@ -148,9 +148,8 @@ func (d *docker) Start(st *cmd.State, conf *cmd.Conf) (kgp.Agent, error) {
 			CPUCount: int64(conf.Game.Closed.CPUs),
 			Memory:   int64(conf.Game.Closed.Memory),
 		},
-		NetworkMode:    container.NetworkMode("host"),
-		ReadonlyRootfs: true,
-		AutoRemove:     true,
+		NetworkMode: container.NetworkMode("host"),
+		AutoRemove:  true,
 	}, nil, nil, fmt.Sprintf("%s-%d", d.name, time.Now().UnixNano()))
 	if err != nil {
 		return nil, fmt.Errorf("Failed to create container %s: %w", d.name, err)
