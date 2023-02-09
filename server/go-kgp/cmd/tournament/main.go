@@ -157,13 +157,13 @@ func main() {
 
 		var dev string
 		switch path.Ext(res) {
-		case "pdf":
+		case ".pdf":
 			dev = "-Tpdf"
-		case "ps":
+		case ".ps":
 			dev = "-Tps"
-		case "html":
+		case ".html":
 			dev = "-Txhtml"
-		case "txt":
+		case ".txt":
 			dev = "-Tutf8"
 		default:
 			goto skip
