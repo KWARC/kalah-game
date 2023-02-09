@@ -98,7 +98,7 @@ func (cli *Client) Request(game *kgp.Game) (*kgp.Move, bool) {
 		return nil, true
 	}
 
-	c := make(chan *kgp.Move, 1)
+	c := make(chan *kgp.Move, 8)
 	board := game.Board
 	if game.North == cli {
 		board = board.Mirror()
@@ -110,14 +110,21 @@ func (cli *Client) Request(game *kgp.Game) (*kgp.Move, bool) {
 	cli.games[id] = game
 	cli.glock.Unlock()
 
-	cli.req <- &request{c, id}
-
 	move := &kgp.Move{
 		Choice:  game.Board.Random(game.Side(cli)),
 		Comment: "[random move]",
 		Agent:   cli,
 		State:   &kgp.Board{},
 		Game:    game,
+	}
+
+	select {
+	case cli.req <- &request{c, id}:
+		// ok
+	default:
+		kgp.Debug.Println("Overload move for", cli)
+		move.Comment = "[overload move]"
+		return move, false
 	}
 
 	for {
@@ -318,7 +325,10 @@ func (cli *Client) Connect(st *cmd.State) {
 			goto shutdown
 		case req := <-cli.req:
 			if resp, ok := resps[req.id]; ok {
-				req.move <- resp.move
+				select {
+				case req.move <- resp.move:
+				default:
+				}
 			} else {
 				if _, ok := reqs[req.id]; ok {
 					// we panic here because this
@@ -333,7 +343,10 @@ func (cli *Client) Connect(st *cmd.State) {
 			}
 		case resp := <-cli.resp:
 			if req, ok := reqs[resp.id]; ok {
-				req.move <- resp.move
+				select {
+				case req.move <- resp.move:
+				default:
+				}
 			}
 			// otherwise we will ignore the response
 		}
