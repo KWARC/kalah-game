@@ -469,7 +469,7 @@ public class ProtocolManager {
         }
 
         Integer lastMove = runningStateRefs.get(ref);
-        if (lastMove != null && lastMove != move) {
+        if (lastMove != null && !lastMove.equals(move)) {
             sendToServer("move " + move, ref);
             runningStateRefs.put(ref, move);
         }
