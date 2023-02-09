@@ -54,7 +54,7 @@ func (c *Combo) Start(st *cmd.State, conf *cmd.Conf) {
 	next := c.agents
 	for len(c.agents) > 0 {
 		m := c.scheds[c.now]
-		kgp.Debug.Println("Starting ", m, "round with", c.agents)
+		log.Printf("Starting %s round with %d agents (%s)", m, len(next), next)
 		m.Take(next)
 		kgp.Debug.Println("Starting", m)
 		m.Start(st, conf)
