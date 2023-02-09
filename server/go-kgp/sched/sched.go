@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"runtime"
 	"sort"
 	"sync"
@@ -53,6 +54,9 @@ func (s *scheduler) String() string {
 
 func (s *scheduler) Start(st *cmd.State, conf *cmd.Conf) {
 	games := s.schedule(s.agents)
+	rand.Shuffle(len(games), func(i, j int) {
+		games[i], games[j] = games[j], games[i]
+	})
 	sched := make(chan *kgp.Game, len(games))
 	for _, g := range games {
 		sched <- g
