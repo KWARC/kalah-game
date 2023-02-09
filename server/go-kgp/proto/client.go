@@ -127,11 +127,12 @@ func (cli *Client) Request(game *kgp.Game) (*kgp.Move, bool) {
 		return move, false
 	}
 
+	timer := time.NewTimer(cli.conf.Game.Timeout)
 	for {
 		select {
-		case <-time.After(cli.conf.Game.Timeout):
 		case <-cli.ctx.Done():
 			return move, false
+		case <-timer.C:
 			ok := cli.ping()
 			return move, !ok
 		case m := <-c:
