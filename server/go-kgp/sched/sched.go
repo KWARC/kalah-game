@@ -221,12 +221,13 @@ func (s *scheduler) PrintResults(st *cmd.State, W io.Writer) {
 	fmt.Fprintln(W, `.NH 2`)
 	fmt.Fprintln(W, "Game Log")
 
-	fmt.Fprintln(W, `.TS`)
+	fmt.Fprintln(W, `.TS H`)
 	fmt.Fprintln(W, `tab(/) box center;`)
 	fmt.Fprintln(W, `c | c c | c c c`)
 	fmt.Fprintln(W, `------`)
 	fmt.Fprintln(W, `n | l l | n n n`)
 	fmt.Fprintln(W, `.`)
+	fmt.Fprintln(W, `.TH`)
 	fmt.Fprintln(W, `Nr./South Agent/North Agent/South/North/Diff.`)
 
 	for i, g := range s.games {
@@ -238,7 +239,6 @@ func (s *scheduler) PrintResults(st *cmd.State, W io.Writer) {
 			south, north, south-north)
 	}
 	fmt.Fprintln(W, `.TE`)
-
 }
 
 var _ Composable = &scheduler{}
