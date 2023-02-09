@@ -101,9 +101,7 @@ func (c *Combo) PrintResults(st *cmd.State, W io.Writer) {
 Kalah tournament.  All teams that manage to pass the first stage will
 receive bonus points.  The top ten teams receive additional bonus points.
 The tournament consists of multiple stages, where agents are disqualified
-if they don't perform well enough.  The final score is calculated by
-summing up the total number of games won, and subtracting the total number
-of games an agent lost.`)
+if they don't perform well enough.`)
 	fmt.Fprintln(W, ".AE")
 
 	for i, s := range c.scheds {
@@ -164,7 +162,7 @@ next round:`)
 		var score int
 		for _, s := range c.scheds {
 			w, l, d := s.Score(a)
-			score += 2*w - 2*l + d
+			score += 2*w - 0*l + d
 		}
 
 		cache[a] = score

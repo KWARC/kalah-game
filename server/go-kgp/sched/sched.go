@@ -194,9 +194,9 @@ func (s *scheduler) PrintResults(st *cmd.State, W io.Writer) {
 	// Order agents in order of score
 	sort.SliceStable(s.agents, func(i, j int) bool {
 		iw, il, id := s.Score(s.agents[i])
-		is := 2*iw - 2*il + id
+		is := 2*iw - 0*il + id
 		jw, jl, jd := s.Score(s.agents[j])
-		js := 2*jw - 2*jl + jd
+		js := 2*jw - 0*jl + jd
 		return is < js
 	})
 
@@ -213,7 +213,7 @@ func (s *scheduler) PrintResults(st *cmd.State, W io.Writer) {
 
 	for _, a := range s.agents {
 		w, l, d := s.Score(a)
-		s := 2*w - 2*l + d
+		s := 2*w - 0*l + d
 		fmt.Fprintf(W, "%s/%d/%d/%d/%d\n", a, w, l, d, s)
 	}
 	fmt.Fprintln(W, `.TE`)
