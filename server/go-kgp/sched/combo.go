@@ -173,20 +173,19 @@ next round:`)
 		nr   = 1
 	)
 	for i, a := range c.agents {
-		if i >= 10 {
-			break
-		}
-
 		sc := score(a)
 		if sc < last {
 			nr++
 		}
 		last = sc
 		fmt.Fprintf(W, ".IP %d\n%s (Score: %d)\n", nr, a.String(), sc)
+		if i == 9 {
+			fmt.Fprintln(W, ".LP")
+			fmt.Fprintln(W, "Congratulations to all participating teams!")
+			fmt.Fprintln(W, ".PP")
+			fmt.Fprintln(W, "The remaining scores are:")
+		}
 	}
-
-	fmt.Fprintln(W, ".LP")
-	fmt.Fprintln(W, "Congratulations to all participating teams!")
 }
 
 func (c *Combo) AddAgent(a isol.ControlledAgent) {
