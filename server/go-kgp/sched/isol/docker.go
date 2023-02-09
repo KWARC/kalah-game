@@ -161,7 +161,6 @@ func (d *docker) Start(st *cmd.State, conf *cmd.Conf) (kgp.Agent, error) {
 		return nil, fmt.Errorf("Failed to start container %s: %w", d.name, err)
 	}
 
-	_, errC := cont.ContainerWait(ctx, id, container.WaitConditionNotRunning)
 	kgp.Debug.Println("Waiting for container", d)
 
 	warmup := time.After(conf.Game.Closed.Warmup)
@@ -172,8 +171,6 @@ func (d *docker) Start(st *cmd.State, conf *cmd.Conf) (kgp.Agent, error) {
 			log.Print(err)
 		}
 		return nil, fmt.Errorf("Timeout during initialisation")
-	case err := <-errC:
-		return nil, fmt.Errorf("Container %v signalled an error: %w", d.name, err)
 	case client := <-wait:
 		kgp.Debug.Println(d, "Connected to port", listener.Port())
 
