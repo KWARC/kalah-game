@@ -18,38 +18,10 @@
 	<td><a href="/game/{{ .Id }}">{{ .Id }}</a></td>
 	<td>{{ board .Board }}</td>
 	<td>
-	{{ with .North }}
-	  {{ if ne .Id 0 }}
-	    <a href="/agent/{{ .Id }}">
-	    {{ if same $self . }}<span class="self">{{ end }}
-	    {{ with .Name }}
-	       {{ . }}
-	    {{ else }}
-	       <em>Unnamed</em>
-	    {{ end }}
-	    {{ if same $self . }}</span>{{ end }}
-	    </a>
-	  {{ else }}
-	    Anon.
-	  {{ end }}
-	{{ end }}
+	{{ template "link-agent.tmpl" .North }}
 	</td>
 	<td>
-	{{ with .South }}
-	  {{ if ne .Id 0}}
-	    <a href="/agent/{{ .Id }}">
-	    {{ if same $self . }}<span class="self">{{ end }}
-	    {{ with .Name }}
-	       {{ . }}
-	    {{ else }}
-	       <em>Unnamed</em>
-	    {{ end }}
-	    {{ if same $self . }}</span>{{ end }}
-	    </a>
-	  {{ else }}
-	    Anon.
-	  {{ end }}
-	{{ end }}
+	{{ template "link-agent.tmpl" .South }}
 	</td>
 	<td>
 	  {{ result $self . }}

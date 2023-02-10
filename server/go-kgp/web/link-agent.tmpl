@@ -1,0 +1,15 @@
+{{ with user . }}
+  {{ if ne .Id 0 }}
+    <a href="/agent/{{ .Id }}">
+    {{ with .Name }}
+       {{ . }}
+    {{ else }}
+       <em>Unnamed</em>
+    {{ end }}
+    </a>
+  {{ else }}
+    Anon.
+  {{ end }}
+{{ else }}
+  Nobody
+{{ end }}
