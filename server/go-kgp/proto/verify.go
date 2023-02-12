@@ -21,6 +21,7 @@ package proto
 
 import (
 	"fmt"
+
 	"go-kgp"
 )
 

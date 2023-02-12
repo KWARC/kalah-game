@@ -22,7 +22,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"go-kgp"
 	"io"
 	"log"
 	"os"
@@ -30,6 +29,8 @@ import (
 	"path"
 	"regexp"
 	"strconv"
+
+	"go-kgp"
 
 	"go-kgp/cmd"
 	"go-kgp/db"
