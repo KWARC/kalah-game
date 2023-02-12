@@ -68,7 +68,7 @@ func (*render) Start(st *cmd.State, conf *cmd.Conf) {
 		wg.Add(1)
 	}
 	wg.Wait()
-	os.Exit(0)
+	st.Kill()
 }
 
 func main() {
