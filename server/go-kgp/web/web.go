@@ -39,7 +39,7 @@ var html embed.FS
 
 var (
 	// Template manager
-	tmpl *template.Template
+	T *template.Template
 
 	// Custom template functions
 	funcs = template.FuncMap{

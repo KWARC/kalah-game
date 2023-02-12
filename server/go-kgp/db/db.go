@@ -205,9 +205,12 @@ func (db *db) QueryGames(ctx context.Context, aid int, c chan<- *kgp.Game, page 
 		rows *sql.Rows
 		err  error
 	)
-	if aid < 0 {
+	switch {
+	case aid < 0:
 		rows, err = db.queries["select-games"].QueryContext(ctx, page)
-	} else {
+	case aid == 0:
+		rows, err = db.queries["select-all-games"].QueryContext(ctx)
+	default:
 		rows, err = db.queries["select-games-by"].QueryContext(ctx,
 			aid, page)
 	}

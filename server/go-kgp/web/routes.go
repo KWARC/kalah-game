@@ -50,8 +50,8 @@ func (s *web) index(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "text/html")
 	w.Header().Add("Cache-Control", "max-age=60")
 	c := make(chan *kgp.Game)
-	go s.DB.QueryGames(ctx, -1, c, page-1)
-	err = tmpl.ExecuteTemplate(w, "index.tmpl", struct {
+	go s.state.Database.QueryGames(ctx, -1, c, page-1)
+	err = T.ExecuteTemplate(w, "index.tmpl", struct {
 		Games chan *kgp.Game
 		Page  int
 		User  *kgp.User // intentionally unused
@@ -75,7 +75,7 @@ func (s *web) query(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(bg, DB_TIMEOUT)
 	defer cancel()
 
-	user := s.DB.QueryUserToken(ctx, token)
+	user := s.state.Database.QueryUserToken(ctx, token)
 	if user != nil && user.Id != 0 {
 		http.Redirect(w, r, fmt.Sprintf("/agent/%d", user.Id), http.StatusSeeOther)
 	} else {
@@ -88,17 +88,17 @@ func (s *web) query(w http.ResponseWriter, r *http.Request) {
 func (s *web) about(w http.ResponseWriter, r *http.Request) {
 	var err error
 	w.Header().Add("Content-Type", "text/html")
-	err = tmpl.ExecuteTemplate(w, "header.tmpl", nil)
+	err = T.ExecuteTemplate(w, "header.tmpl", nil)
 	if err != nil {
 		log.Print(err)
 		return
 	}
-	err = tmpl.ExecuteTemplate(w, "about.tmpl", nil)
+	err = T.ExecuteTemplate(w, "about.tmpl", nil)
 	if err != nil {
 		log.Print(err)
 		return
 	}
-	err = tmpl.ExecuteTemplate(w, "footer.tmpl", nil)
+	err = T.ExecuteTemplate(w, "footer.tmpl", nil)
 	if err != nil {
 		log.Print(err)
 		return
@@ -108,7 +108,7 @@ func (s *web) about(w http.ResponseWriter, r *http.Request) {
 // Generate a website to display an agent
 func (s *web) showAgent(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(path.Base(r.URL.Path))
-	if err != nil {
+	if err != nil || id <= 0 {
 		http.Error(w, "Invalid ID", http.StatusBadRequest)
 		return
 	}
@@ -123,17 +123,17 @@ func (s *web) showAgent(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	gc := make(chan *kgp.Game)
-	user := s.DB.QueryUser(ctx, id)
+	user := s.state.Database.QueryUser(ctx, id)
 	if user == nil {
 		msg := fmt.Sprintf("No user found with the id %q", id)
 		http.Error(w, msg, http.StatusNotFound)
 		return
 	}
 
-	go s.DB.QueryGames(ctx, int(user.Id), gc, page-1)
+	go s.state.Database.QueryGames(ctx, int(user.Id), gc, page-1)
 
 	w.Header().Add("Content-Type", "text/html")
-	err = tmpl.ExecuteTemplate(w, "show-agent.tmpl", struct {
+	err = T.ExecuteTemplate(w, "show-agent.tmpl", struct {
 		User  *kgp.User
 		Games chan *kgp.Game
 		Page  int
@@ -155,16 +155,26 @@ func (s *web) showAgents(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	uc := make(chan *kgp.User)
-	go s.DB.QueryUsers(ctx, uc, page-1)
+	go s.state.Database.QueryUsers(ctx, uc, page-1)
 
 	w.Header().Add("Content-Type", "text/html")
-	err = tmpl.ExecuteTemplate(w, "list-agents.tmpl", struct {
+	err = T.ExecuteTemplate(w, "list-agents.tmpl", struct {
 		Users chan *kgp.User
 		Page  int
 	}{uc, page})
 	if err != nil {
 		log.Print(err)
 	}
+}
+
+func RenderGame(st *cmd.State, ctx context.Context, id int, w io.Writer) error {
+	gc := make(chan *kgp.Game, 1)
+	mc := make(chan *kgp.Move, 4) // arbitrary
+	go st.Database.QueryGame(ctx, id, gc, mc)
+	return T.ExecuteTemplate(w, "show-game.tmpl", struct {
+		Game  *kgp.Game
+		Moves chan *kgp.Move
+	}{<-gc, mc})
 }
 
 // Generate a website to display a game
@@ -179,17 +189,9 @@ func (s *web) showGame(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(bg, DB_TIMEOUT)
 	defer cancel()
 
-	gc := make(chan *kgp.Game, 1)
-	mc := make(chan *kgp.Move, 4) // arbitrary
-	go s.DB.QueryGame(ctx, id, gc, mc)
-
 	w.Header().Add("Content-Type", "text/html")
 	w.Header().Add("Cache-Control", "max-age=604800")
-	err = tmpl.ExecuteTemplate(w, "show-game.tmpl", struct {
-		Game  *kgp.Game
-		Moves chan *kgp.Move
-	}{<-gc, mc})
-	if err != nil {
-		log.Print(err)
+	if err = RenderGame(s.state, ctx, id, w); err != nil {
+		log.Println(err)
 	}
 }

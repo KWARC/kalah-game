@@ -39,8 +39,8 @@ import (
 const about = `<p>This is a practice server for the AI1 Kalah Tournament.</p>`
 
 type web struct {
-	DB  cmd.Database
-	mux *http.ServeMux
+	state *cmd.State
+	mux   *http.ServeMux
 }
 
 func (s *web) listen(conf *cmd.WebConf) {
@@ -81,7 +81,7 @@ func (s *web) drawGraphs(st *cmd.State) {
 				}
 
 				var buf bytes.Buffer
-				err = tmpl.ExecuteTemplate(&buf, "graph.tmpl", template.HTML(out))
+				err = T.ExecuteTemplate(&buf, "graph.tmpl", template.HTML(out))
 				data = buf.Bytes()
 
 				if err != nil {
@@ -103,7 +103,7 @@ func (s *web) drawGraphs(st *cmd.State) {
 
 func (s *web) Start(st *cmd.State, conf *cmd.Conf) {
 	w := &conf.Web
-	s.DB = st.Database
+	s.state = st
 
 	// Prepare HTTP Multiplexer
 	s.mux = http.NewServeMux()
@@ -147,7 +147,7 @@ func (s *web) Start(st *cmd.State, conf *cmd.Conf) {
 	}
 
 	// Parse templates
-	tmpl = template.Must(template.New("").Funcs(funcs).ParseFS(html, "*.tmpl"))
+	T = template.Must(template.New("").Funcs(funcs).ParseFS(html, "*.tmpl"))
 	var aboutpage string
 	if w.About != "" {
 		contents, err := os.ReadFile(w.About)
@@ -159,7 +159,7 @@ func (s *web) Start(st *cmd.State, conf *cmd.Conf) {
 	if aboutpage == "" {
 		aboutpage = about
 	}
-	_, err := tmpl.New("about.tmpl").Parse(string(aboutpage))
+	_, err := T.New("about.tmpl").Parse(string(aboutpage))
 	if err != nil {
 		log.Fatal(err)
 	}
