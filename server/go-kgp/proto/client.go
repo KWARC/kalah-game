@@ -297,7 +297,7 @@ func (cli *Client) Connect(st *cmd.State) {
 		time.Sleep(cli.conf.Proto.Timeout)
 		if gamemode(atomic.LoadInt32((*int32)(&cli.mode))) == none {
 			cli.error(0, " Requested no mode")
-			cli.kill()
+			cli.Kill()
 		}
 	}()
 

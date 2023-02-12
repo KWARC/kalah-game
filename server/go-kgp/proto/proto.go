@@ -130,8 +130,6 @@ func parse(raw string, params ...interface{}) error {
 
 // Interpret parses and evaluates INPUT
 func (cli *Client) interpret(input string, st *cmd.State) error {
-	dbg := kgp.Debug.Printf
-
 	input = strings.TrimSpace(input)
 	if input == "" { // Ignore empty lines
 		return nil
