@@ -25,6 +25,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"runtime"
+	"sync"
 
 	"go-kgp"
 
@@ -43,20 +45,29 @@ func (*render) Start(st *cmd.State, conf *cmd.Conf) {
 	games := make(chan *kgp.Game)
 	go st.Database.QueryGames(ctx, 0, games, 0)
 
-	for game := range games {
-		fn := fmt.Sprintf("game-%d-%s-%s.html",
-			game.Id,
-			game.South.User().Name,
-			game.North.User().Name,
-		)
-		file, err := os.Create(fn)
-		err = web.RenderGame(st, ctx, int(game.Id), file)
-		if err != nil {
-			log.Fatal(err)
-		}
-		log.Println("Render", file.Name())
-		file.Close()
+	var wg sync.WaitGroup
+	for i := 0; i < runtime.NumCPU(); i++ {
+		go func() {
+			for game := range games {
+				size, init := game.Board.Type()
+				fn := fmt.Sprintf("game-%d-%d,%d-%s-%s.html",
+					game.Id, size, init,
+					game.South.User().Name,
+					game.North.User().Name,
+				)
+				file, err := os.Create(fn)
+				err = web.RenderGame(st, ctx, int(game.Id), file)
+				if err != nil {
+					log.Fatal(err)
+				}
+				log.Println("Render", file.Name())
+				file.Close()
+			}
+			wg.Done()
+		}()
+		wg.Add(1)
 	}
+	wg.Wait()
 	os.Exit(0)
 }
 
