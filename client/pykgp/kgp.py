@@ -1,6 +1,6 @@
 # KALAH GAME PROTOCOL LIBRARY                    -*- mode: python; -*-
 
-# Copyright 2021, 2022, Philip Kaludercic
+# Copyright 2021, 2022, 2023, Philip Kaludercic
 
 # Permission to use, copy, modify, and/or distribute this software for
 # any purpose with or without fee is hereby granted, provided that the
@@ -236,6 +236,10 @@ def connect(agent, host='wss://kalah.kwarc.info/socket', port=2671, token=None, 
 )?
 \s*$                # trailing white space is ignored
 """, re.VERBOSE)
+
+    if os.getenv("KGP_PORT"):
+        port = int(os.getenv("KGP_PORT"))
+    host = os.getenv("KGP_HOST", host)
 
     STRING_PATTERN = re.compile(r'^"((?:\\.|[^"])*)"\s*')
     INTEGER_PATTERN = re.compile(r'^(\d+)\s*')
