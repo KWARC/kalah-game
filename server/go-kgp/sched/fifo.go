@@ -55,11 +55,11 @@ func (f *fifo) Start(st *cmd.State, conf *cmd.Conf) {
 	bots = append(bots, bot.MakeRandom())
 	for d, accs := range map[uint][]float64{
 		2:  {1},
-		4:  {0.5, 1},
-		6:  {0.25, 0.5, 0.75, 1},
-		8:  {0.25, 0.5, 0.75, 1},
-		10: {0.25, 0.5, 0.75},
-		12: {0.25, 0.5},
+		4:  {0.4, 1},
+		6:  {0.4, 0.75, 0.9, 1},
+		8:  {0.4, 0.75, 0.9, 1},
+		10: {0.4, 0.75, 0.9},
+		12: {0.4, 0.75},
 	} {
 		for _, a := range accs {
 			bots = append(bots, bot.MakeMinMax(d, a))
