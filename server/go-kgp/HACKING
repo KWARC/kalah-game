@@ -1,0 +1,349 @@
+#          -*- mode: org -*-
+#+TITLE:   Commentary on Hacking and using =go-kgp=
+#+AUTHOR:  KALUDERCIC, Philip
+#+EMAIL:   philip.kaludercic@fau.de
+#+DATE:    <2023-04-21 Fri>
+#+OPTIONS: email:t num:t toc:t
+
+* Introduction
+If you are reading this file, you are interested or have been forced
+to work on this program.  By skimming through this file, you are
+supposed to be given a few pointers to make your life easier.
+
+After having finished the remaining document, you will know:
+
+- What problem this program attempts to solve
+- What technologies are used (and why)
+- How the server is structured (and why)
+- How to use the server (and how to configure it)
+
+Please keep in mind to update this file if you make any larger
+changes.  That makes sure that future contributors have a reliable
+reference document.
+
+It is assumed you have basic knowledge of the KGP protocol.  If this
+is not the case, please consult the "spec" directory in the root
+directory of this repository.  Some knowledge of the rules of [[https://en.wikipedia.org/w/index.php?title=Kalah][Kalah]]
+are also presumed.
+
+* COMMENT Notes on this file
+This file is written in [[https://orgmode.org/][Org mode]], a Markup language originating from
+Emacs.  Writing this file in Org mode is a matter of personal
+convenience, and if you prefer to read the file in a web-browser, you
+might execute the following command
+#+begin_example
+$ emacs HACKING --batch -f org-html-export-to-html --kill
+#+end_example
+or make use of universal file converters such as [[https://pandoc.org][Pandoc]]:
+#+begin_example
+$ pandoc -f org HACKING -o hacking.pdf
+#+end_example
+
+* Problem Statement
+A KGP server based on =freeplay= is flexible in the way it presents a
+client with state commands.  Go-kgp provides two separate modes:
+
+1. A "public, practice server", a web-facing server that accepts
+   (optionally identified) client connections to play games against
+   one-another and bots.
+
+   Additionally the server can be run in a one-shot mode that would
+   render all historical games as separate files that can be viewed
+   offline.
+2. A "closed, tournament program", a program that executes agent
+   programs using [[https://en.wikipedia.org/wiki/Docker_(software)][Docker]] containers, coordinating a multi-stage
+   tournament between them.
+
+(In the context of the [[https://kwarc.info/courses/ai1/][AI1]] lecture, these are used before and after
+the submissions deadline for student programs.  The first gives them a
+chance to test their agents against one another and against bots, the
+second evaluates their performance objectively.)
+
+* Technologies
+The server is written in [[https://golang.org][Go]], version [[https://tip.golang.org/doc/go1.19][1.16]].  The source code has been
+formatted using [[https://github.com/mvdan/gofumpt][gofumpt]], and [[https://staticcheck.io/][staticcheck]] has been consistently used to
+avoid common issues.  It is recommended to have these issues part of
+your workflow.  Both can be integrated into the [[https://pkg.go.dev/golang.org/x/tools/gopls][gopls]] LSP Server.
+
+The Server intentionally relies on the libraries from the [[https://pkg.go.dev/std][Go Standard
+Library]], as far as possible.  The only exceptions are :
+
+- [[https://github.com/mattn/go-sqlite3/][github.com/mattn/go-sqlite3]] :: A [[https://www.sqlite.org/][SQLite 3]] library used to store all
+  data that has to be stored.
+- [[https://github.com/nhooyr/websocket][nhooyr.io/websocket]] :: A [[https://www.rfc-editor.org/rfc/rfc6455][WebSocket]] library used to implement
+  communication over HTTP.
+- [[https://github.com/BurntSushi/toml/][github.com/BurntSushi/toml]] :: A [[https://toml.io/en/][TOML]] configuration file parser, used
+  to load and store configuration files.
+
+The decisions to use [[https://www.sqlite.org/][SQLite 3]], as compared to [[https://mariadb.org/][MariaDB]] or [[https://www.postgresql.org/][PostgreSQL]], was
+made to make deployment simpler and because it is [[https://www.sqlite.org/whentouse.html][entierly sufficient]]
+for the use-case of this server.  Keep in mind that
+#+begin_quote
+"SQLite does not compete with client/server databases. SQLite competes
+with =fopen()=."
+#+end_quote
+
+* Structure
+The program is structured into a number of mostly de-coupled modules.
+This section describes their intent and important concepts.  If you
+are just reading into the source code for the first time, it is
+recommended to proceed in the order given here.
+
+One of the motivations for de-coupling modules is that we can re-use
+them for various programmes.  E.g. =./cmd/practice= will use and
+initialise the right modules to have a public practice server, while
+=./cmd/competition= will differ in what and how is used.
+
+** The =go-kgp= (Common, Base) Module
+This module defines the shared data structures used in other modules
+and to exchange data between modules (e.g. to allow loading data from
+the database in the =go-kgp/db= module and to display it on the
+website in the =go-kgp/web= module).  The relevant types are:
+
+- =Side=, a =bool=-like type.  Used to indicate the two possible sides
+  of a board (=North= and =South=).
+- =Outcome=, a =uint8=-like type.  Used to indicate possible outcomes
+  of a match:
+  - =WIN= :: The southern player won
+  - =LOSS= :: The southern player lost
+  - =DRAW= :: Both players played to a draw
+- =State=, a =uint8=-like type.  Used to indicate game states
+  - =ONGOING= :: The game hasn't finished
+  - =NORTH_WON= :: The northern player won.
+  - =SOUTH_WON= :: The southern player won.
+  - =NORTH_RESIGNED= :: The northern player resigned.
+  - =SOUTH_RESIGNED= :: The southern player resigned.
+  - =UNDECIDED= :: The game was played to a draw.
+  - =ABORTED= :: The game was aborted and couldn't be finished.
+- =Board=, a Kalah board without any players.  We implement the
+  conventional rules and checks on this object.
+- =Agent=, an interface to describe an agent that can make moves.  The
+  most important method is =Request= that determines what move an
+  agent makes given a =Board=.
+- =User=, a complex structure to represent users.  Users differ from
+  agents in that they have metadata which is stored in the database
+  and can be displayed on the website.  An agent can be asked to give
+  a user.
+- =Game=, a complex structure to represent games.  games are played on
+  a =Board= between two =Agents=.
+- =Move=, a complex structure to represent a move.  A move is made by
+  an agent and has metadata like a timestamp (=Stamp=), a =Game= and
+  =Agent=.
+
+** The =go-kgp/cmd= Module
+Beside the root module, this module (excluding submodules) contains a
+a number of general utilities and abstractions:
+
+- =conf.go= :: Management of the configuration file and flags.
+- =graph.go= :: Generic code to generate a dominance graph using
+  [[https://graphviz.org/][Graphviz]].
+- =state.go= :: Service management and program state, as described
+  below.
+
+The general structure of =go-kgp= is that the modules introduced in
+the following sections provide service managers as specified by the
+[[file:cmd/state.go::type Manager interface {][conf.Manager]]
+interface, importantly consisting of a =Start= and =Shutdown= method.
+The manager is also extended by two other specialised interfaces
+(=conf.Scheduler=, =conf.Database=) that mainly exist to avoid
+cyclical dependencies.
+
+The program state is passed through all the managers to coordinate
+shared [[https://pkg.go.dev/context][execution contexts]] and allow for the managers to be shutdown
+orderly (e.g. on receiving a shutdown signal from the operating
+system).
+
+The sub-directories of =go-kgp/cmd= store the source code of all
+concrete executable libraries that connect all the modules into the
+programmes mentioned in [[*Problem Statement][Problem Statement]].
+
+** The =go-kgp/db= Module
+The database module is responsible for storing and retrieving all
+persistent data.  As mentioned above it is based on SQLite, and uses a
+[[file:db/db.go::// https://www.sqlite.org/pragma.html#pragma_journal_mode][few pragmas]] to accelerate the performance and reliability.
+
+The module maintains separate connections for reading and writing, so
+that the two do not interfere under high load.
+
+Queries are stored in =.sql= files in the same directory and are
+injected into the execeutables using Go 1.16+'s [[https://pkg.go.dev/embed][embed]] package.  These
+make use of [[https://www.sqlite.org/lang_expr.html#parameters][expresison parameters]] and [[https://www.sqlite.org/c3ref/stmt.html][prepared statements]] to avoid SQL
+injections and also further increase efficiency.
+
+Doe that as the database will periodically remove old games, the
+database is also automatically optimised.  If this is not sufficient,
+all executable should handle a SIGUSR1 signal that would rebuild the
+database using the [[https://www.sqlite.org/lang_vacuum.html][VACUUM]] command.
+
+** The =go-kgp/game= Module
+The game logic for a =Game= is given in the function [[file:game/game.go::func Play(g *kgp.Game, st *cmd.State, conf *cmd.Conf) error {][=Play=]].  To
+accelerate games it will skip trivial moves (where an agent has only
+one legal choice) and end as soon as one player has collected more
+than half of the available stones, as the other side cannot win
+anymore from that point on.  These measures are taken to accelerate
+the game-play.
+
+The =Play= function intentionally does not care what agents kind of
+agents are playing.  This is deferred to the =Request= method of the
+=Agent= interface, so that each implementation can decide further
+details.
+
+** The =go-kgp/proto= Module
+This module is responsible for three related issues:
+
+- Accepting TCP connections and starting games (=manage.go=)
+- Implementing the Agent interface for network clients (=client.go=,
+  most importantly see [[file:proto/client.go::func (cli *Client) Request(game *kgp.Game) (*kgp.Move, bool) {][=Client.Request=]])
+- Parsing the KGP protocol and responding correctly (=proto.go=, =verify.go=)
+
+** The =go-kgp/web= Module
+The =web= module manages the web interface and accepts games via
+WebSocket.
+
+Files ending in =.tmpl= use the [[https://pkg.go.dev/html/template][html/template]] template-language to
+generate HTML pages.  Most dynamic pages (installed in [[file:web/manage.go::func (s *web) Start(st *cmd.State, conf *cmd.Conf) {][=web.Start=]],
+using functions from =routes.go=) are just responsible for connecting
+information from the Database to these templates.
+
+Note that the templates make use of the ability to define custom
+functions in Go.  These are found in =web.go=, and include the SVG
+game rendering code.
+
+** The =go-kgp/bot= Module
+The main interface of this module is =Bot=, an extension of =Agent=
+interface by a =IsBot= method.  This interface is currently only
+implemented by a MinMax client that several schedulers use.
+
+The MinMax agents have two parameters, search-depth and "accuracy".
+Latter describes a chance that a agent will "accidentally" make a
+random move.  If this chance is 100% we get the [[file:bot/minmax.go::var random = MakeMinMax(0, 0.0)][=random=]] agent.
+
+Note that the MinMax agents (see [[file:bot/minmax.go::func (m *minmax) Request(g *kgp.Game) (*kgp.Move, bool) {][=Request=]]) are never interrupted while
+computing a move.  This gives them an advantage over an equivalent
+agent.ppp
+
+As MinMax agents have no dynamic state, there is no issue in having
+them play multiple games at the same time.
+
+** The =go-kgp/sched= Module
+The [[file:cmd/state.go::type Scheduler interface {][cmd.Scheduler]] interface is implemented in this Module.  These are
+either indefinite (with no apriori, upper bound on how many games are
+scheduled) or finite.  Finite schedulers can be composed and used to
+filter agents through multiple stages of a tournament.
+
+- FIFO :: This indefinite scheduler is used by the web interface to match
+  incoming agents with others or if none are available, bots.
+
+  The complication of this scheduler derives from the need to find a
+  balance between separate concerns:
+
+  1. Decrease the latency between the initial connection and the first
+     game.
+  2. Maximise the number of games that agents play against real agents
+     and not bots.
+  3. Give agents a chance to a quit between games, to avoid "aborted
+     game" messages in the public log (Soft-priority).
+
+  Points 1. and 2. stand in contention with one another since as the
+  latency is reduced, the chance of having two real agents waiting to
+  be paired also shrinks.  But if we wait for two agents to appear in
+  the waiting-queue (and do not make use of bots), then a agent may
+  wait too long.
+
+  The middle-way implemented by FIFO is to have new games start every
+  /n/ seconds (starting from a full minute) so that friends can
+  coordinate when to connect to the server, at which point all agents
+  will be matched against one another in pairs of two, the possible
+  remaining agent will play against a bot.
+
+- NoOp :: An indefinite scheduler that rejects all game requests.
+
+- Sanity :: A finite scheduler that takes a list of agents that all
+  have to play against a random agent and win to pass.
+
+- Round-Robin :: A finite scheduler, Used in tournament situations to
+  have each agent play at least one game on each side of the Kalah
+  board against one another.
+
+  An agent passes a Round-Robin scheduler if it does not loose more
+  than half the games.
+
+- Combo :: A composition of composable, finite schedulers that are
+  run through in sequence.  A composable scheduler (such as "Sanity" and
+  "Round-Robin") most be able to accept a set of agents to start with
+  and produce a set of agents that passed.  Additionally it has to be
+  able to render a report in [[https://troff.org/][troff]] + [[https://troff.org/using-ms.pdf][ms]] syntax.
+
+The combo scheduler extends the notion of a agent to that of a
+"controlled agent", that is to say an agent that the program has
+access to and can start or terminate.  This notion is formalised in
+the "go-kgp/sched/isol" sub-module and implemented for Docker images.
+
+* Usage
+** Starting a practice server
+You should be able to build the using [[https://go.dev/][Go]] toolchain with [[https://pkg.go.dev/cmd/cgo][cgo]] (i.e. a
+standard C compiler like [[https://gcc.gnu.org/][GCC]] + [[https://www.gnu.org/software/libc/][Glibc]]) and SQLite 3 libraries.  On
+GNU/Linux systems these should all be available or pre-installed by
+your local package manager.
+
+#+begin_example
+$ go run ./cmd/practice
+#+end_example
+
+Optionally you might also want to have Graphviz (specifically the
+=dot= executable) installed to generate a dominance graph.
+
+Invoke the above command with =-help= to generate a overview of flags
+that can be used to modify the behaviour.
+
+The accompanying [[file:Dockerfile][=Dockerfile=]] provides an alternative environment to
+start the practice server along with all the necessary dependencies.
+
+** Starting a tournament server
+To organise a tournament, you should have a number of agents that can
+be compiled into docker containers.  It is best to have the source
+code of all agents collected in a single directory, where each
+sub-directory contains a =Dockerfile= to build the agent:
+
+#+begin_example
+./agents/
+./agents/agent1/Dockerfile
+./agents/agent1/agent.py
+./agents/agent2/Dockerfile
+./agents/agent2/Agent.java
+./agents/agent3/Dockerfile
+./agents/agent3/AGENT.COBOL
+...
+#+end_example
+
+The names of these directories are not important.  Given this
+structure, you should be able to invoke the tournament program as
+follows:
+
+#+begin_example
+$ go run ./cmd/tournament -auto -dir agents/
+#+end_example
+
+This will build a Docker image for each sub-directory, test if it can
+connect to a server and then proceed to run the entire tournament
+with all the functioning clients.  The information the clients need to
+connect to the server are passed through the environmental variables
+=KGP_HOST= (for the hostname) and =KGP_PORT= (for the TCP port).
+
+The results of each game will be written into the default database.
+It might be add a =-db= flag to avoid re-using the database multiple
+times:
+
+#+begin_example
+$ go run ./cmd/tournament -db "$(date +%s).db" -auto -dir agents/
+#+end_example
+
+The best way to represent the results of the tournament is by having
+it rendered in a report.  The tournament server can prepare this
+automatically using [[https://www.gnu.org/software/groff/][GNU roff]] (groff) that all distributions should
+make available.  The configuration option =game.closed.result= can be
+set to indicate what file you would like to use for the output.  By
+default it will attempt to render a PDF file in the current working
+directory.  Other legal extensions include =.ps= (Postscript), =.html=
+(HTML) and =.txt= (a plain text file).  If not set/unset, the program
+will output the text output directly to the standard output.
