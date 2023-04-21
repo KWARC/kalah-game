@@ -21,7 +21,8 @@
 package web
 
 import (
-	"io"
+	"context"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -29,68 +30,48 @@ import (
 	"go-kgp/cmd"
 	"go-kgp/proto"
 
-	"github.com/gorilla/websocket"
+	ws "nhooyr.io/websocket"
 )
 
-// adapted from https://github.com/gorilla/websocket/issues/282
-
 // wsrwc is a read-write-closer using websockets
-type wsrwc struct {
-	*websocket.Conn
-	r io.Reader
-}
+type wsrwc struct{ conn *ws.Conn }
 
 // Convert a write call to a Websocket message
 func (c *wsrwc) Write(p []byte) (int, error) {
-	err := c.WriteMessage(websocket.TextMessage, p)
-	if err != nil {
-		return 0, err
-	}
-	return len(p), nil
+	err := c.conn.Write(context.Background(), ws.MessageText, p)
+	return len(p), err
 }
 
 // Convert a read call into a Websocket query
 func (c *wsrwc) Read(p []byte) (int, error) {
-	for {
-		if c.r == nil {
-			// Advance to next message.
-			var err error
-			_, c.r, err = c.NextReader()
-			if err != nil {
-				return 0, err
-			}
-		}
-		n, err := c.r.Read(p)
-		if err == io.EOF {
-			// At end of message.
-			c.r = nil
-			if n > 0 {
-				return n, nil
-			} else {
-				// No data read, continue to next message.
-				continue
-			}
-		}
-		return n, err
+	t, s, err := c.conn.Read(context.Background())
+	if err != nil {
+		return 0, err
 	}
+	if t != ws.MessageText {
+		return 0, fmt.Errorf("wrong message type")
+	}
+	return copy(p, s), nil
+
+}
+
+// Convert a close call into a Websocket command
+func (c *wsrwc) Close() error {
+	return c.conn.Close(ws.StatusNormalClosure, "Connection closed")
 }
 
 // Upgrade a HTTP connection to a WebSocket and handle it
 func upgrader(st *cmd.State, conf *cmd.Conf) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// upgrade to websocket or bail out
-		conn, err := (&websocket.Upgrader{
-			ReadBufferSize:  1024,
-			WriteBufferSize: 1024,
-		}).Upgrade(w, r, nil)
+		conn, err := ws.Accept(w, r, nil)
 		if err != nil {
 			kgp.Debug.Printf("Unable to upgrade connection: %s", err)
-			w.WriteHeader(400)
+			w.WriteHeader(500)
 			return
 		}
 
-		log.Printf("New connection from %s", conn.RemoteAddr())
-		cli := proto.MakeClient(&wsrwc{Conn: conn}, conf)
+		log.Printf("New connection from %s", r.RemoteAddr)
+		cli := proto.MakeClient(&wsrwc{conn}, conf)
 		go cli.Connect(st)
 	}
 }
