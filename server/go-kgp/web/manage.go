@@ -43,16 +43,6 @@ type web struct {
 	mux   *http.ServeMux
 }
 
-func (s *web) listen(conf *cmd.WebConf) {
-	addr := fmt.Sprintf(":%d", conf.Port)
-	log.Printf("Listening via HTTP on %s", addr)
-
-	err := http.ListenAndServe(addr, s.mux)
-	if err != nil {
-		log.Print(err)
-	}
-}
-
 func (s *web) drawGraphs(st *cmd.State) {
 	var (
 		it   uint32
@@ -164,7 +154,13 @@ func (s *web) Start(st *cmd.State, conf *cmd.Conf) {
 		log.Fatal(err)
 	}
 
-	s.listen(w)
+	addr := fmt.Sprintf(":%d", conf.Proto.Port)
+	log.Printf("Listening via HTTP on %s", addr)
+
+	err = http.ListenAndServe(addr, s.mux)
+	if err != nil {
+		log.Print(err)
+	}
 }
 
 // The web server can shut down immediately
