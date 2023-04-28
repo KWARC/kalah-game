@@ -32,8 +32,10 @@ import (
 	"time"
 
 	"go-kgp"
-
 	"go-kgp/cmd"
+	"go-kgp/proto"
+
+	ws "nhooyr.io/websocket"
 )
 
 const about = `<p>This is a practice server for the AI1 Kalah Tournament.</p>`
@@ -133,7 +135,20 @@ func (s *web) Start(st *cmd.State, conf *cmd.Conf) {
 	// Install the WebSocket handler
 	if w.WebSocket {
 		log.Print("Accepting websocket connections on /socket")
-		s.mux.HandleFunc("/socket", upgrader(st, conf))
+		upgrader := func(w http.ResponseWriter, r *http.Request) {
+			conn, err := ws.Accept(w, r, nil)
+			if err != nil {
+				kgp.Debug.Printf("Unable to upgrade connection: %s", err)
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			log.Printf("New connection from %s", r.RemoteAddr)
+			go proto.MakeClient(
+				ws.NetConn(context.Background(), conn, ws.MessageText),
+				conf).Connect(st)
+		}
+		s.mux.HandleFunc("/socket", upgrader)
 	}
 
 	// Parse templates
