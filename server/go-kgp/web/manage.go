@@ -169,7 +169,7 @@ func (s *web) Start(st *cmd.State, conf *cmd.Conf) {
 		log.Fatal(err)
 	}
 
-	addr := fmt.Sprintf(":%d", conf.Proto.Port)
+	addr := fmt.Sprintf(":%d", conf.Web.Port)
 	log.Printf("Listening via HTTP on %s", addr)
 
 	err = http.ListenAndServe(addr, s.mux)
