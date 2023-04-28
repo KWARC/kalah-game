@@ -20,6 +20,7 @@
 package proto
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -77,6 +78,10 @@ func (t *Listener) Start(st *cmd.State, conf *cmd.Conf) {
 	for {
 		conn, err := t.conn.Accept()
 		if err != nil {
+			if errors.Is(err, net.ErrClosed) {
+				break
+			}
+			log.Println("Failed to accept connection:", err)
 			continue
 		}
 
