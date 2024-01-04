@@ -7,6 +7,7 @@ RUN apk add --no-cache sqlite graphviz gcc libc-dev
 ADD . /app/
 WORKDIR /app/
 RUN go mod download
+ARG CGO_CFLAGS="-D_LARGEFILE64_SOURCE"
 RUN go build -v -o /go-kgp ./cmd/practice
 
 # Mount an external volume and use it as a working directory
