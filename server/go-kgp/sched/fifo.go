@@ -1,6 +1,6 @@
 // Connection Queue Handling
 //
-// Copyright (c) 2021, 2022, 2023  Philip Kaludercic
+// Copyright (c) 2021, 2022, 2023, 2024  Philip Kaludercic
 //
 // This file is part of go-kgp.
 //
@@ -153,7 +153,7 @@ func (f *fifo) Start(st *cmd.State, conf *cmd.Conf) {
 			var north, south kgp.Agent
 			switch len(f.q) {
 			case 0:
-				panic("Broken look invariant")
+				panic("Broken loop invariant")
 			case 1:
 				if av == 0 {
 					goto done
