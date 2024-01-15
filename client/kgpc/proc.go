@@ -1,6 +1,6 @@
 // Process Handling
 //
-// Copyright (c) 2021, 2023  Philip Kaludercic
+// Copyright (c) 2021, 2023, 2024  Philip Kaludercic
 //
 // This file is part of kgpc.
 //
@@ -39,7 +39,6 @@ func start(cli *Client, id uint64, board *Board) {
 	}
 
 	cmd := exec.Command(os.Args[2], os.Args[3:]...)
-	running[id] = cmd
 
 	var buf bytes.Buffer
 	fmt.Fprintf(&buf, "%d %d %d", len(board.northPits), board.south, board.north)
@@ -63,6 +62,7 @@ func start(cli *Client, id uint64, board *Board) {
 		fmt.Fprintln(os.Stderr, err)
 		return
 	}
+	running[id] = cmd
 
 	scanner := bufio.NewScanner(out)
 	scanner.Split(bufio.ScanWords)
