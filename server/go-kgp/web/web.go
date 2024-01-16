@@ -1,6 +1,6 @@
 // Web interface generator
 //
-// Copyright (c) 2021, 2022, 2023  Philip Kaludercic
+// Copyright (c) 2021, 2022, 2023, 2024  Philip Kaludercic
 //
 // This file is part of go-kgp.
 //
@@ -54,8 +54,10 @@ var (
 		},
 		"timefmt": func(t time.Time) template.HTML {
 			since := time.Since(t).Round(time.Millisecond)
-			ts := fmt.Sprintf(`<span title="%s ago">%s</span>`,
-				since, t.Format(time.Stamp))
+			ts := fmt.Sprintf(`<time datetime="%s" title="%s ago">%s</time>`,
+				t.Format(time.RFC3339),
+				since,
+				t.Format(time.Stamp))
 			return template.HTML(ts)
 		},
 		"result": func(a *kgp.User, g kgp.Game) template.HTML {
