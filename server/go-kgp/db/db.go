@@ -1,6 +1,6 @@
 // Database management
 //
-// Copyright (c) 2021, 2022, 2023  Philip Kaludercic
+// Copyright (c) 2021, 2022, 2023, 2024  Philip Kaludercic
 //
 // This file is part of go-kgp.
 //
@@ -494,9 +494,11 @@ func (db *db) Start(st *cmd.State, conf *cmd.Conf) {
 			// https://www.sqlite.org/lang_vacuum.html
 			_, err = db.write.Exec("VACUUM;")
 		case <-tick:
+			log.Println("Deleting games")
 			var res sql.Result
 			res, err = db.commands["delete-games"].Exec()
 			if err != nil {
+				log.Print(err)
 				break
 			}
 
@@ -540,6 +542,7 @@ func (*db) String() string { return "Database Manager" }
 
 // Initialise the database and database managers
 func Register(st *cmd.State, conf *cmd.Conf) {
+	kgp.Debug.Println("Opening Database", conf.Database.File)
 	read, err := sql.Open("sqlite3", conf.Database.File)
 	if err != nil {
 		log.Fatal(err, ": ", conf.Database)
