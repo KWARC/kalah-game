@@ -477,43 +477,45 @@ func (db *db) QueryGraph(ctx context.Context, g chan<- *kgp.Game) error {
 }
 
 func (db *db) Start(st *cmd.State, conf *cmd.Conf) {
+	cleanup := func() {
+		log.Println("Deleting games")
+		res, err := db.commands["delete-games"].Exec()
+		if err != nil {
+			log.Print(err)
+			return
+		}
+
+		n, err := res.RowsAffected()
+		if err != nil {
+			log.Print(err)
+			return
+		}
+		kgp.Debug.Println("Deleted", n, "old games")
+		// https://www.sqlite.org/pragma.html#pragma_optimize
+		_, err = db.write.Exec("PRAGMA optimize;")
+		if err != nil {
+			log.Print(err)
+		}
+	}
+
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGUSR1)
-	tick := make(chan struct{})
-	go func() {
-		for {
-			tick <- struct{}{}
-			time.Sleep(conf.Database.Cleanup)
-		}
-	}()
+	ticker := time.NewTicker(conf.Database.Cleanup)
+	defer ticker.Stop()
+
+	cleanup()
 	for {
-		var err error
 		select {
 		case <-c:
 			kgp.Debug.Print("Vacuuming database")
 			// https://www.sqlite.org/lang_vacuum.html
-			_, err = db.write.Exec("VACUUM;")
-		case <-tick:
-			log.Println("Deleting games")
-			var res sql.Result
-			res, err = db.commands["delete-games"].Exec()
+			_, err := db.write.Exec("VACUUM;")
 			if err != nil {
 				log.Print(err)
-				break
 			}
 
-			var n int64
-			n, err = res.RowsAffected()
-			if err != nil {
-				log.Print(err)
-				break
-			}
-			kgp.Debug.Println("Deleted", n, "old games")
-			// https://www.sqlite.org/pragma.html#pragma_optimize
-			_, err = db.write.Exec("PRAGMA optimize;")
-		}
-		if err != nil {
-			log.Print(err)
+		case <-ticker.C:
+			cleanup()
 		}
 	}
 }
