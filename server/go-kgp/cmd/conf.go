@@ -1,6 +1,6 @@
 // Configuration
 //
-// Copyright (c) 2021, 2022, 2023  Philip Kaludercic
+// Copyright (c) 2021, 2022, 2023, 2024  Philip Kaludercic
 //
 // This file is part of go-kgp.
 //
@@ -57,6 +57,8 @@ func init() {
 
 	flag.StringVar(&def.Database.File, "db", def.Database.File,
 		"File to use for the database")
+	flag.DurationVar(&def.Database.Cleanup, "cleanup", def.Database.Cleanup,
+		"How frequently to clean up old games (older than a week)")
 
 	flag.BoolVar(&def.Proto.Ping, "ping", def.Proto.Ping,
 		"Enable ping as a keepalive check")
@@ -70,7 +72,8 @@ func init() {
 }
 
 type DatabaseConf struct {
-	File string `toml:"file"`
+	File    string        `toml:"file"`
+	Cleanup time.Duration `toml:"cleanup"`
 }
 
 type ProtoConf struct {
@@ -125,7 +128,8 @@ var defaultConfig = Conf{
 		Timeout: time.Second * 20,
 	},
 	Database: DatabaseConf{
-		File: "data.db",
+		File:    "data.db",
+		Cleanup: time.Hour * 4,
 	},
 	Game: GameConf{
 		Timeout: time.Second * 5,

@@ -483,7 +483,7 @@ func (db *db) Start(st *cmd.State, conf *cmd.Conf) {
 	go func() {
 		for {
 			tick <- struct{}{}
-			time.Sleep(4 * time.Hour)
+			time.Sleep(conf.Database.Cleanup)
 		}
 	}()
 	for {
