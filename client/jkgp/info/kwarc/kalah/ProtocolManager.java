@@ -80,6 +80,19 @@ public class ProtocolManager {
     // Creates new instance of communication to given server for the given agent
     ProtocolManager(String host, Integer port, ConnectionType conType, Agent agent, boolean printNetwork) {
 
+	Map<String, String> env = System.getenv();
+	if (env.containsKey("KGP_HOST")) {
+	    host = env.get("KGP_HOST");
+	}
+	if (env.containsKey("KGP_PORT")) {
+	    try {
+		port = Integer.parseInt(env.get("KGP_PORT"));
+	    } catch (NumberFormatException nfe) {
+		nfe.printStackTrace();
+		throw new IllegalStateException("Malformed port", nfe);
+	    }
+	}
+
         if (printNetwork) {
             debugStream = System.out;
         } else {
