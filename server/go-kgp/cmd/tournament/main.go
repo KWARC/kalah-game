@@ -1,6 +1,6 @@
 // Entry point
 //
-// Copyright (c) 2021, 2022, 2023  Philip Kaludercic
+// Copyright (c) 2021, 2022, 2023, 2024  Philip Kaludercic
 //
 // This file is part of go-kgp.
 //
@@ -41,6 +41,7 @@ import (
 func main() {
 	dir := flag.String("dir", "", "Agent directory")
 	auto := flag.Bool("auto", false, "Build containers in the agent directory.")
+	dry := flag.Bool("dry", false, "Just run sanity tests.")
 
 	flag.Parse()
 	if flag.NArg() != 0 {
@@ -58,28 +59,31 @@ func main() {
 
 	// Create schedule
 	var (
-		prog = []sched.Composable{sched.MakeSanityCheck()}
-		pat  = regexp.MustCompile(`^(\d+),(\d+)(?:,(?:(0?\.\d+)|(\d+)))?$`)
+		prog  = []sched.Composable{sched.MakeSanityCheck()}
+		pat   = regexp.MustCompile(`^(\d+),(\d+)(?:,(?:(0?\.\d+)|(\d+)))?$`)
+		combo *sched.Combo
 	)
-	for i, st := range conf.Game.Closed.Stages {
-		mat := pat.FindStringSubmatch(st)
-		if mat == nil {
-			log.Fatalf("Invalid stage %v (%d)", st, i+1)
-		}
+	if !*dry {
+		for i, st := range conf.Game.Closed.Stages {
+			mat := pat.FindStringSubmatch(st)
+			if mat == nil {
+				log.Fatalf("Invalid stage %v (%d)", st, i+1)
+			}
 
-		n, err := strconv.Atoi(mat[1])
-		if err != nil {
-			log.Panic(err)
-		}
-		m, err := strconv.Atoi(mat[2])
-		if err != nil {
-			log.Panic(err)
-		}
+			n, err := strconv.Atoi(mat[1])
+			if err != nil {
+				log.Panic(err)
+			}
+			m, err := strconv.Atoi(mat[2])
+			if err != nil {
+				log.Panic(err)
+			}
 
-		rr := sched.MakeRoundRobin(uint(n), uint(m))
-		prog = append(prog, rr)
+			rr := sched.MakeRoundRobin(uint(n), uint(m))
+			prog = append(prog, rr)
+		}
+		combo = sched.MakeCombo(prog...)
 	}
-	combo := sched.MakeCombo(prog...)
 
 	// Check if the -dir flag was used and handle it
 	st.Register(sched.MakeNoOp())
