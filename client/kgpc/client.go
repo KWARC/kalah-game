@@ -1,6 +1,6 @@
 // Communication Management
 //
-// Copyright (c) 2021, 2023  Philip Kaludercic
+// Copyright (c) 2021, 2023, 2024  Philip Kaludercic
 //
 // This file is part of kgpc, based on go-kgp.
 //
@@ -51,14 +51,14 @@ func (cli *Client) Error(to uint64, args ...interface{}) {
 func (cli *Client) Respond(to uint64, command string, args ...interface{}) uint64 {
 	var out io.Writer = cli.rwc
 	if debug {
-		fmt.Fprint(os.Stderr, ">")
+		fmt.Fprint(os.Stderr, "> ")
 		out = io.MultiWriter(os.Stderr, out)
 	}
 
 	id := atomic.AddUint64(&cli.rid, 2)
-	fmt.Fprint(cli.rwc, id)
+	fmt.Fprint(out, id)
 	if to > 0 {
-		fmt.Fprintf(cli.rwc, "@%d", to)
+		fmt.Fprintf(out, "@%d", to)
 	}
 
 	fmt.Fprintf(out, " %s", command)
