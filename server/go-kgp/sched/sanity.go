@@ -1,6 +1,6 @@
 // Sanity Test
 //
-// Copyright (c) 2022, 2023  Philip Kaludercic
+// Copyright (c) 2022, 2023, 2024  Philip Kaludercic
 //
 // This file is part of go-kgp.
 //
@@ -25,7 +25,7 @@ import (
 	"go-kgp/sched/isol"
 )
 
-func MakeSanityCheck() Composable {
+func MakeSanityCheck(n uint) Composable {
 	return &scheduler{
 		name: "Sanity Test",
 		desc: `All agents are made to compete once against a random bot
@@ -36,8 +36,10 @@ the random bot, otherwise one is disqualified immediately.`,
 		schedule: func(a []isol.ControlledAgent) (games []*kgp.Game) {
 			adv := bot.MakeRandom()
 			for _, agent := range a {
-				game := &kgp.Game{Board: kgp.MakeBoard(6, 6), South: agent, North: adv}
-				games = append(games, game)
+				for i := uint(0); i < n; i++ {
+					game := &kgp.Game{Board: kgp.MakeBoard(6, 6), South: agent, North: adv}
+					games = append(games, game)
+				}
 			}
 			return
 		},

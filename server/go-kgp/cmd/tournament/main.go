@@ -42,6 +42,7 @@ func main() {
 	dir := flag.String("dir", "", "Agent directory")
 	auto := flag.Bool("auto", false, "Build containers in the agent directory.")
 	dry := flag.Bool("dry", false, "Just run sanity tests.")
+	attempts := flag.Uint("attempts", 1, "How many attempts clients have to pass the sanity check.")
 
 	flag.Parse()
 	if flag.NArg() != 0 {
@@ -59,7 +60,7 @@ func main() {
 
 	// Create schedule
 	var (
-		prog  = []sched.Composable{sched.MakeSanityCheck()}
+		prog  = []sched.Composable{sched.MakeSanityCheck(*attempts)}
 		pat   = regexp.MustCompile(`^(\d+),(\d+)(?:,(?:(0?\.\d+)|(\d+)))?$`)
 		combo *sched.Combo
 	)
