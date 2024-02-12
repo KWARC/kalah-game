@@ -181,6 +181,19 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
+
+		if *auto {
+			kgp.Debug.Println("Saving automatic output to results.ms")
+			backup, err := os.Create("results.ms")
+			if err != nil {
+				kgp.Debug.Println("Failed to create backup file, using Standard Output instead")
+				backup = os.Stdout
+			} else {
+				defer backup.Close()
+			}
+			out = io.MultiWriter(out, backup)
+
+		}
 	} else {
 		out = os.Stdout
 	}
