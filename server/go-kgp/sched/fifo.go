@@ -34,11 +34,8 @@ import (
 
 var interval = 20 * time.Second
 
-// The intent is not to have a secure source of random values, but
-// just to avoid a predictive shuffling of north/south positions.
-func init() { rand.Seed(time.Now().UnixMicro()) }
-
 type fifo struct {
+	accs map[uint][]float64
 	add  chan kgp.Agent
 	rem  chan kgp.Agent
 	shut chan struct{}
@@ -53,14 +50,7 @@ func (f *fifo) Start(st *cmd.State, conf *cmd.Conf) {
 	)
 
 	bots = append(bots, bot.MakeRandom())
-	for d, accs := range map[uint][]float64{
-		2:  {1},
-		4:  {0.4, 1},
-		6:  {0.4, 0.75, 0.9, 1},
-		8:  {0.4, 0.75, 0.9, 1},
-		10: {0.4, 0.75, 0.9},
-		12: {0.4, 0.75},
-	} {
+	for d, accs := range f.accs {
 		for _, a := range accs {
 			bots = append(bots, bot.MakeMinMax(d, a))
 		}
@@ -273,6 +263,23 @@ func (*fifo) String() string           { return "FIFO Scheduler" }
 
 func MakeFIFO() cmd.Scheduler {
 	return cmd.Scheduler(&fifo{
+		accs: map[uint][]float64{
+			2:  {1},
+			4:  {0.4, 1},
+			6:  {0.4, 0.75, 0.9, 1},
+			8:  {0.4, 0.75, 0.9, 1},
+			10: {0.4, 0.75, 0.9},
+			12: {0.4, 0.75},
+		},
+		add:  make(chan kgp.Agent, 16),
+		rem:  make(chan kgp.Agent, 16),
+		shut: make(chan struct{}),
+	})
+}
+
+func MakeSpecificFifo(depth uint, accuracy float64) cmd.Scheduler {
+	return cmd.Scheduler(&fifo{
+		accs: map[uint][]float64{depth: {accuracy}},
 		add:  make(chan kgp.Agent, 16),
 		rem:  make(chan kgp.Agent, 16),
 		shut: make(chan struct{}),
