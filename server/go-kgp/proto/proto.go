@@ -1,6 +1,6 @@
 // Protocol Handling
 //
-// Copyright (c) 2021, 2022, 2023  Philip Kaludercic
+// Copyright (c) 2021, 2022, 2023, 2024  Philip Kaludercic
 //
 // This file is part of go-kgp.
 //
@@ -240,8 +240,9 @@ func (cli *Client) interpret(input string, st *cmd.State) error {
 			cli.freeplay(id, ref, cmd, args)
 		case verify:
 			cli.verify(id, ref, cmd, args)
+		default:
+			kgp.Debug.Printf("Invalid command %q", input)
 		}
-		kgp.Debug.Printf("Invalid command %q", input)
 	}
 
 	return nil
