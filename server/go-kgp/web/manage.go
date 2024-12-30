@@ -73,7 +73,7 @@ func (s *web) drawGraphs(st *cmd.State) {
 				}
 
 				var buf bytes.Buffer
-				err = T.ExecuteTemplate(&buf, "graph.tmpl", template.HTML(out))
+				err = t.ExecuteTemplate(&buf, "graph.tmpl", template.HTML(out))
 				data = buf.Bytes()
 
 				if err != nil {
@@ -152,7 +152,7 @@ func (s *web) Start(st *cmd.State, conf *cmd.Conf) {
 	}
 
 	// Parse templates
-	T = template.Must(template.New("").Funcs(funcs).ParseFS(html, "*.tmpl"))
+	t = template.Must(template.New("").Funcs(funcs).ParseFS(html, "*.tmpl"))
 	var aboutpage string
 	if w.About != "" {
 		contents, err := os.ReadFile(w.About)
@@ -164,7 +164,7 @@ func (s *web) Start(st *cmd.State, conf *cmd.Conf) {
 	if aboutpage == "" {
 		aboutpage = about
 	}
-	_, err := T.New("about.tmpl").Parse(string(aboutpage))
+	_, err := t.New("about.tmpl").Parse(string(aboutpage))
 	if err != nil {
 		log.Fatal(err)
 	}
