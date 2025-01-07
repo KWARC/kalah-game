@@ -1,6 +1,6 @@
 // Web interface manager
 //
-// Copyright (c) 2021, 2022, 2023  Philip Kaludercic
+// Copyright (c) 2021, 2022, 2023, 2025  Philip Kaludercic
 //
 // This file is part of go-kgp.
 //
@@ -109,6 +109,8 @@ func (s *web) Start(st *cmd.State, conf *cmd.Conf) {
 	})
 
 	s.mux.Handle("/static/", http.FileServer(http.FS(static)))
+
+	fallback := http.NotFoundHandler()
 	if w.Data != "" {
 		if stat, err := os.Stat(w.Data); err != nil {
 			log.Fatalf("Fail to access data directory %s: %s",
@@ -117,12 +119,17 @@ func (s *web) Start(st *cmd.State, conf *cmd.Conf) {
 			log.Fatalf("Data directory is not a directory %s",
 				w.Data)
 		}
-		log.Printf("Serving a /data/ directory (%s)", w.Data)
-		dir := http.FileServer(http.Dir(w.Data))
-		s.mux.Handle("/data/", http.StripPrefix("/data/", dir))
+		fallback = http.FileServer(http.Dir(w.Data))
+		kgp.Debug.Println("Serving", w.Data, "as a fallback")
 	}
 
-	s.mux.HandleFunc("/", s.index)
+	s.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/" {
+			s.index(w, r)
+			return
+		}
+		fallback.ServeHTTP(w, r)
+	})
 
 	if _, err := exec.LookPath("dot"); err == nil {
 		log.Print("Enabling graph generation")

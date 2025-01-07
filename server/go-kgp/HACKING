@@ -302,6 +302,11 @@ start the practice server along with all the necessary dependencies.
 Try setting the environmental variable =NONCE= to some random value to
 avoid users masquerading as bots.
 
+If you want the server to host additional files, you can use the
+=-data= flag, passing some local directory.  Any path that doesn't
+match a route handled by the server will fall back to a file in said
+directory.
+
 ** Starting a tournament server
 To organise a tournament, you should have a number of agents that can
 be compiled into docker containers.  It is best to have the source
