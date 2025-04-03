@@ -1,6 +1,6 @@
 // Docker-Based Client Isolation
 //
-// Copyright (c) 2022, 2023  Philip Kaludercic
+// Copyright (c) 2022, 2023, 2025  Philip Kaludercic
 //
 // This file is part of go-kgp.
 //
@@ -152,13 +152,13 @@ func (d *docker) Start(st *cmd.State, conf *cmd.Conf) (kgp.Agent, error) {
 		AutoRemove:  true,
 	}, nil, nil, fmt.Sprintf("%s-%d", d.name, time.Now().UnixNano()))
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create container %s: %w", d.name, err)
+		return nil, fmt.Errorf("failed to create container %s: %w", d.name, err)
 	}
 
 	id := resp.ID
 	kgp.Debug.Println("Starting container for", d)
 	if err := cont.ContainerStart(ctx, id, types.ContainerStartOptions{}); err != nil {
-		return nil, fmt.Errorf("Failed to start container %s: %w", d.name, err)
+		return nil, fmt.Errorf("failed to start container %s: %w", d.name, err)
 	}
 
 	kgp.Debug.Println("Waiting for container", d)
@@ -167,7 +167,7 @@ func (d *docker) Start(st *cmd.State, conf *cmd.Conf) (kgp.Agent, error) {
 	select {
 	case <-warmup.C:
 		err := cont.ContainerKill(ctx, id, `SIGKILL`)
-		return nil, fmt.Errorf("Failed to kill %s: %w", d.name, err)
+		return nil, fmt.Errorf("failed to kill %s: %w", d.name, err)
 	case client := <-wait:
 		kgp.Debug.Println(d, "Connected to port", listener.Port())
 
@@ -245,7 +245,7 @@ func (c *cli) Shutdown() error {
 	defer cancel()
 	err := c.C.ContainerKill(ctx, c.i, "SIGKILL")
 	if err != nil {
-		return fmt.Errorf("Failed to kill container %s: %w", c.d.name, err)
+		return fmt.Errorf("failed to kill container %s: %w", c.d.name, err)
 	}
 
 	return nil
