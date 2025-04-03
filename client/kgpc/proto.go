@@ -1,6 +1,6 @@
 // Protocol Handling
 //
-// Copyright (c) 2021, 2023  Philip Kaludercic
+// Copyright (c) 2021, 2023, 2025  Philip Kaludercic
 //
 // This file is part of go-kgp, based on go-kgp.
 //
@@ -31,7 +31,7 @@ import (
 
 var (
 	parser = regexp.MustCompile(`^[[:space:]]*` +
-		`(?:([[:digit:]]+)(?:@([[:digit:]]+))?[[:space:]]+)?` +
+		`(?:([[:digit:]]+)?(?:@([[:digit:]]+))?[[:space:]]+)?` +
 		`([[:alnum:]]+)(?:[[:space:]]+(.*))?` +
 		`[[:space:]]*$`)
 	errArgumentMismatch = errors.New("argument mismatch")
