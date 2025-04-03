@@ -38,18 +38,28 @@ import (
 	"go-kgp/sched/isol"
 )
 
-func main() {
-	dir := flag.String("dir", "", "Agent directory")
-	auto := flag.Bool("auto", false, "Build containers in the agent directory.")
-	dry := flag.Bool("dry", false, "Just run sanity tests.")
-	attempts := flag.Uint("attempts", 1, "How many attempts clients have to pass the sanity check.")
+var (
+	dir      = flag.String("dir", "", "Agent directory")
+	auto     = flag.Bool("auto", false, "Build containers in the agent directory.")
+	dry      = flag.Bool("dry", false, "Just run sanity tests.")
+	attempts = flag.Uint("attempts", 1, "How many attempts clients have to pass the sanity check.")
+	groff    = flag.String("groff", "groff", "Name or path to GNU Groff executable")
+)
 
+func main() {
 	flag.Parse()
 	if flag.NArg() != 0 {
 		fmt.Fprintf(flag.CommandLine.Output(),
 			"Too many arguments passed to %s.\nUsage:\n",
 			os.Args[0])
 		flag.PrintDefaults()
+		os.Exit(1)
+	}
+
+	_, err := exec.LookPath(*groff)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, `Failed to locate Groff: %s\n
+Please ensure GNU Groff is installed: https://www.gnu.org/software/groff/\n`, err)
 		os.Exit(1)
 	}
 
@@ -175,7 +185,7 @@ func main() {
 			goto skip
 		}
 		kgp.Debug.Println("Preparing groff with", dev)
-		cmd = exec.Command("groff", dev, "-ms", "-t")
+		cmd = exec.Command(*groff, dev, "-ms", "-t")
 
 		cmd.Stdout = file
 		out, err = cmd.StdinPipe()
