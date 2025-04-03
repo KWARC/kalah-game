@@ -1,6 +1,6 @@
 // Common Interfaces and constants
 //
-// Copyright (c) 2021, 2022, 2023  Philip Kaludercic
+// Copyright (c) 2021, 2022, 2023, 2025  Philip Kaludercic
 //
 // This file is part of go-kgp.
 //
@@ -31,17 +31,19 @@ type (
 	State   uint8
 )
 
-const (
-	// Possible agent modes
-	South, North Side = false, true
+// Possible agent modes
+const South, North Side = false, true
 
-	// Possible game outcomes
+// Possible game outcomes
+const (
 	_ Outcome = iota
 	WIN
 	LOSS
 	DRAW
+)
 
-	// Possible game states
+// Possible game states
+const (
 	ONGOING State = iota
 	NORTH_WON
 	SOUTH_WON
