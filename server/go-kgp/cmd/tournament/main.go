@@ -1,6 +1,6 @@
 // Entry point
 //
-// Copyright (c) 2021, 2022, 2023, 2024  Philip Kaludercic
+// Copyright (c) 2021, 2022, 2023, 2024, 2025  Philip Kaludercic
 //
 // This file is part of go-kgp.
 //
@@ -83,8 +83,8 @@ func main() {
 			rr := sched.MakeRoundRobin(uint(n), uint(m))
 			prog = append(prog, rr)
 		}
-		combo = sched.MakeCombo(prog...)
 	}
+	combo = sched.MakeCombo(prog...)
 
 	// Check if the -dir flag was used and handle it
 	st.Register(sched.MakeNoOp())
